@@ -1,0 +1,48 @@
+services:
+  # ============================================================================
+  # PostgreSQL 16 Relational Storage
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: wordchain-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wordchain
+      POSTGRES_USER: wordchain_user
+      POSTGRES_PASSWORD: wordchain_secure_password_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wordchain_user -d wordchain"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # WordChain Authoritative Server & React SPA Service
+  # ============================================================================
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wordchain-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgres://wordchain_user:wordchain_secure_password_2026@postgres:5432/wordchain
+      JWT_SECRET: production_jwt_secret_wordchain_academic_league_2026
+      COOKIE_SECRET: production_cookie_secret_wordchain_academic_league_2026
+      CLIENT_ORIGIN: http://localhost:4000
+      SERVE_STATIC: "true"
+    ports:
+      - "4000:4000"
+
+volumes:
+  postgres_data:
+    driver: local

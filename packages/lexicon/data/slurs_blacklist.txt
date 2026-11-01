@@ -1,0 +1,25 @@
+# Slurs & Offensive Hate Speech Blacklist
+# Words listed here are strictly excluded from the playable WordChain vocabulary
+NIGGER
+NIGGERS
+NIGGA
+NIGGAS
+FAGGOT
+FAGGOTS
+FAG
+FAGS
+RETARD
+RETARDED
+RETARDS
+KIKES
+KIKE
+SPIC
+SPICS
+CHINK
+CHINKS
+COON
+COONS
+GOOK
+GOOKS
+WETBACK
+WETBACKS

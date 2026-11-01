@@ -2,9 +2,12 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { authenticateSession } from './middleware/auth.middleware.js';
-import authRoutes from './modules/auth/auth.routes.js';
 import adminRoutes from './modules/admin/admin.routes.js';
+import authRoutes from './modules/auth/auth.routes.js';
 import profileRoutes from './modules/profile/profile.routes.js';
 import leaderboardRoutes from './modules/ranking/leaderboard.routes.js';
 
@@ -47,10 +50,43 @@ app.use('/api/v1/leaderboards', leaderboardRoutes);
 // Admin Telemetry & Moderation Routes
 app.use('/api/v1/admin', adminRoutes);
 
-// Fallback 404
+// In production or when web dist exists, serve static client bundle & handle SPA routing
+let webDistPath: string | null = null;
+try {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const candidates = [
+    path.resolve(__dirname, '../../web/dist'),
+    path.resolve(__dirname, '../../../apps/web/dist'),
+    path.resolve(process.cwd(), 'apps/web/dist'),
+    path.resolve(process.cwd(), 'dist/public'),
+    path.resolve(process.cwd(), 'public'),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate) && fs.existsSync(path.join(candidate, 'index.html'))) {
+      webDistPath = candidate;
+      break;
+    }
+  }
+} catch {
+  // Ignore in environments where fileURLToPath is unavailable
+}
+
+if (webDistPath) {
+  app.use(express.static(webDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+      return next();
+    }
+    res.sendFile(path.join(webDistPath!, 'index.html'));
+  });
+}
+
+// Fallback 404 for unhandled API or missing routes
 app.use((_req, res) => {
   res.status(404).json({
     success: false,
     message: 'Endpoint not found',
   });
 });
+
