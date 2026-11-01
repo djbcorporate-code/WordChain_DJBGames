@@ -1,0 +1,304 @@
+import {
+  AuthenticatedUser,
+  ForgotPasswordInput,
+  LoginInput,
+  RegisterInput,
+  ResetPasswordInput,
+  VerifyEmailInput,
+} from '@wordchain/shared';
+import { eq, or } from 'drizzle-orm';
+import { getDb } from '../../db/index.js';
+import { playerProfiles, playerRankProfiles, seasons, users } from '../../db/schema.js';
+import { generateJwt, generateRandomToken, hashPassword, verifyPassword } from '../../utils/security.js';
+
+export class AuthService {
+  static async register(input: RegisterInput): Promise<{ user: AuthenticatedUser; token: string; verificationToken: string }> {
+    const db = await getDb();
+    const normalizedEmail = input.email.trim().toLowerCase();
+    const normalizedUsername = input.username.trim();
+
+    // Check if email or username is already taken
+    const existing = await db
+      .select()
+      .from(users)
+      .where(or(eq(users.email, normalizedEmail), eq(users.username, normalizedUsername)))
+      .limit(1);
+
+    if (existing.length > 0) {
+      const match = existing[0];
+      if (match.email === normalizedEmail) {
+        throw new Error('An account with this email already exists.');
+      }
+      if (match.username.toLowerCase() === normalizedUsername.toLowerCase()) {
+        throw new Error('Username is already taken. Please choose another.');
+      }
+    }
+
+    const passwordHash = await hashPassword(input.password);
+    const verificationToken = generateRandomToken(32);
+
+    // Insert user
+    const [createdUser] = await db
+      .insert(users)
+      .values({
+        email: normalizedEmail,
+        username: normalizedUsername,
+        passwordHash,
+        emailVerified: false,
+        verificationToken,
+        role: 'USER',
+      })
+      .returning();
+
+    // Initialize player profile
+    const [profile] = await db
+      .insert(playerProfiles)
+      .values({
+        userId: createdUser.id,
+        avatarId: 'avatar_default_01',
+        accountLevel: 1,
+        lifetimeXp: 0,
+        totalMatches: 0,
+        totalWins: 0,
+        totalWordsPlayed: 0,
+        longestWord: '',
+      })
+      .returning();
+
+    // Retrieve active season
+    const activeSeasons = await db.select().from(seasons).where(eq(seasons.isActive, true)).limit(1);
+    const seasonId = activeSeasons.length > 0 ? activeSeasons[0].id : 1;
+
+    // Initialize player rank profile in NURSERY III
+    const [rankProfile] = await db
+      .insert(playerRankProfiles)
+      .values({
+        userId: createdUser.id,
+        seasonId,
+        tier: 'NURSERY',
+        division: 3,
+        rankExp: 0,
+        scientistPoints: 0,
+        highestTier: 'NURSERY',
+        highestScientistPoints: 0,
+        hiddenMmr: 1000,
+        seasonMatches: 0,
+        seasonWins: 0,
+      })
+      .returning();
+
+    const token = generateJwt({
+      userId: createdUser.id,
+      username: createdUser.username,
+      role: createdUser.role,
+      emailVerified: createdUser.emailVerified,
+    });
+
+    const authenticatedUser: AuthenticatedUser = {
+      id: createdUser.id,
+      email: createdUser.email,
+      username: createdUser.username,
+      role: createdUser.role as any,
+      emailVerified: createdUser.emailVerified,
+      profile: {
+        userId: profile.userId,
+        avatarId: profile.avatarId,
+        accountLevel: profile.accountLevel,
+        lifetimeXp: profile.lifetimeXp,
+        totalMatches: profile.totalMatches,
+        totalWins: profile.totalWins,
+        totalWordsPlayed: profile.totalWordsPlayed,
+        longestWord: profile.longestWord,
+      },
+      currentRank: {
+        tier: rankProfile.tier as any,
+        division: rankProfile.division,
+        rankExp: rankProfile.rankExp,
+        scientistPoints: rankProfile.scientistPoints,
+        hiddenMmr: rankProfile.hiddenMmr,
+      },
+    };
+
+    return { user: authenticatedUser, token, verificationToken };
+  }
+
+  static async login(input: LoginInput): Promise<{ user: AuthenticatedUser; token: string }> {
+    const db = await getDb();
+    const query = input.emailOrUsername.trim();
+    const queryLower = query.toLowerCase();
+
+    const foundUsers = await db
+      .select()
+      .from(users)
+      .where(or(eq(users.email, queryLower), eq(users.username, query)))
+      .limit(1);
+
+    if (foundUsers.length === 0) {
+      throw new Error('Invalid email/username or password.');
+    }
+
+    const user = foundUsers[0];
+    const passwordValid = await verifyPassword(input.password, user.passwordHash);
+
+    if (!passwordValid) {
+      throw new Error('Invalid email/username or password.');
+    }
+
+    const authenticatedUser = await this.getFullUserProfile(user.id);
+
+    const token = generateJwt({
+      userId: user.id,
+      username: user.username,
+      role: user.role,
+      emailVerified: user.emailVerified,
+    });
+
+    return { user: authenticatedUser, token };
+  }
+
+  static async verifyEmail(input: VerifyEmailInput): Promise<{ message: string }> {
+    const db = await getDb();
+    const foundUsers = await db
+      .select()
+      .from(users)
+      .where(eq(users.verificationToken, input.token))
+      .limit(1);
+
+    if (foundUsers.length === 0) {
+      throw new Error('Invalid or expired verification token.');
+    }
+
+    const user = foundUsers[0];
+    await db
+      .update(users)
+      .set({
+        emailVerified: true,
+        verificationToken: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
+
+    return { message: 'Email successfully verified! You may now access all multiplayer modes.' };
+  }
+
+  static async requestPasswordReset(input: ForgotPasswordInput): Promise<{ resetToken: string }> {
+    const db = await getDb();
+    const email = input.email.trim().toLowerCase();
+
+    const foundUsers = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+    if (foundUsers.length === 0) {
+      // Return a simulated token or success to avoid email enumeration
+      return { resetToken: 'SIMULATED_TOKEN' };
+    }
+
+    const user = foundUsers[0];
+    const resetToken = generateRandomToken(32);
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await db
+      .update(users)
+      .set({
+        resetPasswordToken: resetToken,
+        resetPasswordExpires: expires,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
+
+    return { resetToken };
+  }
+
+  static async resetPassword(input: ResetPasswordInput): Promise<{ message: string }> {
+    const db = await getDb();
+    const foundUsers = await db
+      .select()
+      .from(users)
+      .where(eq(users.resetPasswordToken, input.token))
+      .limit(1);
+
+    if (foundUsers.length === 0) {
+      throw new Error('Invalid or expired password reset token.');
+    }
+
+    const user = foundUsers[0];
+    if (user.resetPasswordExpires && new Date(user.resetPasswordExpires).getTime() < Date.now()) {
+      throw new Error('Password reset token has expired. Please request a new one.');
+    }
+
+    const passwordHash = await hashPassword(input.newPassword);
+
+    await db
+      .update(users)
+      .set({
+        passwordHash,
+        resetPasswordToken: null,
+        resetPasswordExpires: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
+
+    return { message: 'Password reset successful. You may now log in with your new password.' };
+  }
+
+  static async getFullUserProfile(userId: string): Promise<AuthenticatedUser> {
+    const db = await getDb();
+    const foundUsers = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+
+    if (foundUsers.length === 0) {
+      throw new Error('User not found.');
+    }
+
+    const user = foundUsers[0];
+
+    const profiles = await db.select().from(playerProfiles).where(eq(playerProfiles.userId, userId)).limit(1);
+    const profile = profiles[0] || {
+      userId,
+      avatarId: 'avatar_default_01',
+      accountLevel: 1,
+      lifetimeXp: 0,
+      totalMatches: 0,
+      totalWins: 0,
+      totalWordsPlayed: 0,
+      longestWord: '',
+    };
+
+    const rankProfiles = await db
+      .select()
+      .from(playerRankProfiles)
+      .where(eq(playerRankProfiles.userId, userId))
+      .limit(1);
+
+    const rank = rankProfiles[0] || {
+      tier: 'NURSERY',
+      division: 3,
+      rankExp: 0,
+      scientistPoints: 0,
+      hiddenMmr: 1000,
+    };
+
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role as any,
+      emailVerified: user.emailVerified,
+      profile: {
+        userId: profile.userId,
+        avatarId: profile.avatarId,
+        accountLevel: profile.accountLevel,
+        lifetimeXp: profile.lifetimeXp,
+        totalMatches: profile.totalMatches,
+        totalWins: profile.totalWins,
+        totalWordsPlayed: profile.totalWordsPlayed,
+        longestWord: profile.longestWord,
+      },
+      currentRank: {
+        tier: rank.tier as any,
+        division: rank.division,
+        rankExp: rank.rankExp,
+        scientistPoints: rank.scientistPoints,
+        hiddenMmr: rank.hiddenMmr,
+      },
+    };
+  }
+}
