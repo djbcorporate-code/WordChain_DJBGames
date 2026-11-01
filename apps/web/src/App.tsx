@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
 import { AuthModal } from './components/AuthModal.js';
+import { LobbyRoomView } from './components/lobby/LobbyRoomView.js';
+import { PrivateRoomModal } from './components/lobby/PrivateRoomModal.js';
 import { Navbar } from './components/Navbar.js';
 import { AuthProvider } from './context/AuthContext.js';
+import { GameProvider, useGame } from './context/GameContext.js';
 import { Dashboard } from './pages/Dashboard.js';
+import { LiveMultiplayerArena } from './pages/LiveMultiplayerArena.js';
 import { PracticeArena } from './pages/PracticeArena.js';
 
 export const AppContent: React.FC = () => {
+  const { currentRoom } = useGame();
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register' | 'verify'>('login');
+  const [privateRoomModalOpen, setPrivateRoomModalOpen] = useState(false);
   const [inPracticeArena, setInPracticeArena] = useState(false);
 
   const handleOpenAuth = (tab: 'login' | 'register' | 'verify') => {
@@ -15,22 +21,32 @@ export const AppContent: React.FC = () => {
     setAuthModalOpen(true);
   };
 
+  // Determine active view mode
+  const isWaitingInLobby = currentRoom && currentRoom.status === 'WAITING';
+  const isInLiveMatch = currentRoom && (currentRoom.status === 'IN_PROGRESS' || currentRoom.status === 'FINISHED');
+  const hideNavbarAndFooter = inPracticeArena || isInLiveMatch;
+
   return (
     <div className="min-h-screen bg-canvas text-slate-100 flex flex-col font-sans selection:bg-accent-primary selection:text-white">
-      {!inPracticeArena && <Navbar onOpenAuth={handleOpenAuth} />}
+      {!hideNavbarAndFooter && <Navbar onOpenAuth={handleOpenAuth} />}
 
-      <main className="flex-1">
+      <main className="flex-1 flex flex-col">
         {inPracticeArena ? (
           <PracticeArena onExit={() => setInPracticeArena(false)} />
+        ) : isInLiveMatch ? (
+          <LiveMultiplayerArena />
+        ) : isWaitingInLobby ? (
+          <LobbyRoomView />
         ) : (
           <Dashboard
             onOpenAuth={handleOpenAuth}
             onStartPractice={() => setInPracticeArena(true)}
+            onOpenPrivateRoom={() => setPrivateRoomModalOpen(true)}
           />
         )}
       </main>
 
-      {!inPracticeArena && (
+      {!hideNavbarAndFooter && (
         <footer className="border-t border-slate-900 bg-surface/50 py-6 text-center text-xs text-slate-500">
           <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span>WordChain &copy; 2026. Authoritative Multiplayer English Lexicon Arena.</span>
@@ -39,10 +55,17 @@ export const AppContent: React.FC = () => {
         </footer>
       )}
 
+      {/* Auth Modal */}
       <AuthModal
         isOpen={authModalOpen}
         initialTab={authInitialTab}
         onClose={() => setAuthModalOpen(false)}
+      />
+
+      {/* Private Room Modal */}
+      <PrivateRoomModal
+        isOpen={privateRoomModalOpen}
+        onClose={() => setPrivateRoomModalOpen(false)}
       />
     </div>
   );
@@ -51,7 +74,9 @@ export const AppContent: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AppContent />
+      <GameProvider>
+        <AppContent />
+      </GameProvider>
     </AuthProvider>
   );
 };

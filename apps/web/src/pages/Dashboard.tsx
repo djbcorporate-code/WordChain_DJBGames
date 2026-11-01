@@ -7,9 +7,10 @@ import { useAuth } from '../context/AuthContext.js';
 interface DashboardProps {
   onOpenAuth: (initialTab: 'login' | 'register' | 'verify') => void;
   onStartPractice: () => void;
+  onOpenPrivateRoom: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractice }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractice, onOpenPrivateRoom }) => {
   const { user } = useAuth();
 
   const rankTierConfig = user ? RANK_TIER_CONFIGS[user.currentRank.tier] : null;
@@ -246,7 +247,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
             <button
               onClick={() => {
                 if (!user) onOpenAuth('login');
-                else onStartPractice();
+                else onOpenPrivateRoom();
               }}
               className="mt-6 w-full py-3 rounded-xl font-bold text-sm bg-slate-800 group-hover:bg-amber-600 text-slate-100 group-hover:text-white transition-all flex items-center justify-center gap-2"
             >

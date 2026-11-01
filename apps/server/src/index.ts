@@ -1,7 +1,10 @@
+import { LexiconService } from '@wordchain/lexicon';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import { app } from './app.js';
 import { closeDb, getDb } from './db/index.js';
+import { socketAuthMiddleware } from './sockets/socketAuth.js';
+import { setupSocketRouter } from './sockets/socketRouter.js';
 
 const PORT = Number(process.env.PORT) || 4000;
 const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
@@ -17,19 +20,18 @@ export const io = new SocketIOServer(server, {
   pingTimeout: 5000,
 });
 
-io.on('connection', (socket) => {
-  console.log(`[Socket.IO] New connection established: ${socket.id}`);
-
-  socket.on('disconnect', (reason) => {
-    console.log(`[Socket.IO] Socket ${socket.id} disconnected: ${reason}`);
-  });
-});
+// Real-Time Authentication and Socket Event Routing
+io.use(socketAuthMiddleware);
+setupSocketRouter(io);
 
 async function startServer() {
   try {
     console.log('[WordChain] Booting server runtime...');
     await getDb();
     console.log('[WordChain] Database and schema validated.');
+
+    await LexiconService.getInstance().initialize();
+    console.log('[WordChain] Lexicon Trie loaded into memory.');
 
     server.listen(PORT, () => {
       console.log(`[WordChain] Server listening on http://localhost:${PORT}`);
