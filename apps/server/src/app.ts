@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { authenticateSession } from './middleware/auth.middleware.js';
 import authRoutes from './modules/auth/auth.routes.js';
+import profileRoutes from './modules/profile/profile.routes.js';
+import leaderboardRoutes from './modules/ranking/leaderboard.routes.js';
 
 dotenv.config();
 
@@ -34,6 +36,12 @@ app.get('/api/health', (_req, res) => {
 
 // Auth Routes
 app.use('/api/v1/auth', authRoutes);
+
+// Profile & Career Routes
+app.use('/api/v1/profile', profileRoutes);
+
+// Global & Seasonal Leaderboard Routes
+app.use('/api/v1/leaderboards', leaderboardRoutes);
 
 // Fallback 404
 app.use((_req, res) => {

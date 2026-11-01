@@ -1,13 +1,15 @@
-import { AlertCircle, CheckCircle2, LogOut, Sparkles, User as UserIcon } from 'lucide-react';
+import { AlertCircle, CheckCircle2, LogOut, Sparkles, Trophy, User as UserIcon } from 'lucide-react';
 import React from 'react';
 import { useAuth } from '../context/AuthContext.js';
 import { RankEmblem } from './RankEmblem.js';
 
 interface NavbarProps {
   onOpenAuth: (initialTab: 'login' | 'register' | 'verify') => void;
+  onOpenLeaderboard?: () => void;
+  onOpenProfile?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth, onOpenLeaderboard, onOpenProfile }) => {
   const { user, logout } = useAuth();
 
   return (
@@ -31,6 +33,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
           </div>
         </div>
 
+        {/* Global Leaderboards Quick Nav */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenLeaderboard}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 transition-all shadow-sm"
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Leaderboards</span>
+          </button>
+        </div>
+
         {/* User HUD / Auth Controls */}
         <div className="flex items-center gap-3">
           {user ? (
@@ -51,14 +64,22 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
                 </span>
               )}
 
-              {/* Account Level */}
-              <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-xs font-mono font-bold text-slate-200">
+              {/* Account Level & Profile trigger */}
+              <button
+                onClick={onOpenProfile}
+                className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 hover:border-accent-primary/60 text-xs font-mono font-bold text-slate-200 transition-all"
+                title="View Career Dossier & Cosmetics"
+              >
                 <Sparkles className="w-3.5 h-3.5 text-accent-secondary" />
                 <span>Lv. {user.profile.accountLevel}</span>
-              </div>
+              </button>
 
               {/* Rank Pill */}
-              <div className="bg-slate-900/80 border border-slate-800 px-3 py-1 rounded-xl">
+              <div
+                onClick={onOpenProfile}
+                className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 px-3 py-1 rounded-xl cursor-pointer transition-all"
+                title="View Rank Standing"
+              >
                 <RankEmblem
                   tier={user.currentRank.tier}
                   division={user.currentRank.division}
@@ -69,10 +90,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth }) => {
 
               {/* User menu / Logout */}
               <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
-                <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-200">
+                <button
+                  onClick={onOpenProfile}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-slate-200 hover:text-white transition-colors"
+                >
                   <UserIcon className="w-4 h-4 text-slate-400" />
                   <span className="hidden md:inline">{user.username}</span>
-                </div>
+                </button>
                 <button
                   onClick={logout}
                   className="p-2 rounded-lg bg-slate-800/80 hover:bg-rose-500/20 hover:text-rose-400 text-slate-400 border border-slate-700 hover:border-rose-500/30 transition-colors"

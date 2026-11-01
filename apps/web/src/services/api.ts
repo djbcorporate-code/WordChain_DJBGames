@@ -73,4 +73,36 @@ export const api = {
       });
     },
   },
+
+  profile: {
+    async get(username: string): Promise<{ success: boolean; profile: any }> {
+      return request(`/profile/${encodeURIComponent(username)}`);
+    },
+
+    async updateAvatar(avatarId: string): Promise<{ success: boolean; avatarId: string }> {
+      return request('/profile/avatar', {
+        method: 'PATCH',
+        body: JSON.stringify({ avatarId }),
+      });
+    },
+  },
+
+  leaderboards: {
+    async get(
+      type: 'SEASONAL' | 'LIFETIME_WINS' | 'ACCOUNT_LEVEL' = 'SEASONAL',
+      page: number = 1,
+      limit: number = 20
+    ): Promise<{
+      success: boolean;
+      type: string;
+      season: { id: number; name: string };
+      page: number;
+      limit: number;
+      totalScholars: number;
+      totalPages: number;
+      entries: any[];
+    }> {
+      return request(`/leaderboards?type=${type}&page=${page}&limit=${limit}`);
+    },
+  },
 };

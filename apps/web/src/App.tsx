@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { AuthModal } from './components/AuthModal.js';
+import { LeaderboardModal } from './components/leaderboard/LeaderboardModal.js';
 import { LobbyRoomView } from './components/lobby/LobbyRoomView.js';
 import { PrivateRoomModal } from './components/lobby/PrivateRoomModal.js';
 import { QueueModal } from './components/lobby/QueueModal.js';
 import { Navbar } from './components/Navbar.js';
+import { ProfileModal } from './components/profile/ProfileModal.js';
 import { AuthProvider } from './context/AuthContext.js';
 import { GameProvider, useGame } from './context/GameContext.js';
 import { Dashboard } from './pages/Dashboard.js';
@@ -15,11 +17,19 @@ export const AppContent: React.FC = () => {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register' | 'verify'>('login');
   const [privateRoomModalOpen, setPrivateRoomModalOpen] = useState(false);
+  const [leaderboardModalOpen, setLeaderboardModalOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedProfileUsername, setSelectedProfileUsername] = useState<string | undefined>(undefined);
   const [inPracticeArena, setInPracticeArena] = useState(false);
 
   const handleOpenAuth = (tab: 'login' | 'register' | 'verify') => {
     setAuthInitialTab(tab);
     setAuthModalOpen(true);
+  };
+
+  const handleOpenProfile = (username?: string) => {
+    setSelectedProfileUsername(username);
+    setProfileModalOpen(true);
   };
 
   // Determine active view mode
@@ -29,7 +39,13 @@ export const AppContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-canvas text-slate-100 flex flex-col font-sans selection:bg-accent-primary selection:text-white">
-      {!hideNavbarAndFooter && <Navbar onOpenAuth={handleOpenAuth} />}
+      {!hideNavbarAndFooter && (
+        <Navbar
+          onOpenAuth={handleOpenAuth}
+          onOpenLeaderboard={() => setLeaderboardModalOpen(true)}
+          onOpenProfile={() => handleOpenProfile(undefined)}
+        />
+      )}
 
       <main className="flex-1 flex flex-col">
         {inPracticeArena ? (
@@ -67,6 +83,23 @@ export const AppContent: React.FC = () => {
       <PrivateRoomModal
         isOpen={privateRoomModalOpen}
         onClose={() => setPrivateRoomModalOpen(false)}
+      />
+
+      {/* Global Leaderboards Modal */}
+      <LeaderboardModal
+        isOpen={leaderboardModalOpen}
+        onClose={() => setLeaderboardModalOpen(false)}
+        onSelectScholar={(username) => {
+          setLeaderboardModalOpen(false);
+          handleOpenProfile(username);
+        }}
+      />
+
+      {/* Scholar Profile & Cosmetics Locker Modal */}
+      <ProfileModal
+        isOpen={profileModalOpen}
+        username={selectedProfileUsername}
+        onClose={() => setProfileModalOpen(false)}
       />
 
       {/* Matchmaking Queue Search Modal */}

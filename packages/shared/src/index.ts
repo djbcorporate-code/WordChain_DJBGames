@@ -5,6 +5,7 @@ export * from './types/ranking.types.js';
 export * from './types/socket.events.js';
 
 // Re-export constants
+export * from './constants/cosmetics.constants.js';
 export * from './constants/game.constants.js';
 export * from './constants/ranks.constants.js';
 
