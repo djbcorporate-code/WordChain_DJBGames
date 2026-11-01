@@ -1,14 +1,15 @@
 import { RANK_TIER_CONFIGS } from '@wordchain/shared';
-import { ArrowRight, Flame, Lock, Shield, Sparkles, Swords, Trophy, Users, Zap } from 'lucide-react';
+import { ArrowRight, Flame, Gamepad2, Lock, Shield, Sparkles, Swords, Trophy, Users, Zap } from 'lucide-react';
 import React from 'react';
 import { RankEmblem } from '../components/RankEmblem.js';
 import { useAuth } from '../context/AuthContext.js';
 
 interface DashboardProps {
   onOpenAuth: (initialTab: 'login' | 'register' | 'verify') => void;
+  onStartPractice: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractice }) => {
   const { user } = useAuth();
 
   const rankTierConfig = user ? RANK_TIER_CONFIGS[user.currentRank.tier] : null;
@@ -22,7 +23,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth }) => {
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-surface via-slate-900 to-surface border border-slate-800 p-6 sm:p-8 shadow-2xl">
         <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-accent-primary/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-accent-primary/15 text-indigo-300 border border-accent-primary/30">
                 <Flame className="w-3.5 h-3.5 text-accent-secondary animate-pulse" /> Season 1 Active
@@ -44,6 +45,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth }) => {
               Ascend through 11 Academic Ranks from <strong className="text-sky-300">Nursery</strong> to the pinnacle{' '}
               <strong className="text-emerald-300">Scientist</strong>. Chain English words under accelerating turn clocks.
             </p>
+
+            {/* Quick Practice Mode Action */}
+            <div className="pt-2">
+              <button
+                onClick={onStartPractice}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-accent-primary to-accent-secondary text-slate-950 font-black text-sm shadow-glow hover:scale-105 active:scale-95 transition-all"
+              >
+                <Gamepad2 className="w-4 h-4 text-slate-950" />
+                <span>Launch Live Practice Arena</span>
+              </button>
+            </div>
           </div>
 
           {/* Academic Rank Card */}
@@ -139,11 +151,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth }) => {
             <button
               onClick={() => {
                 if (!user) onOpenAuth('login');
-                else alert('Casual Matchmaking Queue ready! (Phase 5 integration connected)');
+                else onStartPractice();
               }}
               className="mt-6 w-full py-3 rounded-xl font-bold text-sm bg-slate-800 group-hover:bg-accent-primary text-slate-100 group-hover:text-white transition-all flex items-center justify-center gap-2"
             >
-              <span>{user ? 'Find Casual Match' : 'Sign In to Play'}</span>
+              <span>{user ? 'Enter Casual Arena' : 'Sign In to Play'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -195,7 +207,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth }) => {
                 if (!user) onOpenAuth('login');
                 else if (!isEmailVerified) onOpenAuth('verify');
                 else if (!isRankedUnlocked) alert('Please complete at least 5 Casual Matches before unlocking Ranked Mode!');
-                else alert('Entering Competitive 4-Player Queue! (Phase 6 integration connected)');
+                else onStartPractice();
               }}
               className={`mt-6 w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
                 isRankedUnlocked
@@ -234,7 +246,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth }) => {
             <button
               onClick={() => {
                 if (!user) onOpenAuth('login');
-                else alert('Private Custom Lobby Creation ready! (Phase 4 integration connected)');
+                else onStartPractice();
               }}
               className="mt-6 w-full py-3 rounded-xl font-bold text-sm bg-slate-800 group-hover:bg-amber-600 text-slate-100 group-hover:text-white transition-all flex items-center justify-center gap-2"
             >
