@@ -3,6 +3,7 @@ import { ArrowRight, Flame, Gamepad2, Lock, Shield, Sparkles, Swords, Trophy, Us
 import React from 'react';
 import { RankEmblem } from '../components/RankEmblem.js';
 import { useAuth } from '../context/AuthContext.js';
+import { useGame } from '../context/GameContext.js';
 
 interface DashboardProps {
   onOpenAuth: (initialTab: 'login' | 'register' | 'verify') => void;
@@ -12,6 +13,7 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractice, onOpenPrivateRoom }) => {
   const { user } = useAuth();
+  const { joinQueue } = useGame();
 
   const rankTierConfig = user ? RANK_TIER_CONFIGS[user.currentRank.tier] : null;
   const isEmailVerified = user?.emailVerified ?? false;
@@ -152,7 +154,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
             <button
               onClick={() => {
                 if (!user) onOpenAuth('login');
-                else onStartPractice();
+                else joinQueue('CASUAL');
               }}
               className="mt-6 w-full py-3 rounded-xl font-bold text-sm bg-slate-800 group-hover:bg-accent-primary text-slate-100 group-hover:text-white transition-all flex items-center justify-center gap-2"
             >

@@ -75,6 +75,18 @@ class SocketService {
   }
 
   // Emitters
+  public joinQueue(mode: GameMode = 'CASUAL'): void {
+    this.getSocket().emit('LOBBY_JOIN_QUEUE', { mode });
+  }
+
+  public leaveQueue(): void {
+    this.getSocket().emit('LOBBY_LEAVE_QUEUE');
+  }
+
+  public reconnect(roomId: string): void {
+    this.getSocket().emit('ROOM_RECONNECT', { roomId });
+  }
+
   public createPrivateRoom(customTimerSec: number = 15): void {
     this.getSocket().emit('ROOM_CREATE_PRIVATE', { customTimerSec });
   }

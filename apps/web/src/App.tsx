@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AuthModal } from './components/AuthModal.js';
 import { LobbyRoomView } from './components/lobby/LobbyRoomView.js';
 import { PrivateRoomModal } from './components/lobby/PrivateRoomModal.js';
+import { QueueModal } from './components/lobby/QueueModal.js';
 import { Navbar } from './components/Navbar.js';
 import { AuthProvider } from './context/AuthContext.js';
 import { GameProvider, useGame } from './context/GameContext.js';
@@ -67,6 +68,9 @@ export const AppContent: React.FC = () => {
         isOpen={privateRoomModalOpen}
         onClose={() => setPrivateRoomModalOpen(false)}
       />
+
+      {/* Matchmaking Queue Search Modal */}
+      <QueueModal />
     </div>
   );
 };

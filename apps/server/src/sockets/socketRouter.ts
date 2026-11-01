@@ -8,10 +8,52 @@ import { Server, Socket } from 'socket.io';
 import { GameRoom, GameRoomCallbacks } from '../game/GameRoom.js';
 import { RoomManager } from '../game/RoomManager.js';
 import { AuthService } from '../modules/auth/auth.service.js';
+import { MatchmakingService } from '../modules/matchmaking/MatchmakingService.js';
 import { AuthenticatedSocket } from './socketAuth.js';
 
 export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClientEvents>): void {
   const roomManager = RoomManager.getInstance();
+  const matchmakingService = MatchmakingService.getInstance();
+  const disconnectTimers = new Map<string, NodeJS.Timeout>();
+
+  function bindRoomCallbacks(room: GameRoom) {
+    const callbacks: GameRoomCallbacks = {
+      onStateChange: (summary: GameRoomSummary) => {
+        io.to(room.roomId).emit('ROOM_STATE_UPDATE', summary);
+      },
+      onTurnStart: (turnState) => {
+        io.to(room.roomId).emit('GAME_TURN_START', turnState);
+      },
+      onWordAccepted: (payload) => {
+        io.to(room.roomId).emit('GAME_WORD_ACCEPTED', payload);
+      },
+      onWordRejected: (payload) => {
+        io.to(room.roomId).emit('GAME_WORD_REJECTED', {
+          word: payload.word,
+          reason: payload.reason,
+          message: getRejectionMessage(payload.reason, payload.word),
+        });
+      },
+      onLetterExhausted: (payload) => {
+        io.to(room.roomId).emit('GAME_LETTER_EXHAUSTED', payload);
+      },
+      onPlayerEliminated: (payload) => {
+        io.to(room.roomId).emit('GAME_PLAYER_ELIMINATED', payload);
+      },
+      onMatchEnded: (payload) => {
+        io.to(room.roomId).emit('GAME_MATCH_ENDED', {
+          winnerId: payload.winnerId,
+          standings: payload.standings,
+          deltas: {},
+        });
+      },
+    };
+
+    (room as any).callbacks = callbacks;
+  }
+
+  // Initialize Matchmaking with Socket broadcaster
+  matchmakingService.initialize(io, bindRoomCallbacks);
 
   io.on('connection', (rawSocket: Socket) => {
     const socket = rawSocket as AuthenticatedSocket;
@@ -19,43 +61,66 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
     console.log(`[Socket] Scholar connected: ${user.username} (${user.userId}) [socketId: ${socket.id}]`);
 
-    // Helper: Bind Room Callbacks to broadcast via Socket.IO
-    function bindRoomCallbacks(room: GameRoom) {
-      const callbacks: GameRoomCallbacks = {
-        onStateChange: (summary: GameRoomSummary) => {
-          io.to(room.roomId).emit('ROOM_STATE_UPDATE', summary);
-        },
-        onTurnStart: (turnState) => {
-          io.to(room.roomId).emit('GAME_TURN_START', turnState);
-        },
-        onWordAccepted: (payload) => {
-          io.to(room.roomId).emit('GAME_WORD_ACCEPTED', payload);
-        },
-        onWordRejected: (payload) => {
-          // Send rejection only to the user who submitted
-          socket.emit('GAME_WORD_REJECTED', {
-            word: payload.word,
-            reason: payload.reason,
-            message: getRejectionMessage(payload.reason, payload.word),
-          });
-        },
-        onLetterExhausted: (payload) => {
-          io.to(room.roomId).emit('GAME_LETTER_EXHAUSTED', payload);
-        },
-        onPlayerEliminated: (payload) => {
-          io.to(room.roomId).emit('GAME_PLAYER_ELIMINATED', payload);
-        },
-        onMatchEnded: (payload) => {
-          io.to(room.roomId).emit('GAME_MATCH_ENDED', {
-            winnerId: payload.winnerId,
-            standings: payload.standings,
-            deltas: {}, // Will be populated in Phase 6 competitive settlement
-          });
-        },
-      };
+    // AUTO-RECONNECT CHECK: If user was disconnected from an active match, clear timeout and re-attach!
+    const activeRooms = Array.from((roomManager as any).rooms.values()) as GameRoom[];
+    for (const room of activeRooms) {
+      if (room.status === 'IN_PROGRESS') {
+        const player = room.players.get(user.userId);
+        if (player && player.isAlive && player.isDisconnected) {
+          const pendingTimer = disconnectTimers.get(user.userId);
+          if (pendingTimer) {
+            clearTimeout(pendingTimer);
+            disconnectTimers.delete(user.userId);
+          }
 
-      (room as any).callbacks = callbacks;
+          player.isDisconnected = false;
+          player.disconnectedAt = undefined;
+          socket.join(room.roomId);
+          socket.data.roomId = room.roomId;
+
+          socket.emit('ROOM_STATE_UPDATE', room.getSummary());
+          if (room.getSummary().turnState) {
+            socket.emit('GAME_TURN_START', room.getSummary().turnState!);
+          }
+          io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+          console.log(`[Socket] Auto-reconnected disconnected scholar: ${user.username} to room ${room.roomCode}`);
+          break;
+        }
+      }
     }
+
+    // MATCHMAKING: JOIN QUEUE (Casual / Ranked)
+    socket.on('LOBBY_JOIN_QUEUE', async ({ mode }) => {
+      try {
+        const fullUser = await AuthService.getFullUserProfile(user.userId).catch(() => ({
+          id: user.userId,
+          username: user.username,
+          currentRank: { tier: 'NURSERY' as const, division: 3 },
+          profile: { avatarId: 'avatar_default_01' },
+        }));
+
+        const playerInfo: PlayerInGame = {
+          userId: user.userId,
+          username: user.username,
+          avatarId: fullUser.profile.avatarId,
+          tier: fullUser.currentRank.tier,
+          division: fullUser.currentRank.division,
+          isAlive: true,
+          isReady: true,
+          wordsSubmitted: 0,
+          isDisconnected: false,
+        };
+
+        matchmakingService.enqueue(user, socket, playerInfo, mode || 'CASUAL');
+      } catch (err: any) {
+        socket.emit('SOCKET_ERROR', { code: 'QUEUE_FAILED', message: err.message });
+      }
+    });
+
+    // MATCHMAKING: LEAVE QUEUE
+    socket.on('LOBBY_LEAVE_QUEUE', () => {
+      matchmakingService.dequeue(user.userId);
+    });
 
     // CREATE PRIVATE ROOM
     socket.on('ROOM_CREATE_PRIVATE', async (payload) => {
@@ -224,6 +289,40 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       });
     });
 
+    // MANUAL RECONNECT REQUEST
+    socket.on('ROOM_RECONNECT', ({ roomId }) => {
+      const room = roomManager.getRoom(roomId);
+      if (!room || room.status !== 'IN_PROGRESS') {
+        socket.emit('SOCKET_ERROR', { code: 'RECONNECT_FAILED', message: 'No active match to restore.' });
+        return;
+      }
+
+      const player = room.players.get(user.userId);
+      if (!player || !player.isAlive) {
+        socket.emit('SOCKET_ERROR', { code: 'RECONNECT_FAILED', message: 'Player eliminated or not in match.' });
+        return;
+      }
+
+      const pendingTimer = disconnectTimers.get(user.userId);
+      if (pendingTimer) {
+        clearTimeout(pendingTimer);
+        disconnectTimers.delete(user.userId);
+      }
+
+      player.isDisconnected = false;
+      player.disconnectedAt = undefined;
+
+      socket.join(room.roomId);
+      socket.data.roomId = room.roomId;
+
+      socket.emit('ROOM_STATE_UPDATE', room.getSummary());
+      if (room.getSummary().turnState) {
+        socket.emit('GAME_TURN_START', room.getSummary().turnState!);
+      }
+      io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+      console.log(`[Socket] Scholar manually reconnected: ${user.username} to room ${room.roomCode}`);
+    });
+
     // LEAVE ROOM
     socket.on('ROOM_LEAVE', () => {
       const roomId = socket.data.roomId;
@@ -231,7 +330,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
       const room = roomManager.getRoom(roomId);
       if (room) {
-        const { wasHost, newHostId, shouldClose } = room.removePlayer(user.userId);
+        const { newHostId, shouldClose } = room.removePlayer(user.userId);
         socket.leave(room.roomId);
         delete socket.data.roomId;
 
@@ -246,6 +345,9 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
     // DISCONNECT
     socket.on('disconnect', () => {
+      // Dequeue if waiting in matchmaking queue
+      matchmakingService.dequeue(user.userId);
+
       const roomId = socket.data.roomId;
       if (!roomId) return;
 
@@ -266,6 +368,20 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           player.isDisconnected = true;
           player.disconnectedAt = Date.now();
           io.to(roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+
+          // 25-second grace window before auto-forfeit elimination
+          const timer = setTimeout(() => {
+            disconnectTimers.delete(user.userId);
+            const targetRoom = roomManager.getRoom(roomId);
+            if (targetRoom && targetRoom.status === 'IN_PROGRESS') {
+              const p = targetRoom.players.get(user.userId);
+              if (p && p.isDisconnected && p.isAlive) {
+                targetRoom.eliminatePlayer(user.userId, 'DISCONNECT');
+              }
+            }
+          }, 25000);
+
+          disconnectTimers.set(user.userId, timer);
         }
       }
     });

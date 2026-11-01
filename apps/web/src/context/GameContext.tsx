@@ -1,4 +1,5 @@
 import {
+  GameMode,
   GameRoomSummary,
   GameTurnState,
   PlayerInGame,
@@ -9,14 +10,25 @@ import { socketService } from '../services/socket.js';
 import { soundManager } from '../utils/sound.js';
 import { useAuth } from './AuthContext.js';
 
+export interface QueueState {
+  inQueue: boolean;
+  mode?: GameMode;
+  position?: number;
+  estimatedWaitSec?: number;
+}
+
 interface GameContextType {
   currentRoom: GameRoomSummary | null;
   turnState: GameTurnState | null;
+  queueStatus: QueueState | null;
+  matchFoundNotice: { roomId: string; countdownSec: number } | null;
   lastRejectionReason: string | null;
   shakeTrigger: number;
   matchWinner: { winnerId: string; standings: PlayerInGame[] } | null;
   error: string | null;
   isConnected: boolean;
+  joinQueue: (mode?: GameMode) => void;
+  leaveQueue: () => void;
   createPrivateRoom: (timerSec?: number) => void;
   joinRoomByCode: (code: string) => void;
   leaveRoom: () => void;
@@ -32,6 +44,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { user } = useAuth();
   const [currentRoom, setCurrentRoom] = useState<GameRoomSummary | null>(null);
   const [turnState, setTurnState] = useState<GameTurnState | null>(null);
+  const [queueStatus, setQueueStatus] = useState<QueueState | null>(null);
+  const [matchFoundNotice, setMatchFoundNotice] = useState<{ roomId: string; countdownSec: number } | null>(null);
   const [lastRejectionReason, setLastRejectionReason] = useState<string | null>(null);
   const [shakeTrigger, setShakeTrigger] = useState<number>(0);
   const [matchWinner, setMatchWinner] = useState<{ winnerId: string; standings: PlayerInGame[] } | null>(null);
@@ -42,19 +56,61 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) {
       socketService.disconnect();
       setCurrentRoom(null);
+      setQueueStatus(null);
       setIsConnected(false);
       return;
     }
 
     const socket = socketService.connect();
 
-    const handleConnect = () => setIsConnected(true);
+    const handleConnect = () => {
+      setIsConnected(true);
+
+      // Attempt auto-reconnect if returning to an active match
+      try {
+        const savedRoomId = localStorage.getItem('wordchain_active_room');
+        if (savedRoomId) {
+          socketService.reconnect(savedRoomId);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
     const handleDisconnect = () => setIsConnected(false);
+
+    const handleQueueStatus = (status: QueueState) => {
+      setQueueStatus(status);
+      if (!status.inQueue) {
+        setMatchFoundNotice(null);
+      }
+    };
+
+    const handleMatchFound = (payload: { roomId: string; mode: GameMode; countdownSec: number }) => {
+      soundManager.playVictory();
+      setQueueStatus(null);
+      setMatchFoundNotice({ roomId: payload.roomId, countdownSec: payload.countdownSec });
+    };
 
     const handleRoomUpdate = (summary: GameRoomSummary) => {
       setCurrentRoom(summary);
       if (summary.turnState) {
         setTurnState(summary.turnState);
+      }
+
+      // Persist active match in localStorage for disconnect restoration
+      if (summary.status === 'IN_PROGRESS') {
+        try {
+          localStorage.setItem('wordchain_active_room', summary.roomId);
+        } catch {
+          // ignore
+        }
+      } else if (summary.status === 'FINISHED' || summary.status === 'ABORTED') {
+        try {
+          localStorage.removeItem('wordchain_active_room');
+        } catch {
+          // ignore
+        }
       }
     };
 
@@ -84,6 +140,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleMatchEnded = (payload: { winnerId: string; standings: PlayerInGame[] }) => {
       soundManager.playVictory();
       setMatchWinner({ winnerId: payload.winnerId, standings: payload.standings });
+      try {
+        localStorage.removeItem('wordchain_active_room');
+      } catch {
+        // ignore
+      }
     };
 
     const handleSocketError = (payload: { code: string; message: string }) => {
@@ -92,6 +153,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
+    socket.on('QUEUE_STATUS', handleQueueStatus);
+    socket.on('MATCH_FOUND', handleMatchFound);
     socket.on('ROOM_STATE_UPDATE', handleRoomUpdate);
     socket.on('GAME_TURN_START', handleTurnStart);
     socket.on('GAME_WORD_ACCEPTED', handleWordAccepted);
@@ -103,6 +166,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
+      socket.off('QUEUE_STATUS', handleQueueStatus);
+      socket.off('MATCH_FOUND', handleMatchFound);
       socket.off('ROOM_STATE_UPDATE', handleRoomUpdate);
       socket.off('GAME_TURN_START', handleTurnStart);
       socket.off('GAME_WORD_ACCEPTED', handleWordAccepted);
@@ -112,6 +177,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socket.off('SOCKET_ERROR', handleSocketError);
     };
   }, [user]);
+
+  const joinQueue = (mode: GameMode = 'CASUAL') => {
+    setError(null);
+    setMatchWinner(null);
+    socketService.joinQueue(mode);
+  };
+
+  const leaveQueue = () => {
+    socketService.leaveQueue();
+    setQueueStatus(null);
+    setMatchFoundNotice(null);
+  };
 
   const createPrivateRoom = (timerSec: number = 15) => {
     setError(null);
@@ -130,6 +207,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentRoom(null);
     setTurnState(null);
     setMatchWinner(null);
+    try {
+      localStorage.removeItem('wordchain_active_room');
+    } catch {
+      // ignore
+    }
   };
 
   const toggleReady = (isReady: boolean) => {
@@ -153,11 +235,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         currentRoom,
         turnState,
+        queueStatus,
+        matchFoundNotice,
         lastRejectionReason,
         shakeTrigger,
         matchWinner,
         error,
         isConnected,
+        joinQueue,
+        leaveQueue,
         createPrivateRoom,
         joinRoomByCode,
         leaveRoom,
