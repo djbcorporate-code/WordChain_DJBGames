@@ -9,6 +9,7 @@ import { GameRoom, GameRoomCallbacks } from '../game/GameRoom.js';
 import { RoomManager } from '../game/RoomManager.js';
 import { AuthService } from '../modules/auth/auth.service.js';
 import { MatchmakingService } from '../modules/matchmaking/MatchmakingService.js';
+import { RankingService } from '../modules/ranking/RankingService.js';
 import { AuthenticatedSocket } from './socketAuth.js';
 
 export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClientEvents>): void {
@@ -40,12 +41,22 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       onPlayerEliminated: (payload) => {
         io.to(room.roomId).emit('GAME_PLAYER_ELIMINATED', payload);
       },
-      onMatchEnded: (payload) => {
-        io.to(room.roomId).emit('GAME_MATCH_ENDED', {
-          winnerId: payload.winnerId,
-          standings: payload.standings,
-          deltas: {},
-        });
+      onMatchEnded: async (payload) => {
+        try {
+          const deltas = await RankingService.settleMatchResults(room.roomId, room);
+          io.to(room.roomId).emit('GAME_MATCH_ENDED', {
+            winnerId: payload.winnerId,
+            standings: payload.standings,
+            deltas,
+          });
+        } catch (err: any) {
+          console.error(`[Socket] Error settling match ${room.roomId}:`, err);
+          io.to(room.roomId).emit('GAME_MATCH_ENDED', {
+            winnerId: payload.winnerId,
+            standings: payload.standings,
+            deltas: {},
+          });
+        }
       },
     };
 
@@ -95,7 +106,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
         const fullUser = await AuthService.getFullUserProfile(user.userId).catch(() => ({
           id: user.userId,
           username: user.username,
-          currentRank: { tier: 'NURSERY' as const, division: 3 },
+          currentRank: { tier: 'NURSERY' as const, division: 3, hiddenMmr: 1000 },
           profile: { avatarId: 'avatar_default_01' },
         }));
 
@@ -111,7 +122,13 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           isDisconnected: false,
         };
 
-        matchmakingService.enqueue(user, socket, playerInfo, mode || 'CASUAL');
+        await matchmakingService.enqueue(
+          user,
+          socket,
+          playerInfo,
+          mode || 'CASUAL',
+          (fullUser.currentRank as any).hiddenMmr || 1000
+        );
       } catch (err: any) {
         socket.emit('SOCKET_ERROR', { code: 'QUEUE_FAILED', message: err.message });
       }

@@ -1,4 +1,4 @@
-import { CheckCircle2, Loader2, Sparkles, Trophy, Users, X } from 'lucide-react';
+import { CheckCircle2, Loader2, Sparkles, Swords, Trophy, Users, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useGame } from '../../context/GameContext.js';
 
@@ -28,6 +28,7 @@ export const QueueModal: React.FC = () => {
   };
 
   const isMatched = !!matchFoundNotice;
+  const isRanked = queueStatus?.mode === 'RANKED';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
@@ -35,7 +36,11 @@ export const QueueModal: React.FC = () => {
         {/* Glow backdrop */}
         <div
           className={`absolute top-0 w-64 h-64 rounded-full blur-3xl pointer-events-none transition-all duration-700 ${
-            isMatched ? 'bg-emerald-500/20' : 'bg-accent-primary/20'
+            isMatched
+              ? 'bg-emerald-500/20'
+              : isRanked
+              ? 'bg-indigo-500/25'
+              : 'bg-accent-primary/20'
           }`}
         />
 
@@ -51,7 +56,7 @@ export const QueueModal: React.FC = () => {
               <div className="absolute inset-0 rounded-full border-2 border-accent-secondary/40 animate-ping" />
               <div className="absolute inset-2 rounded-full border border-accent-primary/60 animate-pulse" />
               <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center text-accent-secondary shadow-glow">
-                <Users className="w-7 h-7" />
+                {isRanked ? <Swords className="w-7 h-7 text-indigo-400" /> : <Users className="w-7 h-7" />}
               </div>
             </div>
           )}
@@ -60,14 +65,20 @@ export const QueueModal: React.FC = () => {
         {/* Text information */}
         <div className="relative z-10 space-y-1.5">
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-accent-secondary">
-            {isMatched ? 'Match Confirmed' : 'Casual Matchmaking Queue'}
+            {isMatched
+              ? 'Match Confirmed'
+              : isRanked
+              ? 'Competitive Ranked Queue (4-FFA)'
+              : 'Casual Matchmaking Queue'}
           </span>
           <h3 className="text-xl sm:text-2xl font-black text-white">
-            {isMatched ? 'Match Found!' : 'Searching for Scholars...'}
+            {isMatched ? 'Match Found!' : isRanked ? 'Finding FFA Scholars...' : 'Searching for Scholars...'}
           </h3>
           <p className="text-xs text-slate-400">
             {isMatched
               ? `Entering Arena in ${matchFoundNotice.countdownSec || 3} seconds`
+              : isRanked
+              ? 'Searching for 4 players within your Academic MMR window.'
               : 'Pairing you with 2 to 4 players for a casual word chain match.'}
           </p>
         </div>

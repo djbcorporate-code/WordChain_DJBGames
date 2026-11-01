@@ -6,6 +6,7 @@ import { io as Client, Socket as ClientSocket } from 'socket.io-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { app } from '../../../app.js';
 import { closeDb, getDb } from '../../../db/index.js';
+import { playerProfiles, users } from '../../../db/schema.js';
 import { socketAuthMiddleware } from '../../../sockets/socketAuth.js';
 import { setupSocketRouter } from '../../../sockets/socketRouter.js';
 import { generateJwt } from '../../../utils/security.js';
@@ -161,7 +162,7 @@ describe('Phase 5: Casual Public Matchmaking & Disconnect Recovery', () => {
     // 2. Scholar B abruptly disconnects
     const disconnectedNoticePromise = new Promise<GameRoomSummary>((resolve) => {
       socketA.on('ROOM_STATE_UPDATE', (summary) => {
-        const guestPlayer = summary.players.find((p) => p.userId === scholar2.userId);
+        const guestPlayer = summary.players.find((p: any) => p.userId === scholar2.userId);
         if (guestPlayer && guestPlayer.isDisconnected) {
           resolve(summary);
         }
@@ -171,7 +172,7 @@ describe('Phase 5: Casual Public Matchmaking & Disconnect Recovery', () => {
     socketB.disconnect();
     const stateAfterDisconnect = await disconnectedNoticePromise;
 
-    const bPlayer = stateAfterDisconnect.players.find((p) => p.userId === scholar2.userId);
+    const bPlayer = stateAfterDisconnect.players.find((p: any) => p.userId === scholar2.userId);
     expect(bPlayer?.isDisconnected).toBe(true);
 
     // 3. Scholar B connects a new socket and sends ROOM_RECONNECT within grace window
@@ -184,7 +185,7 @@ describe('Phase 5: Casual Public Matchmaking & Disconnect Recovery', () => {
 
     const reconnectedPromise = new Promise<GameRoomSummary>((resolve) => {
       newSocketB.on('ROOM_STATE_UPDATE', (summary) => {
-        const restoredPlayer = summary.players.find((p) => p.userId === scholar2.userId);
+        const restoredPlayer = summary.players.find((p: any) => p.userId === scholar2.userId);
         if (restoredPlayer && !restoredPlayer.isDisconnected) {
           resolve(summary);
         }
@@ -201,4 +202,116 @@ describe('Phase 5: Casual Public Matchmaking & Disconnect Recovery', () => {
     socketA.disconnect();
     newSocketB.disconnect();
   }, 12000);
+
+  it('should reject a scholar without prerequisites from joining Ranked queue', async () => {
+    const db = await getDb();
+    const lockedUserId = '99999999-9999-9999-9999-999999999999';
+    await db
+      .insert(users)
+      .values({
+        id: lockedUserId,
+        email: 'locked@wordchain.io',
+        username: 'LockedScholar',
+        passwordHash: 'hash',
+        emailVerified: false,
+      })
+      .onConflictDoNothing();
+
+    const lockedToken = generateJwt({
+      userId: lockedUserId,
+      username: 'LockedScholar',
+      role: 'USER',
+      emailVerified: false,
+    });
+
+    const lockedSocket: ClientSocket = Client(`http://localhost:${port}`, {
+      auth: { token: lockedToken },
+      transports: ['websocket'],
+    });
+
+    await new Promise<void>((resolve) => lockedSocket.on('connect', () => resolve()));
+
+    const errorPromise = new Promise<{ code: string; message: string }>((resolve) => {
+      lockedSocket.on('SOCKET_ERROR', (err) => resolve(err));
+    });
+
+    lockedSocket.emit('LOBBY_JOIN_QUEUE', { mode: 'RANKED' });
+    const err = await errorPromise;
+
+    expect(err.code).toBe('RANKED_NOT_ELIGIBLE');
+    expect(err.message).toContain('Email must be verified');
+
+    lockedSocket.disconnect();
+  });
+
+  it('should assemble exactly 4 eligible scholars into a 4-Player FFA Ranked match', async () => {
+    const db = await getDb();
+    const rankedUsers = [
+      { id: '12121212-1212-1212-1212-121212121212', username: 'RankedP1' },
+      { id: '23232323-2323-2323-2323-232323232323', username: 'RankedP2' },
+      { id: '34343434-3434-3434-3434-343434343434', username: 'RankedP3' },
+      { id: '45454545-4545-4545-4545-454545454545', username: 'RankedP4' },
+    ];
+
+    const sockets: ClientSocket[] = [];
+
+    for (const u of rankedUsers) {
+      await db
+        .insert(users)
+        .values({
+          id: u.id,
+          email: `${u.username.toLowerCase()}@wordchain.io`,
+          username: u.username,
+          passwordHash: 'hash',
+          emailVerified: true,
+        })
+        .onConflictDoNothing();
+
+      await db
+        .insert(playerProfiles)
+        .values({
+          userId: u.id,
+          totalMatches: 8,
+          totalWins: 3,
+        })
+        .onConflictDoNothing();
+
+      const token = generateJwt({
+        userId: u.id,
+        username: u.username,
+        role: 'USER',
+        emailVerified: true,
+      });
+
+      const s = Client(`http://localhost:${port}`, {
+        auth: { token },
+        transports: ['websocket'],
+      });
+      await new Promise<void>((r) => s.on('connect', () => r()));
+      sockets.push(s);
+    }
+
+    const matchFoundPromises = sockets.map((s) => {
+      return new Promise<{ roomId: string; mode: string }>((resolve) => {
+        s.on('MATCH_FOUND', (payload) => resolve(payload));
+      });
+    });
+
+    // Enqueue all 4 into Ranked queue
+    for (const s of sockets) {
+      s.emit('LOBBY_JOIN_QUEUE', { mode: 'RANKED' });
+    }
+
+    const matchResults = await Promise.all(matchFoundPromises);
+
+    // All 4 receive identical roomId and mode = RANKED
+    expect(matchResults[0].mode).toBe('RANKED');
+    expect(matchResults[0].roomId).toBe(matchResults[1].roomId);
+    expect(matchResults[0].roomId).toBe(matchResults[2].roomId);
+    expect(matchResults[0].roomId).toBe(matchResults[3].roomId);
+
+    for (const s of sockets) {
+      s.disconnect();
+    }
+  }, 10000);
 });

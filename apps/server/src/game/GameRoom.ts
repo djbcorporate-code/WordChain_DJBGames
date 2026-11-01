@@ -59,6 +59,7 @@ export class GameRoom {
   public readonly roomId: string;
   public readonly roomCode: string;
   public readonly mode: GameMode;
+  public readonly createdAt: number = Date.now();
   public hostUserId: string;
 
   public status: RoomStatus = 'WAITING';

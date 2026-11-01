@@ -9,12 +9,14 @@ import { Server, Socket } from 'socket.io';
 import { GameRoom } from '../../game/GameRoom.js';
 import { RoomManager } from '../../game/RoomManager.js';
 import { AuthenticatedSocket } from '../../sockets/socketAuth.js';
+import { RankingService } from '../ranking/RankingService.js';
 
 interface QueuedPlayer {
   user: AuthSession;
   socket: AuthenticatedSocket;
   playerInfo: PlayerInGame;
   mode: GameMode;
+  mmr: number;
   enqueuedAt: number;
 }
 
@@ -44,17 +46,30 @@ export class MatchmakingService {
     }
   }
 
-  public enqueue(
+  public async enqueue(
     user: AuthSession,
     socket: AuthenticatedSocket,
     playerInfo: PlayerInGame,
-    mode: GameMode = 'CASUAL'
-  ): void {
+    mode: GameMode = 'CASUAL',
+    mmr: number = 1000
+  ): Promise<boolean> {
+    // Check Ranked eligibility if queuing for Ranked
+    if (mode === 'RANKED') {
+      const eligibility = await RankingService.checkRankedEligibility(user.userId);
+      if (!eligibility.eligible) {
+        socket.emit('SOCKET_ERROR', {
+          code: 'RANKED_NOT_ELIGIBLE',
+          message: eligibility.reason || 'You are not eligible for Ranked matches.',
+        });
+        return false;
+      }
+    }
+
     // Check if already in queue
     const existingIndex = this.queue.findIndex((p) => p.user.userId === user.userId);
     if (existingIndex !== -1) {
       this.queue[existingIndex].socket = socket;
-      return;
+      return true;
     }
 
     this.queue.push({
@@ -62,18 +77,20 @@ export class MatchmakingService {
       socket,
       playerInfo,
       mode,
+      mmr,
       enqueuedAt: Date.now(),
     });
 
     socket.emit('QUEUE_STATUS', {
       inQueue: true,
       mode,
-      position: this.queue.length,
-      estimatedWaitSec: 3,
+      position: this.queue.filter((p) => p.mode === mode).length,
+      estimatedWaitSec: mode === 'RANKED' ? 10 : 3,
     });
 
     // Check immediately if we can form a match
     this.processQueue();
+    return true;
   }
 
   public dequeue(userId: string): void {
@@ -94,8 +111,13 @@ export class MatchmakingService {
     // Filter out disconnected sockets
     this.queue = this.queue.filter((p) => p.socket.connected);
 
-    // Filter casual players
+    this.processCasualQueue();
+    this.processRankedQueue();
+  }
+
+  private processCasualQueue(): void {
     const casualQueue = this.queue.filter((p) => p.mode === 'CASUAL');
+    if (casualQueue.length === 0) return;
 
     // Rule 1: Instant match if 4 players are in queue
     // Rule 2: Match 2 or 3 players if oldest player has waited >= 2.5 seconds
@@ -124,6 +146,59 @@ export class MatchmakingService {
         mode: 'CASUAL',
         position: idx + 1,
         estimatedWaitSec: Math.max(1, 3 - Math.floor((Date.now() - p.enqueuedAt) / 1000)),
+      });
+    });
+  }
+
+  private processRankedQueue(): void {
+    const rankedQueue = this.queue.filter((p) => p.mode === 'RANKED');
+    if (rankedQueue.length < 4) {
+      // Not enough players for strict 4-player FFA yet; broadcast status
+      rankedQueue.forEach((p, idx) => {
+        p.socket.emit('QUEUE_STATUS', {
+          inQueue: true,
+          mode: 'RANKED',
+          position: idx + 1,
+          estimatedWaitSec: Math.max(5, 15 - Math.floor((Date.now() - p.enqueuedAt) / 1000)),
+        });
+      });
+      return;
+    }
+
+    // Sort by MMR to find closely matched 4-player pods
+    const sorted = [...rankedQueue].sort((a, b) => a.mmr - b.mmr);
+    const now = Date.now();
+
+    // Check sliding window of 4 adjacent players
+    for (let i = 0; i <= sorted.length - 4; i++) {
+      const pod = sorted.slice(i, i + 4);
+      const minMmr = pod[0].mmr;
+      const maxMmr = pod[3].mmr;
+      const mmrSpread = maxMmr - minMmr;
+
+      // Dynamic tolerance based on wait times (100 base + 50 per 5s wait, max 300)
+      const maxWait = Math.max(...pod.map((p) => now - p.enqueuedAt));
+      const allowedTolerance = Math.min(300, 100 + Math.floor(maxWait / 5000) * 50);
+
+      if (mmrSpread <= allowedTolerance) {
+        // Matched pod found!
+        for (const matched of pod) {
+          const idx = this.queue.findIndex((p) => p.user.userId === matched.user.userId);
+          if (idx !== -1) this.queue.splice(idx, 1);
+        }
+
+        this.createRankedMatch(pod);
+        return;
+      }
+    }
+
+    // Broadcast queue status to ranked players
+    rankedQueue.forEach((p, idx) => {
+      p.socket.emit('QUEUE_STATUS', {
+        inQueue: true,
+        mode: 'RANKED',
+        position: idx + 1,
+        estimatedWaitSec: Math.max(5, 15 - Math.floor((Date.now() - p.enqueuedAt) / 1000)),
       });
     });
   }
@@ -160,10 +235,48 @@ export class MatchmakingService {
     }
 
     this.io!.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
-
-    // Start 3-second pre-match countdown
     room.startCountdown();
     console.log(`[Matchmaking] Casual match created: ${room.roomCode} with ${players.length} scholars`);
+  }
+
+  private createRankedMatch(players: QueuedPlayer[]): void {
+    const roomManager = RoomManager.getInstance();
+    const host = players[0];
+
+    const room = roomManager.createRoom({
+      mode: 'RANKED',
+      hostUserId: host.user.userId,
+      startTimerSec: 15,
+      minTimerSec: 6, // Competitive floor: 6s
+      maxPlayers: 4,
+    });
+
+    this.bindCallbacksFn!(room);
+
+    for (const p of players) {
+      room.addPlayer({
+        ...p.playerInfo,
+        isReady: true,
+      });
+
+      p.socket.join(room.roomId);
+      p.socket.data.roomId = room.roomId;
+
+      p.socket.emit('QUEUE_STATUS', { inQueue: false });
+      p.socket.emit('MATCH_FOUND', {
+        roomId: room.roomId,
+        mode: 'RANKED',
+        countdownSec: 3,
+      });
+    }
+
+    this.io!.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+    room.startCountdown();
+    console.log(
+      `[Matchmaking] Ranked 4-Player FFA match created: ${room.roomCode} with 4 scholars (avg MMR: ${Math.round(
+        players.reduce((sum, p) => sum + p.mmr, 0) / 4
+      )})`
+    );
   }
 
   public cleanup(): void {
@@ -174,3 +287,4 @@ export class MatchmakingService {
     this.queue = [];
   }
 }
+

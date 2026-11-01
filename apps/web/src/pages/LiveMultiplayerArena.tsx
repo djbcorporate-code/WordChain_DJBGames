@@ -60,6 +60,7 @@ export const LiveMultiplayerArena: React.FC = () => {
         <PostMatchModal
           winnerId={matchWinner.winnerId}
           standings={matchWinner.standings}
+          deltas={matchWinner.deltas}
           onClose={leaveRoom}
         />
       )}

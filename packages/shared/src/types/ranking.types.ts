@@ -55,4 +55,6 @@ export interface RankProgressionDelta {
   pointsChange: number;
   promoted: boolean;
   demoted: boolean;
+  accountXpEarned?: number;
+  newAccountLevel?: number;
 }

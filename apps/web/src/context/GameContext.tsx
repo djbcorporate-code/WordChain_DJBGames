@@ -3,6 +3,7 @@ import {
   GameRoomSummary,
   GameTurnState,
   PlayerInGame,
+  RankProgressionDelta,
   WordRejectionReason,
 } from '@wordchain/shared';
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -24,7 +25,11 @@ interface GameContextType {
   matchFoundNotice: { roomId: string; countdownSec: number } | null;
   lastRejectionReason: string | null;
   shakeTrigger: number;
-  matchWinner: { winnerId: string; standings: PlayerInGame[] } | null;
+  matchWinner: {
+    winnerId: string;
+    standings: PlayerInGame[];
+    deltas?: Record<string, RankProgressionDelta>;
+  } | null;
   error: string | null;
   isConnected: boolean;
   joinQueue: (mode?: GameMode) => void;
@@ -41,14 +46,18 @@ interface GameContextType {
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [currentRoom, setCurrentRoom] = useState<GameRoomSummary | null>(null);
   const [turnState, setTurnState] = useState<GameTurnState | null>(null);
   const [queueStatus, setQueueStatus] = useState<QueueState | null>(null);
   const [matchFoundNotice, setMatchFoundNotice] = useState<{ roomId: string; countdownSec: number } | null>(null);
   const [lastRejectionReason, setLastRejectionReason] = useState<string | null>(null);
   const [shakeTrigger, setShakeTrigger] = useState<number>(0);
-  const [matchWinner, setMatchWinner] = useState<{ winnerId: string; standings: PlayerInGame[] } | null>(null);
+  const [matchWinner, setMatchWinner] = useState<{
+    winnerId: string;
+    standings: PlayerInGame[];
+    deltas?: Record<string, RankProgressionDelta>;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
@@ -137,9 +146,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       soundManager.playEliminated();
     };
 
-    const handleMatchEnded = (payload: { winnerId: string; standings: PlayerInGame[] }) => {
+    const handleMatchEnded = (payload: {
+      winnerId: string;
+      standings: PlayerInGame[];
+      deltas?: Record<string, RankProgressionDelta>;
+    }) => {
       soundManager.playVictory();
-      setMatchWinner({ winnerId: payload.winnerId, standings: payload.standings });
+      setMatchWinner({
+        winnerId: payload.winnerId,
+        standings: payload.standings,
+        deltas: payload.deltas,
+      });
+      refreshUser().catch(() => {});
       try {
         localStorage.removeItem('wordchain_active_room');
       } catch {

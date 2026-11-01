@@ -210,7 +210,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
                 if (!user) onOpenAuth('login');
                 else if (!isEmailVerified) onOpenAuth('verify');
                 else if (!isRankedUnlocked) alert('Please complete at least 5 Casual Matches before unlocking Ranked Mode!');
-                else onStartPractice();
+                else joinQueue('RANKED');
               }}
               className={`mt-6 w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
                 isRankedUnlocked
