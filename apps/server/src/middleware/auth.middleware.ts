@@ -44,6 +44,14 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     });
     return;
   }
+  if (session.role === 'BANNED') {
+    res.status(403).json({
+      success: false,
+      message: 'Account has been suspended.',
+      code: 'ACCOUNT_BANNED',
+    });
+    return;
+  }
   req.user = session;
   next();
 }

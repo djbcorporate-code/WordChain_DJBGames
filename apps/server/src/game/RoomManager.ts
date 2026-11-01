@@ -21,10 +21,12 @@ export class RoomManager {
   }
 
   public getRoom(roomId: string): GameRoom | undefined {
+    if (!roomId || typeof roomId !== 'string') return undefined;
     return this.rooms.get(roomId);
   }
 
   public getRoomByCode(code: string): GameRoom | undefined {
+    if (!code || typeof code !== 'string') return undefined;
     const normalized = code.trim().toUpperCase();
     const roomId = this.codeIndex.get(normalized);
     if (!roomId) return undefined;

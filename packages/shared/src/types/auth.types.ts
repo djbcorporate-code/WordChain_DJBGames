@@ -1,6 +1,6 @@
 import { AcademicRankTier } from './ranking.types.js';
 
-export type UserRole = 'USER' | 'MODERATOR' | 'ADMIN';
+export type UserRole = 'USER' | 'MODERATOR' | 'ADMIN' | 'BANNED';
 
 export interface User {
   id: string;

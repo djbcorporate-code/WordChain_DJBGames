@@ -39,6 +39,10 @@ export function socketAuthMiddleware(socket: Socket, next: (err?: Error) => void
       return next(new Error('Invalid or expired authentication session.'));
     }
 
+    if (session.role === 'BANNED') {
+      return next(new Error('This scholar account is suspended. Access denied.'));
+    }
+
     socket.data.user = session;
     next();
   } catch (err: any) {

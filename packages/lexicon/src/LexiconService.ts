@@ -116,18 +116,23 @@ export class LexiconService {
       return { isValid: false, reason: 'TOO_LONG', normalizedWord: normalized };
     }
 
-    // 2. Starting letter validation
+    // 2. Alphabetic character validation (English letters only)
+    if (!/^[A-Z]+$/.test(normalized)) {
+      return { isValid: false, reason: 'NOT_IN_DICTIONARY', normalizedWord: normalized };
+    }
+
+    // 3. Starting letter validation
     const expectedLetter = requiredLetter.trim().toUpperCase();
     if (!normalized.startsWith(expectedLetter)) {
       return { isValid: false, reason: 'INVALID_PREFIX', normalizedWord: normalized };
     }
 
-    // 3. Repeat check in the current match
+    // 4. Repeat check in the current match
     if (historyWords.has(normalized)) {
       return { isValid: false, reason: 'ALREADY_USED', normalizedWord: normalized };
     }
 
-    // 4. Lexicon existence check
+    // 5. Lexicon existence check
     if (!this.hasWord(normalized)) {
       return { isValid: false, reason: 'NOT_IN_DICTIONARY', normalizedWord: normalized };
     }

@@ -184,6 +184,10 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
     // JOIN ROOM BY CODE
     socket.on('ROOM_JOIN', async ({ roomCode }) => {
+      if (!roomCode || typeof roomCode !== 'string') {
+        socket.emit('SOCKET_ERROR', { code: 'INVALID_ROOM_CODE', message: 'Room code must be a valid code.' });
+        return;
+      }
       try {
         const room = roomManager.getRoomByCode(roomCode);
         if (!room) {
@@ -280,6 +284,9 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
     // SUBMIT WORD
     socket.on('GAME_SUBMIT_WORD', ({ word, clientTimestamp }) => {
+      if (!word || typeof word !== 'string' || !word.trim()) {
+        return;
+      }
       const roomId = socket.data.roomId;
       if (!roomId) return;
 
@@ -310,6 +317,10 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
     // MANUAL RECONNECT REQUEST
     socket.on('ROOM_RECONNECT', ({ roomId }) => {
+      if (!roomId || typeof roomId !== 'string') {
+        socket.emit('SOCKET_ERROR', { code: 'RECONNECT_FAILED', message: 'Invalid room identifier.' });
+        return;
+      }
       const room = roomManager.getRoom(roomId);
       if (!room || room.status !== 'IN_PROGRESS') {
         socket.emit('SOCKET_ERROR', { code: 'RECONNECT_FAILED', message: 'No active match to restore.' });

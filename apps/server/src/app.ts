@@ -24,9 +24,59 @@ app.use(
   })
 );
 
+// Standard HTTP security response headers
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
 app.use(cookieParser(process.env.COOKIE_SECRET || 'dev_cookie_secret_wordchain'));
 app.use(express.json());
 app.use(authenticateSession);
+
+// In-Memory Rate Limiting for Authentication endpoints
+const authRateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const AUTH_RATE_WINDOW_MS = 60 * 1000;
+const AUTH_MAX_REQUESTS = 60;
+
+const authRateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+  if (process.env.NODE_ENV === 'test') {
+    return next();
+  }
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const record = authRateLimitMap.get(ip);
+
+  if (!record || now > record.resetAt) {
+    authRateLimitMap.set(ip, { count: 1, resetAt: now + AUTH_RATE_WINDOW_MS });
+    return next();
+  }
+
+  record.count++;
+  if (record.count > AUTH_MAX_REQUESTS) {
+    res.status(429).json({
+      success: false,
+      message: 'Too many authentication attempts. Please wait a minute before trying again.',
+      code: 'RATE_LIMITED',
+    });
+    return;
+  }
+
+  next();
+};
+
+// Periodic cleanup of expired rate limit entries
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of authRateLimitMap.entries()) {
+    if (now > entry.resetAt) {
+      authRateLimitMap.delete(ip);
+    }
+  }
+}, 5 * 60 * 1000).unref();
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -38,8 +88,8 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// Auth Routes
-app.use('/api/v1/auth', authRoutes);
+// Auth Routes (Rate Limited)
+app.use('/api/v1/auth', authRateLimiter, authRoutes);
 
 // Profile & Career Routes
 app.use('/api/v1/profile', profileRoutes);

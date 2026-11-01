@@ -138,6 +138,11 @@ export class AuthService {
     }
 
     const user = foundUsers[0];
+
+    if (user.role === 'BANNED') {
+      throw new Error('This scholar account has been suspended for violating fair play terms.');
+    }
+
     const passwordValid = await verifyPassword(input.password, user.passwordHash);
 
     if (!passwordValid) {

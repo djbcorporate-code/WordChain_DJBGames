@@ -256,6 +256,10 @@ export class GameRoom {
   }
 
   public submitWord(userId: string, rawWord: string, _clientTimestamp: number): { success: boolean; reason?: WordRejectionReason } {
+    if (!rawWord || typeof rawWord !== 'string' || !rawWord.trim()) {
+      return { success: false, reason: 'TOO_SHORT' };
+    }
+
     if (this.status !== 'IN_PROGRESS') {
       return { success: false, reason: 'GAME_NOT_ACTIVE' };
     }
