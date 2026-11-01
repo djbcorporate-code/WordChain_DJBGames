@@ -173,6 +173,38 @@ export class LexiconService {
     return this.trie;
   }
 
+  public addWord(word: string): boolean {
+    const normalized = word.trim().toUpperCase();
+    if (!normalized || this.wordSet.has(normalized)) return false;
+
+    this.wordSet.add(normalized);
+    this.trie.insert(normalized);
+
+    const firstLetter = normalized[0];
+    let bucket = this.letterBuckets.get(firstLetter);
+    if (!bucket) {
+      bucket = [];
+      this.letterBuckets.set(firstLetter, bucket);
+    }
+    bucket.push(normalized);
+    return true;
+  }
+
+  public banWord(word: string): boolean {
+    const normalized = word.trim().toUpperCase();
+    if (!this.wordSet.has(normalized)) return false;
+
+    this.wordSet.delete(normalized);
+
+    const firstLetter = normalized[0];
+    const bucket = this.letterBuckets.get(firstLetter);
+    if (bucket) {
+      const idx = bucket.indexOf(normalized);
+      if (idx !== -1) bucket.splice(idx, 1);
+    }
+    return true;
+  }
+
   public size(): number {
     return this.wordSet.size;
   }

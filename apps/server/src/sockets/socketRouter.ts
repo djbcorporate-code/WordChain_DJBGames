@@ -11,8 +11,10 @@ import { AuthService } from '../modules/auth/auth.service.js';
 import { MatchmakingService } from '../modules/matchmaking/MatchmakingService.js';
 import { RankingService } from '../modules/ranking/RankingService.js';
 import { AuthenticatedSocket } from './socketAuth.js';
+import { setIoServer } from './socketRegistry.js';
 
 export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClientEvents>): void {
+  setIoServer(io as any);
   const roomManager = RoomManager.getInstance();
   const matchmakingService = MatchmakingService.getInstance();
   const disconnectTimers = new Map<string, NodeJS.Timeout>();

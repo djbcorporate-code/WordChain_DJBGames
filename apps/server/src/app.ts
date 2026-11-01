@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { authenticateSession } from './middleware/auth.middleware.js';
 import authRoutes from './modules/auth/auth.routes.js';
+import adminRoutes from './modules/admin/admin.routes.js';
 import profileRoutes from './modules/profile/profile.routes.js';
 import leaderboardRoutes from './modules/ranking/leaderboard.routes.js';
 
@@ -42,6 +43,9 @@ app.use('/api/v1/profile', profileRoutes);
 
 // Global & Seasonal Leaderboard Routes
 app.use('/api/v1/leaderboards', leaderboardRoutes);
+
+// Admin Telemetry & Moderation Routes
+app.use('/api/v1/admin', adminRoutes);
 
 // Fallback 404
 app.use((_req, res) => {

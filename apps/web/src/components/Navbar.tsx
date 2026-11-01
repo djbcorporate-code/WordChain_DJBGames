@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, LogOut, Sparkles, Trophy, User as UserIcon } from 'lucide-react';
+import { AlertCircle, CheckCircle2, LogOut, ShieldAlert, Sparkles, Trophy, User as UserIcon } from 'lucide-react';
 import React from 'react';
 import { useAuth } from '../context/AuthContext.js';
 import { RankEmblem } from './RankEmblem.js';
@@ -7,9 +7,15 @@ interface NavbarProps {
   onOpenAuth: (initialTab: 'login' | 'register' | 'verify') => void;
   onOpenLeaderboard?: () => void;
   onOpenProfile?: () => void;
+  onOpenAdmin?: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth, onOpenLeaderboard, onOpenProfile }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  onOpenAuth,
+  onOpenLeaderboard,
+  onOpenProfile,
+  onOpenAdmin,
+}) => {
   const { user, logout } = useAuth();
 
   return (
@@ -62,6 +68,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAuth, onOpenLeaderboard, o
                 <span className="hidden lg:flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                   <CheckCircle2 className="w-3 h-3" /> Verified Scholar
                 </span>
+              )}
+
+              {/* Admin Console Trigger */}
+              {user.role === 'ADMIN' && (
+                <button
+                  onClick={onOpenAdmin}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-bold hover:bg-rose-500/25 transition-all shadow-glow"
+                  title="Open Admin Operations Console"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+                  <span className="hidden md:inline">Admin Console</span>
+                </button>
               )}
 
               {/* Account Level & Profile trigger */}

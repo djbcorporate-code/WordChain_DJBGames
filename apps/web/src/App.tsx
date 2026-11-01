@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AdminModal } from './components/admin/AdminModal.js';
 import { AuthModal } from './components/AuthModal.js';
 import { LeaderboardModal } from './components/leaderboard/LeaderboardModal.js';
 import { LobbyRoomView } from './components/lobby/LobbyRoomView.js';
@@ -19,6 +20,7 @@ export const AppContent: React.FC = () => {
   const [privateRoomModalOpen, setPrivateRoomModalOpen] = useState(false);
   const [leaderboardModalOpen, setLeaderboardModalOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [selectedProfileUsername, setSelectedProfileUsername] = useState<string | undefined>(undefined);
   const [inPracticeArena, setInPracticeArena] = useState(false);
 
@@ -44,6 +46,7 @@ export const AppContent: React.FC = () => {
           onOpenAuth={handleOpenAuth}
           onOpenLeaderboard={() => setLeaderboardModalOpen(true)}
           onOpenProfile={() => handleOpenProfile(undefined)}
+          onOpenAdmin={() => setAdminModalOpen(true)}
         />
       )}
 
@@ -100,6 +103,12 @@ export const AppContent: React.FC = () => {
         isOpen={profileModalOpen}
         username={selectedProfileUsername}
         onClose={() => setProfileModalOpen(false)}
+      />
+
+      {/* Admin Operations Console Modal */}
+      <AdminModal
+        isOpen={adminModalOpen}
+        onClose={() => setAdminModalOpen(false)}
       />
 
       {/* Matchmaking Queue Search Modal */}

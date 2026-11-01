@@ -105,4 +105,41 @@ export const api = {
       return request(`/leaderboards?type=${type}&page=${page}&limit=${limit}`);
     },
   },
+
+  admin: {
+    async getTelemetry(): Promise<{ success: boolean; telemetry: any }> {
+      return request('/admin/telemetry');
+    },
+
+    async suspendUser(userId: string, reason: string): Promise<{ success: boolean; message: string }> {
+      return request(`/admin/users/${encodeURIComponent(userId)}/suspend`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      });
+    },
+
+    async unsuspendUser(userId: string): Promise<{ success: boolean; message: string }> {
+      return request(`/admin/users/${encodeURIComponent(userId)}/unsuspend`, {
+        method: 'POST',
+      });
+    },
+
+    async addLexiconWord(word: string): Promise<{ success: boolean; word: string }> {
+      return request('/admin/lexicon/add-word', {
+        method: 'POST',
+        body: JSON.stringify({ word }),
+      });
+    },
+
+    async banLexiconWord(word: string, reason?: string): Promise<{ success: boolean; word: string }> {
+      return request('/admin/lexicon/ban-word', {
+        method: 'POST',
+        body: JSON.stringify({ word, reason }),
+      });
+    },
+
+    async getAuditLogs(limit: number = 30): Promise<{ success: boolean; logs: any[] }> {
+      return request(`/admin/audit-logs?limit=${limit}`);
+    },
+  },
 };
