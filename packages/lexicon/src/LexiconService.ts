@@ -1,0 +1,179 @@
+import { HIGH_FREQUENCY_LETTERS, INITIAL_SEED_WORDS, WordRejectionReason } from '@wordchain/shared';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { LexiconTrie } from './LexiconTrie.js';
+
+export class LexiconService {
+  private static instance: LexiconService | null = null;
+  private wordSet: Set<string> = new Set();
+  private letterBuckets: Map<string, string[]> = new Map();
+  private trie: LexiconTrie = new LexiconTrie();
+  private isLoaded: boolean = false;
+
+  public static getInstance(): LexiconService {
+    if (!LexiconService.instance) {
+      LexiconService.instance = new LexiconService();
+    }
+    return LexiconService.instance;
+  }
+
+  public async initialize(customDataDir?: string): Promise<void> {
+    if (this.isLoaded) return;
+
+    let dataDir = customDataDir;
+    if (!dataDir) {
+      const candidates = [
+        path.resolve(process.cwd(), 'packages', 'lexicon', 'data'),
+        path.resolve(process.cwd(), '..', '..', 'packages', 'lexicon', 'data'),
+        path.resolve(process.cwd(), '..', 'packages', 'lexicon', 'data'),
+      ];
+
+      try {
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        candidates.unshift(path.resolve(__dirname, '..', 'data'));
+        candidates.unshift(path.resolve(__dirname, '..', '..', 'data'));
+      } catch {
+        // ignore
+      }
+
+      for (const candidate of candidates) {
+        if (fs.existsSync(path.join(candidate, 'words_enable1.txt'))) {
+          dataDir = candidate;
+          break;
+        }
+      }
+
+      if (!dataDir) {
+        dataDir = candidates[0];
+      }
+    }
+
+    const wordsFile = path.join(dataDir, 'words_enable1.txt');
+    const blacklistFile = path.join(dataDir, 'slurs_blacklist.txt');
+
+    // Read blacklist if exists
+    const blacklist = new Set<string>();
+    if (fs.existsSync(blacklistFile)) {
+      const blacklistContent = fs.readFileSync(blacklistFile, 'utf8');
+      blacklistContent.split(/\r?\n/).forEach((line) => {
+        const trimmed = line.trim().toUpperCase();
+        if (trimmed && !trimmed.startsWith('#')) {
+          blacklist.add(trimmed);
+        }
+      });
+    }
+
+    // Read words dataset
+    if (fs.existsSync(wordsFile)) {
+      const fileStream = fs.readFileSync(wordsFile, 'utf8');
+      const lines = fileStream.split(/\r?\n/);
+
+      for (let i = 0; i < lines.length; i++) {
+        const word = lines[i].trim().toUpperCase();
+        if (word && !blacklist.has(word)) {
+          this.wordSet.add(word);
+          this.trie.insert(word);
+
+          const firstLetter = word[0];
+          let bucket = this.letterBuckets.get(firstLetter);
+          if (!bucket) {
+            bucket = [];
+            this.letterBuckets.set(firstLetter, bucket);
+          }
+          bucket.push(word);
+        }
+      }
+    } else {
+      console.warn(`[LexiconService] Dictionary file not found at ${wordsFile}. Using default seeds.`);
+      for (const word of INITIAL_SEED_WORDS) {
+        this.wordSet.add(word);
+        this.trie.insert(word);
+      }
+    }
+
+    this.isLoaded = true;
+    console.log(`[LexiconService] Indexed ${this.wordSet.size.toLocaleString()} English words into memory.`);
+  }
+
+  public hasWord(word: string): boolean {
+    return this.wordSet.has(word.trim().toUpperCase());
+  }
+
+  public validateMove(
+    candidateWord: string,
+    requiredLetter: string,
+    historyWords: Set<string>
+  ): { isValid: boolean; reason?: WordRejectionReason; normalizedWord: string } {
+    const normalized = candidateWord.trim().toUpperCase();
+
+    // 1. Length validation (3 - 25 letters)
+    if (normalized.length < 3) {
+      return { isValid: false, reason: 'TOO_SHORT', normalizedWord: normalized };
+    }
+    if (normalized.length > 25) {
+      return { isValid: false, reason: 'TOO_LONG', normalizedWord: normalized };
+    }
+
+    // 2. Starting letter validation
+    const expectedLetter = requiredLetter.trim().toUpperCase();
+    if (!normalized.startsWith(expectedLetter)) {
+      return { isValid: false, reason: 'INVALID_PREFIX', normalizedWord: normalized };
+    }
+
+    // 3. Repeat check in the current match
+    if (historyWords.has(normalized)) {
+      return { isValid: false, reason: 'ALREADY_USED', normalizedWord: normalized };
+    }
+
+    // 4. Lexicon existence check
+    if (!this.hasWord(normalized)) {
+      return { isValid: false, reason: 'NOT_IN_DICTIONARY', normalizedWord: normalized };
+    }
+
+    return { isValid: true, normalizedWord: normalized };
+  }
+
+  public getRemainingWordsCount(startingLetter: string, historyWords: Set<string>): number {
+    const letter = startingLetter.toUpperCase();
+    const bucket = this.letterBuckets.get(letter) || [];
+    let count = 0;
+    for (let i = 0; i < bucket.length; i++) {
+      if (!historyWords.has(bucket[i])) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  public getRandomSeedWord(): string {
+    const seeds = INITIAL_SEED_WORDS;
+    const randomSeed = seeds[Math.floor(Math.random() * seeds.length)];
+    return randomSeed;
+  }
+
+  public getFallbackLetter(historyWords: Set<string>): string {
+    // Choose a high frequency letter with the most unplayed words
+    let bestLetter = 'T';
+    let maxRemaining = 0;
+
+    for (const letter of HIGH_FREQUENCY_LETTERS) {
+      const remaining = this.getRemainingWordsCount(letter, historyWords);
+      if (remaining > maxRemaining) {
+        maxRemaining = remaining;
+        bestLetter = letter;
+      }
+    }
+
+    return bestLetter;
+  }
+
+  public getTrie(): LexiconTrie {
+    return this.trie;
+  }
+
+  public size(): number {
+    return this.wordSet.size;
+  }
+}

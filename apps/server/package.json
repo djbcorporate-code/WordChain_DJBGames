@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.2.16",
+    "@wordchain/lexicon": "*",
     "@wordchain/shared": "*",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
