@@ -7,7 +7,8 @@ import {
   VerifyEmailInput,
 } from '@wordchain/shared';
 
-const BASE_URL = '/api/v1';
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || '';
+const BASE_URL = `${SERVER_URL}/api/v1`;
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${BASE_URL}${endpoint}`, {

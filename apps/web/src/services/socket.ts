@@ -34,10 +34,12 @@ class SocketService {
 
     this.isConnecting = true;
 
-    // Connect to server origin or current host with credentials
-    const targetUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? 'http://localhost:4000'
-      : window.location.origin;
+    // Connect to server origin or configured remote backend with credentials
+    const targetUrl = import.meta.env.VITE_SERVER_URL
+      ? import.meta.env.VITE_SERVER_URL
+      : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+          ? 'http://localhost:4000'
+          : window.location.origin);
 
     this.socket = io(targetUrl, {
       withCredentials: true,
