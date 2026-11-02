@@ -56,43 +56,43 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
   const lastAcceptedBy = players.find((p) => p.userId === activeUserId)?.username;
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 py-4 sm:py-6 flex flex-col justify-between min-h-[calc(100vh-5rem)] gap-4 animate-fadeIn">
+    <div className="w-full max-w-5xl mx-auto px-2.5 sm:px-4 py-2 sm:py-6 flex flex-col justify-between min-h-[100dvh] sm:min-h-[calc(100vh-5rem)] gap-2 sm:gap-4 animate-fadeIn">
       {/* Top Navigation / Match Status Bar */}
-      <div className="flex items-center justify-between bg-surface/80 border border-slate-800 rounded-2xl px-4 py-2.5 backdrop-blur-md">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-accent-primary/20 text-indigo-300 border border-accent-primary/30 uppercase">
+      <div className="flex items-center justify-between bg-surface/80 border border-slate-800 rounded-xl sm:rounded-2xl px-3 py-2 sm:px-4 sm:py-2.5 backdrop-blur-md">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <span className="text-[10px] sm:text-xs font-mono font-bold px-2 py-0.5 rounded bg-accent-primary/20 text-indigo-300 border border-accent-primary/30 uppercase">
             {mode} ARENA
           </span>
-          <span className="text-xs text-slate-400 font-mono hidden sm:inline">
-            {alivePlayers.length} Scholars Alive
+          <span className="text-[11px] sm:text-xs text-slate-400 font-mono">
+            Round {roundNumber} • {alivePlayers.length} Alive
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             onClick={handleToggleMute}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-700/60 transition-colors"
+            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-700/60 transition-colors"
             title={isMuted ? 'Unmute Game Sounds' : 'Mute Game Sounds'}
           >
-            {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+            {isMuted ? <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-400" /> : <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />}
           </button>
           <button
             onClick={onLeaveMatch}
-            className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-slate-700/60 transition-colors"
+            className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-slate-700/60 transition-colors"
             title="Leave Match"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
       </div>
 
       {/* Main Center Stage: Word Display + Authoritative Timer */}
-      <div className="flex flex-col items-center justify-center gap-5 my-auto">
+      <div className="flex flex-col items-center justify-center gap-3 sm:gap-5 my-auto py-1 sm:py-3">
         <RadialTimer
           remainingMs={remainingMs}
           totalDurationMs={totalDurationMs}
           isActive={true}
-          size={120}
+          size={100}
         />
 
         <CurrentWordDisplay
@@ -104,8 +104,8 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
         />
       </div>
 
-      {/* Player Podiums Grid (Responsive 2 to 4 columns) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* Player Podiums Grid (Responsive 2x2 grid on mobile, 4-col on desktop) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         {players.map((player) => (
           <PlayerPodium
             key={player.userId}
@@ -117,7 +117,7 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
       </div>
 
       {/* Bottom Area: Docked Word Input or Spectator Mode Banner */}
-      <div className="pt-2 sticky bottom-4 z-30">
+      <div className="pt-1 sm:pt-2 sticky bottom-0 sm:bottom-4 z-30 pb-safe">
         {isSpectating ? (
           <SpectatorOverlay
             aliveCount={alivePlayers.length}
@@ -126,7 +126,7 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
             onLeaveMatch={onLeaveMatch}
           />
         ) : (
-          <div className="bg-surface/90 backdrop-blur-md p-3 rounded-2xl border border-slate-800 shadow-2xl">
+          <div className="bg-surface/95 backdrop-blur-md p-2 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-800 shadow-2xl">
             <WordInput
               requiredLetter={requiredLetter}
               isMyTurn={isMyTurn}

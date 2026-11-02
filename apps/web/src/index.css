@@ -3,9 +3,31 @@
 @tailwind utilities;
 
 @layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     @apply bg-canvas text-slate-100 overflow-x-hidden;
+    padding-top: env(safe-area-inset-top);
   }
+}
+
+/* Safe area padding utilities for mobile devices */
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+.pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+/* Hide scrollbar for clean horizontal chips */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 /* Custom scrollbars for arcade styling */

@@ -23,9 +23,9 @@ export const LobbyRoomView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6 animate-fadeIn">
+    <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-4 sm:space-y-6 animate-fadeIn">
       {/* Lobby Header Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-surface border border-slate-800 p-6 sm:p-8 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-surface border border-slate-800 p-4 sm:p-8 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 uppercase">
@@ -34,7 +34,7 @@ export const LobbyRoomView: React.FC = () => {
             <span className="text-xs text-slate-400 font-mono">Max 8 Scholars</span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
+          <h2 className="text-xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
             Room Code: <span className="font-mono text-accent-secondary tracking-widest">{currentRoom.roomCode}</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
@@ -69,7 +69,7 @@ export const LobbyRoomView: React.FC = () => {
       )}
 
       {/* Roster of Connected Scholars */}
-      <div className="bg-card border border-slate-800 rounded-3xl p-6 space-y-4">
+      <div className="bg-card border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 space-y-3 sm:space-y-4">
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <h3 className="font-bold text-base text-slate-100 flex items-center gap-2">
             <Users className="w-4 h-4 text-accent-secondary" /> Connected Scholars ({currentRoom.players.length}/8)

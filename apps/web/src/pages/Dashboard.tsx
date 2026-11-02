@@ -21,20 +21,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
   const isRankedUnlocked = isEmailVerified && casualMatchesPlayed >= 5;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fadeIn">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8 animate-fadeIn">
       {/* Hero Welcome & Academic Status */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-surface via-slate-900 to-surface border border-slate-800 p-6 sm:p-8 shadow-2xl">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-surface via-slate-900 to-surface border border-slate-800 p-4 sm:p-8 shadow-2xl">
         <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-accent-primary/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-          <div className="space-y-3">
+        <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 sm:gap-6">
+          <div className="space-y-2.5 sm:space-y-3">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-accent-primary/15 text-indigo-300 border border-accent-primary/30">
-                <Flame className="w-3.5 h-3.5 text-accent-secondary animate-pulse" /> Season 1 Active
+              <span className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[11px] sm:text-xs font-bold bg-accent-primary/15 text-indigo-300 border border-accent-primary/30">
+                <Flame className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-accent-secondary animate-pulse" /> Season 1 Active
               </span>
-              <span className="text-xs text-slate-400 font-mono">Asia/Manila (UTC+8)</span>
+              <span className="text-[11px] sm:text-xs text-slate-400 font-mono">Asia/Manila (UTC+8)</span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
               {user ? (
                 <>
                   Welcome back, <span className="text-accent-secondary">{user.username}</span>
@@ -44,16 +44,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
               )}
             </h1>
 
-            <p className="text-sm sm:text-base text-slate-300 max-w-2xl leading-relaxed">
+            <p className="text-xs sm:text-base text-slate-300 max-w-2xl leading-relaxed">
               Ascend through 11 Academic Ranks from <strong className="text-sky-300">Nursery</strong> to the pinnacle{' '}
               <strong className="text-emerald-300">Scientist</strong>. Chain English words under accelerating turn clocks.
             </p>
 
             {/* Quick Practice Mode Action */}
-            <div className="pt-2">
+            <div className="pt-1 sm:pt-2">
               <button
                 onClick={onStartPractice}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-accent-primary to-accent-secondary text-slate-950 font-black text-sm shadow-glow hover:scale-105 active:scale-95 transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-accent-primary to-accent-secondary text-slate-950 font-black text-xs sm:text-sm shadow-glow hover:scale-105 active:scale-95 transition-all"
               >
                 <Gamepad2 className="w-4 h-4 text-slate-950" />
                 <span>Launch Live Practice Arena</span>
@@ -63,10 +63,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
 
           {/* Academic Rank Card */}
           {user ? (
-            <div className="w-full lg:w-80 bg-slate-950/70 border border-slate-800 rounded-2xl p-5 shadow-glow space-y-3 shrink-0">
+            <div className="w-full lg:w-80 bg-slate-950/70 border border-slate-800 rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-glow space-y-2.5 sm:space-y-3 shrink-0">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Current Standing</span>
-                <span className="text-xs font-mono font-semibold text-accent-secondary">
+                <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">Current Standing</span>
+                <span className="text-[11px] sm:text-xs font-mono font-semibold text-accent-secondary">
                   MMR: {user.currentRank.hiddenMmr}
                 </span>
               </div>

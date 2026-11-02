@@ -29,8 +29,8 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({ isOpen, onCl
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-md bg-surface border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+      <div className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto bg-surface border border-slate-800 rounded-2xl shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50">
           <div className="flex items-center gap-2">

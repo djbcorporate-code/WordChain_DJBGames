@@ -81,8 +81,8 @@ export const WordInput: React.FC<WordInputProps> = ({
         }`}
       >
         {/* Required Letter Badge */}
-        <div className="pl-3.5 pr-2 flex items-center select-none">
-          <span className="w-8 h-8 rounded-lg bg-gradient-to-tr from-accent-primary to-accent-secondary text-white font-mono font-black text-base flex items-center justify-center shadow-glow">
+        <div className="pl-2.5 sm:pl-3.5 pr-1.5 sm:pr-2 flex items-center select-none">
+          <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-tr from-accent-primary to-accent-secondary text-white font-mono font-black text-sm sm:text-base flex items-center justify-center shadow-glow">
             {requiredLetter.toUpperCase()}
           </span>
         </div>
@@ -94,21 +94,21 @@ export const WordInput: React.FC<WordInputProps> = ({
           value={inputVal}
           onChange={handleChange}
           disabled={!isMyTurn || disabled}
-          placeholder={isMyTurn ? `Type a word starting with '${requiredLetter.toUpperCase()}'...` : 'Waiting for turn...'}
+          placeholder={isMyTurn ? `Word starting with '${requiredLetter.toUpperCase()}'...` : 'Waiting for turn...'}
           autoCapitalize="characters"
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
           maxLength={25}
-          className="flex-1 py-3 sm:py-3.5 px-2 bg-transparent text-slate-100 placeholder-slate-500 font-mono text-base sm:text-lg uppercase font-bold focus:outline-none"
+          className="flex-1 py-2.5 sm:py-3.5 px-1.5 sm:px-2 bg-transparent text-slate-100 placeholder-slate-500 font-mono text-base sm:text-lg uppercase font-bold focus:outline-none"
         />
 
-        {/* Submit Button */}
-        <div className="pr-2">
+        {/* Submit Button (Accessible 44px touch target) */}
+        <div className="pr-1.5 sm:pr-2">
           <button
             type="submit"
             disabled={!isMyTurn || disabled || !inputVal.trim() || isThrottled}
-            className={`p-2.5 sm:px-4 sm:py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all select-none active:scale-95 ${
+            className={`min-h-[40px] min-w-[40px] sm:min-h-[44px] p-2 sm:px-4 sm:py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all select-none active:scale-95 ${
               isMyTurn && inputVal.trim() && !isThrottled
                 ? 'bg-accent-primary hover:bg-indigo-500 text-white shadow-glow'
                 : 'bg-slate-800 text-slate-500 cursor-not-allowed'
@@ -121,9 +121,9 @@ export const WordInput: React.FC<WordInputProps> = ({
       </form>
 
       {/* Helper caption */}
-      <div className="flex items-center justify-between px-2 text-[11px] text-slate-400 font-mono">
+      <div className="flex items-center justify-between px-1.5 sm:px-2 text-[10px] sm:text-[11px] text-slate-400 font-mono">
         <span className="flex items-center gap-1">
-          <Zap className="w-3 h-3 text-accent-secondary" /> Press <strong className="text-slate-300">Enter ↵</strong> to submit
+          <Zap className="w-3 h-3 text-accent-secondary" /> Press <strong className="text-slate-300">Enter ↵</strong>
         </span>
         <span>3–25 letters • No repeats</span>
       </div>

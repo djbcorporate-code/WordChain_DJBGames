@@ -34,17 +34,17 @@ export const CurrentWordDisplay: React.FC<CurrentWordDisplayProps> = ({
       </div>
 
       {/* Primary Word Presentation */}
-      <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-2 px-1">
         {letters.map((char, index) => {
           const isTrailingLetter = index === lastCharIndex;
 
           return (
             <div
               key={`${char}-${index}`}
-              className={`flex items-center justify-center rounded-xl font-mono font-black text-xl sm:text-3xl transition-all ${
+              className={`flex items-center justify-center rounded-lg sm:rounded-xl font-mono font-black transition-all ${
                 isTrailingLetter
-                  ? 'w-10 h-12 sm:w-14 sm:h-16 bg-gradient-to-tr from-accent-primary to-accent-secondary text-white shadow-glow border-2 border-cyan-300 scale-110 z-10 animate-pop'
-                  : 'w-8 h-10 sm:w-11 sm:h-14 bg-slate-900 border border-slate-700 text-slate-200'
+                  ? 'w-8 h-10 text-xl sm:w-14 sm:h-16 sm:text-3xl bg-gradient-to-tr from-accent-primary to-accent-secondary text-white shadow-glow border-2 border-cyan-300 scale-110 z-10 animate-pop'
+                  : 'w-7 h-9 text-base sm:w-11 sm:h-14 sm:text-3xl bg-slate-900 border border-slate-700 text-slate-200'
               }`}
             >
               {char}
@@ -54,23 +54,23 @@ export const CurrentWordDisplay: React.FC<CurrentWordDisplayProps> = ({
       </div>
 
       {/* Target Instruction Pill */}
-      <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900/90 border border-slate-700 shadow-md">
-        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-          Next Word Must Start With
+      <div className="flex items-center gap-1.5 sm:gap-2 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full bg-slate-900/90 border border-slate-700 shadow-md">
+        <span className="text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+          Next Starts With
         </span>
-        <ArrowRight className="w-3.5 h-3.5 text-accent-secondary" />
-        <span className="w-6 h-6 rounded-md bg-accent-secondary text-slate-950 font-mono font-black text-sm flex items-center justify-center shadow-glow">
+        <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent-secondary" />
+        <span className="w-5 h-5 sm:w-6 sm:h-6 rounded bg-accent-secondary text-slate-950 font-mono font-black text-xs sm:text-sm flex items-center justify-center shadow-glow">
           {requiredLetter.toUpperCase()}
         </span>
       </div>
 
       {/* Chain breadcrumbs (last 3 words) */}
       {wordHistory.length > 1 && (
-        <div className="flex items-center gap-2 text-xs text-slate-500 font-mono overflow-x-auto max-w-full px-2 py-1">
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-500 font-mono overflow-x-auto no-scrollbar max-w-full px-2 py-0.5">
           <Sparkles className="w-3 h-3 text-slate-600 shrink-0" />
-          <span className="text-slate-600">Recent:</span>
+          <span className="text-slate-600 shrink-0">Recent:</span>
           {wordHistory.slice(-4, -1).map((w, idx) => (
-            <span key={idx} className="flex items-center gap-1 bg-slate-900/50 px-2 py-0.5 rounded border border-slate-800">
+            <span key={idx} className="flex items-center gap-1 bg-slate-900/50 px-1.5 py-0.5 rounded border border-slate-800 shrink-0">
               {w.toUpperCase()}
               {idx < 2 && <span className="text-slate-700">→</span>}
             </span>
