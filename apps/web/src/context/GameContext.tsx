@@ -99,12 +99,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       soundManager.playVictory();
       setQueueStatus(null);
       setMatchFoundNotice({ roomId: payload.roomId, countdownSec: payload.countdownSec });
+
+      // Automatically dismiss the match found modal once countdown finishes
+      setTimeout(() => {
+        setMatchFoundNotice(null);
+      }, (payload.countdownSec || 3) * 1000 + 300);
     };
 
     const handleRoomUpdate = (summary: GameRoomSummary) => {
       setCurrentRoom(summary);
       if (summary.turnState) {
         setTurnState(summary.turnState);
+      }
+
+      // Dismiss any lingering queue or match found modals when room transitions
+      if (summary.status === 'IN_PROGRESS' || summary.status === 'COUNTDOWN' || summary.status === 'FINISHED') {
+        setMatchFoundNotice(null);
+        setQueueStatus(null);
       }
 
       // Persist active match in localStorage for disconnect restoration

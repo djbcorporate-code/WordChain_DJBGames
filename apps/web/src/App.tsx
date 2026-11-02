@@ -36,7 +36,7 @@ export const AppContent: React.FC = () => {
 
   // Determine active view mode
   const isWaitingInLobby = currentRoom && currentRoom.status === 'WAITING';
-  const isInLiveMatch = currentRoom && (currentRoom.status === 'IN_PROGRESS' || currentRoom.status === 'FINISHED');
+  const isInLiveMatch = currentRoom && (currentRoom.status === 'IN_PROGRESS' || currentRoom.status === 'COUNTDOWN' || currentRoom.status === 'FINISHED');
   const hideNavbarAndFooter = inPracticeArena || isInLiveMatch;
 
   return (

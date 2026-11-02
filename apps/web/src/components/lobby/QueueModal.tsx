@@ -3,8 +3,9 @@ import React, { useEffect, useState } from 'react';
 import { useGame } from '../../context/GameContext.js';
 
 export const QueueModal: React.FC = () => {
-  const { queueStatus, matchFoundNotice, leaveQueue } = useGame();
+  const { queueStatus, matchFoundNotice, currentRoom, leaveQueue } = useGame();
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [countdownRemaining, setCountdownRemaining] = useState(3);
 
   useEffect(() => {
     if (!queueStatus?.inQueue) {
@@ -19,7 +20,32 @@ export const QueueModal: React.FC = () => {
     return () => clearInterval(interval);
   }, [queueStatus?.inQueue]);
 
-  if (!queueStatus?.inQueue && !matchFoundNotice) return null;
+  // Handle Match Found 3-second countdown
+  useEffect(() => {
+    if (!matchFoundNotice) {
+      setCountdownRemaining(3);
+      return;
+    }
+
+    setCountdownRemaining(matchFoundNotice.countdownSec || 3);
+
+    const interval = setInterval(() => {
+      setCountdownRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [matchFoundNotice]);
+
+  // If in live match or nothing to show, dismiss modal immediately
+  if (currentRoom?.status === 'IN_PROGRESS' || (!queueStatus?.inQueue && !matchFoundNotice)) {
+    return null;
+  }
 
   const formatElapsed = (sec: number) => {
     const mins = Math.floor(sec / 60);
@@ -76,7 +102,7 @@ export const QueueModal: React.FC = () => {
           </h3>
           <p className="text-xs text-slate-400">
             {isMatched
-              ? `Entering Arena in ${matchFoundNotice.countdownSec || 3} seconds`
+              ? `Entering Arena in ${countdownRemaining > 0 ? countdownRemaining : 1} second${countdownRemaining === 1 ? '' : 's'}`
               : isRanked
               ? 'Searching for 4 players within your Academic MMR window.'
               : 'Pairing you with 2 to 4 players for a casual word chain match.'}
