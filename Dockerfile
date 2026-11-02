@@ -15,18 +15,16 @@ COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/tsconfig.json ./packages/shared/
 COPY packages/lexicon/package.json packages/lexicon/tsconfig.json ./packages/lexicon/
 COPY apps/server/package.json apps/server/tsconfig.json ./apps/server/
-COPY apps/web/package.json apps/web/tsconfig.json apps/web/vite.config.ts apps/web/tailwind.config.js apps/web/postcss.config.js ./apps/web/
+COPY apps/web/package.json apps/web/tsconfig.json ./apps/web/
 
 # Install all dependencies across monorepo workspaces
 RUN npm ci
 
 # Copy package and application sources
-COPY packages/shared/src ./packages/shared/src
-COPY packages/lexicon/src ./packages/lexicon/src
-COPY packages/lexicon/data ./packages/lexicon/data
-COPY apps/server/src ./apps/server/src
-COPY apps/web/src ./apps/web/src
-COPY apps/web/index.html ./apps/web/
+COPY packages/shared/ ./packages/shared/
+COPY packages/lexicon/ ./packages/lexicon/
+COPY apps/server/ ./apps/server/
+COPY apps/web/ ./apps/web/
 
 # Build all monorepo workspaces
 RUN npm run build --workspace=@wordchain/shared && \
