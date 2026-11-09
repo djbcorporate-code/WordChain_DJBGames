@@ -13,6 +13,8 @@ export interface ClientToServerEvents {
 
   // Active Gameplay
   GAME_SUBMIT_WORD: (payload: { word: string; clientTimestamp: number }) => void;
+  GAME_TYPING_UPDATE: (payload: { inputSuffix: string }) => void;
+  ROOM_RESET_REMATCH: () => void;
   GAME_REQUEST_SYNC: () => void;
   CLOCK_SYNC_PING: (payload: { clientPing: number }) => void;
 
@@ -33,6 +35,7 @@ export interface ServerToClientEvents {
 
   // Real-Time Turn Events
   GAME_TURN_START: (payload: GameTurnState) => void;
+  GAME_PLAYER_TYPING: (payload: { userId: string; inputSuffix: string }) => void;
   GAME_WORD_ACCEPTED: (payload: {
     word: string;
     acceptedByUserId: string;

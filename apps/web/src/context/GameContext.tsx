@@ -25,6 +25,7 @@ interface GameContextType {
   matchFoundNotice: { roomId: string; countdownSec: number } | null;
   lastRejectionReason: string | null;
   shakeTrigger: number;
+  peerTyping: { userId: string; inputSuffix: string } | null;
   matchWinner: {
     winnerId: string;
     standings: PlayerInGame[];
@@ -40,6 +41,8 @@ interface GameContextType {
   toggleReady: (isReady: boolean) => void;
   startMatch: () => void;
   submitWord: (word: string) => void;
+  sendTypingUpdate: (suffix: string) => void;
+  resetRematch: () => void;
   clearError: () => void;
 }
 
@@ -53,6 +56,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [matchFoundNotice, setMatchFoundNotice] = useState<{ roomId: string; countdownSec: number } | null>(null);
   const [lastRejectionReason, setLastRejectionReason] = useState<string | null>(null);
   const [shakeTrigger, setShakeTrigger] = useState<number>(0);
+  const [peerTyping, setPeerTyping] = useState<{ userId: string; inputSuffix: string } | null>(null);
   const [matchWinner, setMatchWinner] = useState<{
     winnerId: string;
     standings: PlayerInGame[];
@@ -137,14 +141,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleTurnStart = (newTurnState: GameTurnState) => {
       setTurnState(newTurnState);
       setLastRejectionReason(null);
+      setPeerTyping(null);
       if (newTurnState.activeUserId === user.id) {
         soundManager.playTurnStart();
       }
     };
 
+    const handlePlayerTyping = (payload: { userId: string; inputSuffix: string }) => {
+      setPeerTyping(payload);
+    };
+
     const handleWordAccepted = () => {
       soundManager.playWordAccepted();
       setLastRejectionReason(null);
+      setPeerTyping(null);
     };
 
     const handleWordRejected = (payload: { word: string; reason: WordRejectionReason; message: string }) => {
@@ -155,6 +165,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const handlePlayerEliminated = () => {
       soundManager.playEliminated();
+      setPeerTyping(null);
     };
 
     const handleMatchEnded = (payload: {
@@ -163,6 +174,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       deltas?: Record<string, RankProgressionDelta>;
     }) => {
       soundManager.playVictory();
+      soundManager.stopIntenseMusic();
+      setPeerTyping(null);
       setMatchWinner({
         winnerId: payload.winnerId,
         standings: payload.standings,
@@ -186,6 +199,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socket.on('MATCH_FOUND', handleMatchFound);
     socket.on('ROOM_STATE_UPDATE', handleRoomUpdate);
     socket.on('GAME_TURN_START', handleTurnStart);
+    socket.on('GAME_PLAYER_TYPING', handlePlayerTyping);
     socket.on('GAME_WORD_ACCEPTED', handleWordAccepted);
     socket.on('GAME_WORD_REJECTED', handleWordRejected);
     socket.on('GAME_PLAYER_ELIMINATED', handlePlayerEliminated);
@@ -199,6 +213,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socket.off('MATCH_FOUND', handleMatchFound);
       socket.off('ROOM_STATE_UPDATE', handleRoomUpdate);
       socket.off('GAME_TURN_START', handleTurnStart);
+      socket.off('GAME_PLAYER_TYPING', handlePlayerTyping);
       socket.off('GAME_WORD_ACCEPTED', handleWordAccepted);
       socket.off('GAME_WORD_REJECTED', handleWordRejected);
       socket.off('GAME_PLAYER_ELIMINATED', handlePlayerEliminated);
@@ -206,6 +221,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socket.off('SOCKET_ERROR', handleSocketError);
     };
   }, [user]);
+
+  // Intense tension music controller for Round 20+
+  useEffect(() => {
+    const isRound20 =
+      currentRoom?.status === 'IN_PROGRESS' &&
+      (turnState?.roundNumber || currentRoom?.turnState?.roundNumber || 0) >= 20;
+
+    if (isRound20) {
+      soundManager.startIntenseMusic();
+    } else {
+      soundManager.stopIntenseMusic();
+    }
+
+    return () => {
+      soundManager.stopIntenseMusic();
+    };
+  }, [currentRoom?.status, turnState?.roundNumber, currentRoom?.turnState?.roundNumber]);
 
   const joinQueue = (mode: GameMode = 'CASUAL') => {
     setError(null);
@@ -255,6 +287,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socketService.submitWord(word);
   };
 
+  const sendTypingUpdate = (suffix: string) => {
+    socketService.sendTypingUpdate(suffix);
+  };
+
+  const resetRematch = () => {
+    socketService.resetRematch();
+    setMatchWinner(null);
+  };
+
   const clearError = () => {
     setError(null);
   };
@@ -268,6 +309,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         matchFoundNotice,
         lastRejectionReason,
         shakeTrigger,
+        peerTyping,
         matchWinner,
         error,
         isConnected,
@@ -279,6 +321,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toggleReady,
         startMatch,
         submitWord,
+        sendTypingUpdate,
+        resetRematch,
         clearError,
       }}
     >

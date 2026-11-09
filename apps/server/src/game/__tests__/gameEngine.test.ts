@@ -79,6 +79,25 @@ describe('Authoritative Word Game Engine', () => {
       expect(res.reason).toBe('ALREADY_USED');
     });
 
+    it('should accept suffix-only submission and assemble candidate with required prefix', () => {
+      const history = new Set(['PLANET']);
+      // Prefix is 'T', player inputs lacking letters 'IME'
+      const res = validator.validateSubmission('IME', 'T', history);
+
+      expect(res.isValid).toBe(true);
+      expect(res.normalizedWord).toBe('TIME');
+    });
+
+    it('should use 2-letter trailing prefix in round 20 and up', () => {
+      const history = new Set(['EARTH']);
+      // Round 20: accepted word 'PLANET' -> next trailing prefix is 'ET'
+      const res = validator.validateSubmission('PLANET', 'P', history, 20);
+
+      expect(res.isValid).toBe(true);
+      expect(res.normalizedWord).toBe('PLANET');
+      expect(res.nextLetter).toBe('ET');
+    });
+
     it('should reject non-dictionary words', () => {
       const history = new Set(['PLANET']);
       const res = validator.validateSubmission('TXQZJJ', 'T', history);

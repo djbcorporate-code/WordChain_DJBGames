@@ -136,27 +136,45 @@ export const PracticeArena: React.FC<PracticeArenaProps> = ({ onExit }) => {
       const alive = prev.filter((p) => p.isAlive);
       if (alive.length <= 1) {
         soundManager.playVictory();
+        soundManager.stopIntenseMusic();
         return prev;
       }
       return prev;
     });
 
-    // Advance turn index
+    // Advance turn index (randomized for multiple alive players)
+    const alive = players.filter((p) => p.isAlive);
     let nextIndex = (activePlayerIndex + 1) % players.length;
-    let attempts = 0;
-    while (!players[nextIndex].isAlive && attempts < players.length) {
-      nextIndex = (nextIndex + 1) % players.length;
-      attempts++;
+
+    if (alive.length > 2) {
+      const otherAlive = alive.filter((p) => p.userId !== activePlayer?.userId);
+      if (otherAlive.length > 0) {
+        const chosen = otherAlive[Math.floor(Math.random() * otherAlive.length)];
+        const idx = players.findIndex((p) => p.userId === chosen.userId);
+        if (idx !== -1) nextIndex = idx;
+      }
+    } else {
+      let attempts = 0;
+      while (!players[nextIndex].isAlive && attempts < players.length) {
+        nextIndex = (nextIndex + 1) % players.length;
+        attempts++;
+      }
     }
 
+    const nextRound = roundNumber + 1;
     if (nextWord) {
       const cleaned = nextWord.toUpperCase();
       setCurrentWord(cleaned);
-      setRequiredLetter(cleaned.slice(-1));
+      const prefixLen = nextRound >= 20 ? 2 : 1;
+      setRequiredLetter(cleaned.slice(-prefixLen));
       setWordHistory((prev) => [...prev, cleaned]);
     }
 
-    setRoundNumber((r) => r + 1);
+    if (nextRound >= 20) {
+      soundManager.startIntenseMusic();
+    }
+
+    setRoundNumber(nextRound);
     setActivePlayerIndex(nextIndex);
   };
 
@@ -189,7 +207,13 @@ export const PracticeArena: React.FC<PracticeArenaProps> = ({ onExit }) => {
 
   // Player Word Submission
   const handleSubmitWord = (input: string) => {
-    const candidate = input.trim().toUpperCase();
+    const trimmed = input.trim().toUpperCase();
+    const expectedPrefix = requiredLetter.toUpperCase();
+
+    // Assemble candidate if suffix was submitted
+    const candidate = trimmed.startsWith(expectedPrefix)
+      ? trimmed
+      : `${expectedPrefix}${trimmed}`;
 
     // 1. Check length
     if (candidate.length < 3) {
@@ -198,11 +222,17 @@ export const PracticeArena: React.FC<PracticeArenaProps> = ({ onExit }) => {
       setShakeTrigger((s) => s + 1);
       return;
     }
-
-    // 2. Check starting letter
-    if (!candidate.startsWith(requiredLetter.toUpperCase())) {
+    if (candidate.length > 46) {
       soundManager.playWordRejected();
-      setLastRejectionReason(`Word must begin with '${requiredLetter.toUpperCase()}'`);
+      setLastRejectionReason('Word cannot exceed 46 letters');
+      setShakeTrigger((s) => s + 1);
+      return;
+    }
+
+    // 2. Check starting prefix
+    if (!candidate.startsWith(expectedPrefix)) {
+      soundManager.playWordRejected();
+      setLastRejectionReason(`Word must begin with '${expectedPrefix}'`);
       setShakeTrigger((s) => s + 1);
       return;
     }
@@ -245,7 +275,10 @@ export const PracticeArena: React.FC<PracticeArenaProps> = ({ onExit }) => {
       onSubmitWord={handleSubmitWord}
       lastRejectionReason={lastRejectionReason}
       shakeTrigger={shakeTrigger}
-      onLeaveMatch={onExit}
+      onLeaveMatch={() => {
+        soundManager.stopIntenseMusic();
+        onExit();
+      }}
     />
   );
 };

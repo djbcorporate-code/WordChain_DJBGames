@@ -1,4 +1,10 @@
-import { HIGH_FREQUENCY_LETTERS, INITIAL_SEED_WORDS, WordRejectionReason } from '@wordchain/shared';
+import {
+  HIGH_FREQUENCY_LETTERS,
+  INITIAL_SEED_WORDS,
+  WORD_MAX_LENGTH,
+  WORD_MIN_LENGTH,
+  WordRejectionReason,
+} from '@wordchain/shared';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -108,11 +114,11 @@ export class LexiconService {
   ): { isValid: boolean; reason?: WordRejectionReason; normalizedWord: string } {
     const normalized = candidateWord.trim().toUpperCase();
 
-    // 1. Length validation (3 - 25 letters)
-    if (normalized.length < 3) {
+    // 1. Length validation (3 - 46 letters)
+    if (normalized.length < WORD_MIN_LENGTH) {
       return { isValid: false, reason: 'TOO_SHORT', normalizedWord: normalized };
     }
-    if (normalized.length > 25) {
+    if (normalized.length > WORD_MAX_LENGTH) {
       return { isValid: false, reason: 'TOO_LONG', normalizedWord: normalized };
     }
 
@@ -121,9 +127,9 @@ export class LexiconService {
       return { isValid: false, reason: 'NOT_IN_DICTIONARY', normalizedWord: normalized };
     }
 
-    // 3. Starting letter validation
-    const expectedLetter = requiredLetter.trim().toUpperCase();
-    if (!normalized.startsWith(expectedLetter)) {
+    // 3. Starting prefix validation (1 or 2 letters)
+    const expectedPrefix = requiredLetter.trim().toUpperCase();
+    if (!normalized.startsWith(expectedPrefix)) {
       return { isValid: false, reason: 'INVALID_PREFIX', normalizedWord: normalized };
     }
 
@@ -140,12 +146,24 @@ export class LexiconService {
     return { isValid: true, normalizedWord: normalized };
   }
 
-  public getRemainingWordsCount(startingLetter: string, historyWords: Set<string>): number {
-    const letter = startingLetter.toUpperCase();
-    const bucket = this.letterBuckets.get(letter) || [];
+  public getRemainingWordsCount(startingPrefix: string, historyWords: Set<string>): number {
+    const prefix = startingPrefix.toUpperCase();
+    if (prefix.length === 1) {
+      const bucket = this.letterBuckets.get(prefix) || [];
+      let count = 0;
+      for (let i = 0; i < bucket.length; i++) {
+        if (!historyWords.has(bucket[i])) {
+          count++;
+        }
+      }
+      return count;
+    }
+
+    // Multi-letter prefix (e.g. 2 letters for round 20+)
+    const candidateWords = this.trie.getWordsWithPrefix(prefix, 1000);
     let count = 0;
-    for (let i = 0; i < bucket.length; i++) {
-      if (!historyWords.has(bucket[i])) {
+    for (let i = 0; i < candidateWords.length; i++) {
+      if (!historyWords.has(candidateWords[i])) {
         count++;
       }
     }
@@ -159,7 +177,25 @@ export class LexiconService {
   }
 
   public getFallbackLetter(historyWords: Set<string>): string {
-    // Choose a high frequency letter with the most unplayed words
+    return this.getFallbackPrefix(historyWords, 1);
+  }
+
+  public getFallbackPrefix(historyWords: Set<string>, prefixLength: number = 1): string {
+    if (prefixLength >= 2) {
+      const common2LetterPrefixes = ['TH', 'ST', 'CH', 'SH', 'PR', 'RE', 'IN', 'DE', 'TR', 'PL'];
+      let bestPrefix = 'TH';
+      let maxRemaining = 0;
+      for (const prefix of common2LetterPrefixes) {
+        const remaining = this.getRemainingWordsCount(prefix, historyWords);
+        if (remaining > maxRemaining) {
+          maxRemaining = remaining;
+          bestPrefix = prefix;
+        }
+      }
+      return bestPrefix;
+    }
+
+    // Single letter fallback
     let bestLetter = 'T';
     let maxRemaining = 0;
 

@@ -116,6 +116,14 @@ class SocketService {
     });
   }
 
+  public sendTypingUpdate(inputSuffix: string): void {
+    this.getSocket().emit('GAME_TYPING_UPDATE', { inputSuffix });
+  }
+
+  public resetRematch(): void {
+    this.getSocket().emit('ROOM_RESET_REMATCH');
+  }
+
   public requestSync(): void {
     this.getSocket().emit('GAME_REQUEST_SYNC');
   }

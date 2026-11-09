@@ -20,12 +20,23 @@ export class WordValidator {
   public validateSubmission(
     rawWord: string,
     requiredLetter: string,
-    historyWords: Set<string>
+    historyWords: Set<string>,
+    nextRoundNumber: number = 1
   ): ValidationResult {
     const trimmed = rawWord.trim().toUpperCase();
+    const expectedPrefix = requiredLetter.trim().toUpperCase();
+
+    // Support both full candidate word ("TIME") or suffix-only input ("IME" with prefix "T")
+    let candidateWord = trimmed;
+    if (!trimmed.startsWith(expectedPrefix)) {
+      const combined = `${expectedPrefix}${trimmed}`;
+      if (this.lexicon.hasWord(combined)) {
+        candidateWord = combined;
+      }
+    }
 
     // Perform Lexicon and Rule Validation
-    const moveValidation = this.lexicon.validateMove(trimmed, requiredLetter, historyWords);
+    const moveValidation = this.lexicon.validateMove(candidateWord, expectedPrefix, historyWords);
     if (!moveValidation.isValid) {
       return {
         isValid: false,
@@ -34,26 +45,27 @@ export class WordValidator {
     }
 
     const acceptedWord = moveValidation.normalizedWord;
-    const trailingLetter = acceptedWord.slice(-1);
+    const prefixLength = nextRoundNumber >= 20 ? 2 : 1;
+    const trailingPrefix = acceptedWord.slice(-prefixLength);
 
-    // Check if the trailing letter has available moves left in the dictionary
-    const remainingCount = this.lexicon.getRemainingWordsCount(trailingLetter, historyWords);
+    // Check if the trailing prefix has available moves left in the dictionary
+    const remainingCount = this.lexicon.getRemainingWordsCount(trailingPrefix, historyWords);
     if (remainingCount === 0) {
-      // Letter is exhausted! Pick an alternative high-frequency letter
-      const replacementLetter = this.lexicon.getFallbackLetter(historyWords);
+      // Prefix is exhausted! Pick an alternative fallback prefix
+      const replacementPrefix = this.lexicon.getFallbackPrefix(historyWords, prefixLength);
       return {
         isValid: true,
         normalizedWord: acceptedWord,
-        nextLetter: replacementLetter,
+        nextLetter: replacementPrefix,
         isLetterExhausted: true,
-        replacementLetter,
+        replacementLetter: replacementPrefix,
       };
     }
 
     return {
       isValid: true,
       normalizedWord: acceptedWord,
-      nextLetter: trailingLetter,
+      nextLetter: trailingPrefix,
       isLetterExhausted: false,
     };
   }

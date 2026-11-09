@@ -11,9 +11,12 @@ export const LiveMultiplayerArena: React.FC = () => {
     turnState,
     lastRejectionReason,
     shakeTrigger,
+    peerTyping,
     matchWinner,
     leaveRoom,
     submitWord,
+    sendTypingUpdate,
+    resetRematch,
   } = useGame();
 
   const [remainingMs, setRemainingMs] = useState<number>(15000);
@@ -50,7 +53,9 @@ export const LiveMultiplayerArena: React.FC = () => {
         remainingMs={remainingMs}
         totalDurationMs={totalDurationMs}
         isMyTurn={isMyTurn}
+        peerTypingSuffix={peerTyping && peerTyping.userId === turnState?.activeUserId ? peerTyping.inputSuffix : ''}
         onSubmitWord={submitWord}
+        onTypingUpdate={sendTypingUpdate}
         lastRejectionReason={lastRejectionReason}
         shakeTrigger={shakeTrigger}
         onLeaveMatch={leaveRoom}
@@ -61,6 +66,9 @@ export const LiveMultiplayerArena: React.FC = () => {
           winnerId={matchWinner.winnerId}
           standings={matchWinner.standings}
           deltas={matchWinner.deltas}
+          mode={currentRoom.mode}
+          isHost={currentRoom.hostUserId === user?.id}
+          onRematch={resetRematch}
           onClose={leaveRoom}
         />
       )}

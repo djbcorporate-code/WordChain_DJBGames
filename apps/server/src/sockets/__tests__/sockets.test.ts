@@ -170,11 +170,24 @@ describe('Real-Time Socket.IO & Private Room Integration Tests', () => {
     expect(inProgressSummary.currentWord.length).toBeGreaterThanOrEqual(3);
     expect(firstTurn.activeUserId).toBeDefined();
 
-    // 7. Active player submits a valid chain word
+    // 7. Active player emits typing update during their active turn
     const activeUserId = firstTurn.activeUserId;
     const activeSocket = activeUserId === testUser1.userId ? hostSocket : guestSocket;
+    const listeningSocket = activeSocket === hostSocket ? guestSocket : hostSocket;
     const requiredLetter = firstTurn.requiredLetter;
 
+    const typingPromise = new Promise<{ userId: string; inputSuffix: string }>((resolve) => {
+      listeningSocket.on('GAME_PLAYER_TYPING', (payload) => {
+        resolve(payload);
+      });
+    });
+
+    activeSocket.emit('GAME_TYPING_UPDATE', { inputSuffix: 'GER' });
+    const typingPayload = await typingPromise;
+    expect(typingPayload.userId).toBe(activeUserId);
+    expect(typingPayload.inputSuffix).toBe('GER');
+
+    // 8. Active player submits a valid chain word
     const candidates = LexiconService.getInstance().getTrie().getWordsWithPrefix(requiredLetter, 10);
     const validWord = candidates.find((w) => !inProgressSummary.historyWords.includes(w))!;
     expect(validWord).toBeDefined();
@@ -190,7 +203,7 @@ describe('Real-Time Socket.IO & Private Room Integration Tests', () => {
 
     expect(acceptedWord).toBe(validWord);
 
-    // 8. Test clock sync
+    // 9. Test clock sync
     const clockSyncPromise = new Promise<number>((resolve) => {
       hostSocket.on('CLOCK_SYNC_PONG', (payload) => {
         resolve(payload.serverTimestamp);
@@ -201,8 +214,19 @@ describe('Real-Time Socket.IO & Private Room Integration Tests', () => {
     const serverTimestamp = await clockSyncPromise;
     expect(serverTimestamp).toBeGreaterThan(0);
 
+    // 10. Verify guest cannot create another private room while host is active
+    const createErrorPromise = new Promise<{ code: string; message: string }>((resolve) => {
+      guestSocket.on('SOCKET_ERROR', (err) => {
+        resolve(err);
+      });
+    });
+
+    guestSocket.emit('ROOM_CREATE_PRIVATE', { customTimerSec: 15 });
+    const createErr = await createErrorPromise;
+    expect(createErr.code).toBe('CANNOT_CREATE_ROOM');
+
     // Disconnect sockets cleanly
     hostSocket.disconnect();
     guestSocket.disconnect();
-  });
+  }, 15000);
 });

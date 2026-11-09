@@ -1,5 +1,5 @@
 export const WORD_MIN_LENGTH = 3;
-export const WORD_MAX_LENGTH = 25;
+export const WORD_MAX_LENGTH = 46;
 
 export const RECONNECT_GRACE_PERIOD_MS = 25_000; // 25s window for casual
 export const RANKED_RECONNECT_GRACE_MS = 15_000; // 15s window for ranked

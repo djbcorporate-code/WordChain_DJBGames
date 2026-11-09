@@ -226,9 +226,27 @@ export class GameRoom {
       return;
     }
 
-    // Calculate dynamic turn duration (e.g. 15s decrementing by 0.5s per round down to minTimerSec)
-    const decrement = Math.floor((this.roundNumber - 1) / 2) * 0.5;
-    const durationSec = Math.max(this.minTimerSec, this.startTimerSec - decrement);
+    // Calculate dynamic escalating turn duration
+    // Rounds 1-5: startTimerSec (15s)
+    // Rounds 6-10: 13s
+    // Rounds 11-15: 11s
+    // Rounds 16-19: 9s
+    // Rounds 20-24: 8s
+    // Rounds 25+: 6s (minimum floor at minTimerSec)
+    let durationSec = this.startTimerSec;
+    if (this.roundNumber >= 25) {
+      durationSec = Math.max(5, this.minTimerSec);
+    } else if (this.roundNumber >= 20) {
+      durationSec = Math.max(8, this.minTimerSec);
+    } else if (this.roundNumber >= 16) {
+      durationSec = Math.max(9, this.minTimerSec);
+    } else if (this.roundNumber >= 11) {
+      durationSec = Math.max(11, this.minTimerSec);
+    } else if (this.roundNumber >= 6) {
+      durationSec = Math.max(13, this.minTimerSec);
+    } else {
+      durationSec = this.startTimerSec;
+    }
     const durationMs = durationSec * 1000;
 
     this.turnStartTimestamp = Date.now();
@@ -270,8 +288,14 @@ export class GameRoom {
       return { success: false, reason: 'NOT_YOUR_TURN' };
     }
 
-    // Verify word with authoritative validator
-    const validation = this.validator.validateSubmission(rawWord, this.requiredLetter, this.historyWords);
+    // Verify word with authoritative validator (passes next round number for 2-letter prefix rule)
+    const nextRound = this.roundNumber + 1;
+    const validation = this.validator.validateSubmission(
+      rawWord,
+      this.requiredLetter,
+      this.historyWords,
+      nextRound
+    );
 
     if (!validation.isValid) {
       this.callbacks.onWordRejected?.({
@@ -298,8 +322,9 @@ export class GameRoom {
 
     // Check letter exhaustion
     if (validation.isLetterExhausted) {
+      const prefixLen = nextRound >= 20 ? 2 : 1;
       this.callbacks.onLetterExhausted?.({
-        exhaustedLetter: acceptedWord.slice(-1),
+        exhaustedLetter: acceptedWord.slice(-prefixLen),
         newLetter: validation.replacementLetter!,
         awardedBonusToUserId: userId,
       });
@@ -397,6 +422,25 @@ export class GameRoom {
   private advanceTurnIndex(): void {
     if (this.turnOrder.length === 0) return;
 
+    const alivePlayers = this.getAlivePlayers();
+    if (alivePlayers.length <= 1) return;
+
+    const currentActiveId = this.turnOrder[this.turnIndex];
+
+    // For multiple players (> 2), randomize who goes next among other surviving scholars
+    if (alivePlayers.length > 2) {
+      const candidates = alivePlayers.filter((p) => p.userId !== currentActiveId);
+      if (candidates.length > 0) {
+        const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+        const chosenIndex = this.turnOrder.indexOf(chosen.userId);
+        if (chosenIndex !== -1) {
+          this.turnIndex = chosenIndex;
+          return;
+        }
+      }
+    }
+
+    // 2-player or fallback: next alive scholar in turn order
     let next = (this.turnIndex + 1) % this.turnOrder.length;
     let attempts = 0;
 
@@ -410,6 +454,33 @@ export class GameRoom {
       next = (next + 1) % this.turnOrder.length;
       attempts++;
     }
+  }
+
+  public resetToLobby(): boolean {
+    if (this.status !== 'FINISHED' || this.mode !== 'PRIVATE') return false;
+
+    this.activeTimer?.stop();
+    this.activeTimer = null;
+    if (this.countdownTimer) {
+      clearTimeout(this.countdownTimer);
+      this.countdownTimer = null;
+    }
+
+    this.status = 'WAITING';
+    this.roundNumber = 0;
+    this.currentWord = '';
+    this.requiredLetter = '';
+    this.historyWords.clear();
+
+    for (const player of this.players.values()) {
+      player.isAlive = true;
+      player.isReady = player.userId === this.hostUserId;
+      player.wordsSubmitted = 0;
+      player.placement = undefined;
+    }
+
+    this.notifyStateChange();
+    return true;
   }
 
   public getActivePlayerId(): string | null {

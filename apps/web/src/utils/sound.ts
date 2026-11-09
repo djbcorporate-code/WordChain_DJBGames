@@ -1,6 +1,9 @@
 class SoundSynthesizer {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
+  private musicInterval: NodeJS.Timeout | null = null;
+  private isPlayingMusic: boolean = false;
+  private musicStep: number = 0;
 
   constructor() {
     // Read mute preference from localStorage if available
@@ -30,6 +33,9 @@ class SoundSynthesizer {
 
   public toggleMute(): boolean {
     this.isMuted = !this.isMuted;
+    if (this.isMuted) {
+      this.stopIntenseMusic();
+    }
     try {
       localStorage.setItem('wordchain_sound_muted', JSON.stringify(this.isMuted));
     } catch {
@@ -40,6 +46,89 @@ class SoundSynthesizer {
 
   public getMuted(): boolean {
     return this.isMuted;
+  }
+
+  /**
+   * Procedural Intense Synth Tension Soundtrack for Round 20+
+   * Kicks in with pulsing 808 sub-bass, hi-hat clock tension and dark arpeggiated bassline
+   */
+  public startIntenseMusic(): void {
+    if (this.isPlayingMusic || this.isMuted) return;
+    this.isPlayingMusic = true;
+    this.musicStep = 0;
+
+    // 140 BPM -> beat interval is ~214ms (8th note)
+    const stepDurationMs = 214;
+
+    this.musicInterval = setInterval(() => {
+      const ctx = this.getContext();
+      if (!ctx || this.isMuted) {
+        this.stopIntenseMusic();
+        return;
+      }
+
+      const now = ctx.currentTime;
+      const step = this.musicStep % 16;
+      this.musicStep++;
+
+      // 1. Kick/Sub-bass pulse on downbeats (0, 4, 8, 12)
+      if (step % 4 === 0) {
+        const kickOsc = ctx.createOscillator();
+        const kickGain = ctx.createGain();
+        kickOsc.type = 'sine';
+        kickOsc.frequency.setValueAtTime(120, now);
+        kickOsc.frequency.exponentialRampToValueAtTime(45, now + 0.12);
+
+        kickGain.gain.setValueAtTime(0.22, now);
+        kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+
+        kickOsc.connect(kickGain);
+        kickGain.connect(ctx.destination);
+        kickOsc.start(now);
+        kickOsc.stop(now + 0.2);
+      }
+
+      // 2. Ticking Hi-hat clock tension on offbeats (2, 6, 10, 14)
+      if (step % 2 === 0) {
+        const tickOsc = ctx.createOscillator();
+        const tickGain = ctx.createGain();
+        tickOsc.type = 'square';
+        tickOsc.frequency.setValueAtTime(1800, now);
+
+        tickGain.gain.setValueAtTime(0.03, now);
+        tickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+
+        tickOsc.connect(tickGain);
+        tickGain.connect(ctx.destination);
+        tickOsc.start(now);
+        tickOsc.stop(now + 0.04);
+      }
+
+      // 3. Synth tension note progression (D minor / F / G tension)
+      const bassNotes = [146.83, 146.83, 174.61, 146.83, 196.0, 174.61, 164.81, 130.81];
+      const noteFreq = bassNotes[(step >> 1) % bassNotes.length];
+
+      const synthOsc = ctx.createOscillator();
+      const synthGain = ctx.createGain();
+      synthOsc.type = 'sawtooth';
+      synthOsc.frequency.setValueAtTime(noteFreq, now);
+
+      synthGain.gain.setValueAtTime(0.06, now);
+      synthGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+      synthOsc.connect(synthGain);
+      synthGain.connect(ctx.destination);
+      synthOsc.start(now);
+      synthOsc.stop(now + 0.16);
+    }, stepDurationMs);
+  }
+
+  public stopIntenseMusic(): void {
+    if (this.musicInterval) {
+      clearInterval(this.musicInterval);
+      this.musicInterval = null;
+    }
+    this.isPlayingMusic = false;
   }
 
   public playWordAccepted(): void {

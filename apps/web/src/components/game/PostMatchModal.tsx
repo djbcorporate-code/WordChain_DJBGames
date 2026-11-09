@@ -22,6 +22,9 @@ interface PostMatchModalProps {
   winnerId: string;
   standings: PlayerInGame[];
   deltas?: Record<string, RankProgressionDelta>;
+  mode?: string;
+  isHost?: boolean;
+  onRematch?: () => void;
   onClose: () => void;
 }
 
@@ -29,6 +32,9 @@ export const PostMatchModal: React.FC<PostMatchModalProps> = ({
   winnerId,
   standings,
   deltas,
+  mode,
+  isHost,
+  onRematch,
   onClose,
 }) => {
   const { user } = useAuth();
@@ -205,14 +211,36 @@ export const PostMatchModal: React.FC<PostMatchModalProps> = ({
           })}
         </div>
 
-        {/* Action Button */}
-        <button
-          onClick={onClose}
-          className="w-full py-3.5 rounded-2xl font-black text-sm bg-gradient-to-r from-accent-primary to-accent-secondary text-slate-950 shadow-glow hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
-        >
-          <span>Return to Dashboard</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
+        {/* Action Buttons */}
+        <div className="space-y-2">
+          {mode === 'PRIVATE' && onRematch && isHost && (
+            <button
+              onClick={onRematch}
+              className="w-full py-3.5 rounded-2xl font-black text-sm bg-gradient-to-r from-accent-primary to-accent-secondary text-slate-950 shadow-glow hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+            >
+              <span>Play Again (Return Room to Lobby)</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
+
+          {mode === 'PRIVATE' && !isHost && (
+            <div className="text-xs text-indigo-300 font-mono py-1">
+              Waiting for Room Creator to initiate rematch...
+            </div>
+          )}
+
+          <button
+            onClick={onClose}
+            className={`w-full py-3 rounded-2xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 ${
+              mode === 'PRIVATE' && isHost
+                ? 'bg-slate-800 text-slate-400 hover:text-rose-400 hover:bg-slate-800/80'
+                : 'bg-gradient-to-r from-accent-primary to-accent-secondary text-slate-950 shadow-glow hover:scale-[1.01] active:scale-[0.99]'
+            }`}
+          >
+            <span>{mode === 'PRIVATE' ? 'Leave Room & Exit' : 'Return to Dashboard'}</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

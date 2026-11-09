@@ -205,8 +205,8 @@ export class AdminService {
     const db = await getDb();
     const normalized = word.trim().toUpperCase();
 
-    if (normalized.length < 3 || normalized.length > 25) {
-      throw new Error('Word length must be between 3 and 25 characters.');
+    if (normalized.length < 3 || normalized.length > 46) {
+      throw new Error('Word length must be between 3 and 46 characters.');
     }
 
     const added = LexiconService.getInstance().addWord(normalized);

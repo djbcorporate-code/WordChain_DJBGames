@@ -144,6 +144,21 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
     // CREATE PRIVATE ROOM
     socket.on('ROOM_CREATE_PRIVATE', async (payload) => {
       try {
+        // Guard: Prevent users from making another room unless the creator leaves the room
+        const currentRoomId = socket.data.roomId;
+        if (currentRoomId) {
+          const currentRoom = roomManager.getRoom(currentRoomId);
+          if (currentRoom && currentRoom.mode === 'PRIVATE') {
+            if (currentRoom.hostUserId !== user.userId && currentRoom.players.has(currentRoom.hostUserId)) {
+              socket.emit('SOCKET_ERROR', {
+                code: 'CANNOT_CREATE_ROOM',
+                message: 'You cannot create another room while the room creator is active in your current room.',
+              });
+              return;
+            }
+          }
+        }
+
         const fullUser = await AuthService.getFullUserProfile(user.userId).catch(() => ({
           id: user.userId,
           username: user.username,
@@ -296,6 +311,42 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       room.submitWord(user.userId, word, clientTimestamp);
     });
 
+    // REAL-TIME TYPING BROADCAST (Roblox style peer typing sync)
+    socket.on('GAME_TYPING_UPDATE', ({ inputSuffix }) => {
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+
+      const room = roomManager.getRoom(roomId);
+      if (!room || room.status !== 'IN_PROGRESS') return;
+
+      const activeUserId = room.getActivePlayerId();
+      if (activeUserId === user.userId) {
+        socket.to(room.roomId).emit('GAME_PLAYER_TYPING', {
+          userId: user.userId,
+          inputSuffix: typeof inputSuffix === 'string' ? inputSuffix.slice(0, 46) : '',
+        });
+      }
+    });
+
+    // PRIVATE ROOM REMATCH (Reset room to lobby without changing room code)
+    socket.on('ROOM_RESET_REMATCH', () => {
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+
+      const room = roomManager.getRoom(roomId);
+      if (!room || room.mode !== 'PRIVATE') return;
+
+      if (room.hostUserId !== user.userId) {
+        socket.emit('SOCKET_ERROR', { code: 'FORBIDDEN', message: 'Only the room creator can initiate a rematch.' });
+        return;
+      }
+
+      const reset = room.resetToLobby();
+      if (reset) {
+        io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+      }
+    });
+
     // SYNC STATE
     socket.on('GAME_REQUEST_SYNC', () => {
       const roomId = socket.data.roomId;
@@ -429,7 +480,7 @@ function getRejectionMessage(reason: string, word: string): string {
     case 'TOO_SHORT':
       return `Word must be at least 3 letters long.`;
     case 'TOO_LONG':
-      return `Word cannot exceed 25 letters.`;
+      return `Word cannot exceed 46 letters.`;
     case 'NOT_YOUR_TURN':
       return `Wait for your turn!`;
     case 'RATE_LIMITED':
