@@ -1,4 +1,4 @@
-import { Flame, Send, ShieldAlert, Sparkles } from 'lucide-react';
+import { Delete, Flame, Send, ShieldAlert, Sparkles } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 interface CenterWordStageProps {
@@ -36,11 +36,38 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
   const prefixChars = (requiredPrefix || 'T').toUpperCase().split('');
   const isRound20Plus = roundNumber >= 20;
 
+  // Centralized deletion of the last typed character
+  const handleBackspace = () => {
+    setTypedSuffix((prev) => {
+      if (prev.length === 0) return prev;
+      const updated = prev.slice(0, -1);
+      onTypingUpdate(updated);
+      return updated;
+    });
+  };
+
+  // Keep selection/caret at the end of the input so mobile virtual keyboards never get stuck at index 0
+  const syncCaretToEnd = () => {
+    if (inputRef.current) {
+      const len = inputRef.current.value.length;
+      try {
+        inputRef.current.setSelectionRange(len, len);
+      } catch (_) {
+        // Safe fallback
+      }
+    }
+  };
+
+  useEffect(() => {
+    syncCaretToEnd();
+  }, [typedSuffix]);
+
   // Clear typed suffix when turn changes or required prefix updates
   useEffect(() => {
     setTypedSuffix('');
     if (isMyTurn) {
       inputRef.current?.focus();
+      syncCaretToEnd();
     }
   }, [requiredPrefix, isMyTurn]);
 
@@ -48,8 +75,54 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
   useEffect(() => {
     if (isMyTurn) {
       inputRef.current?.focus();
+      syncCaretToEnd();
     }
   }, [isMyTurn]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleFormSubmit();
+      return;
+    }
+
+    if (e.key === 'Backspace') {
+      // If cursor is at 0 or selection collapsed at start despite non-empty suffix,
+      // native backspace won't delete anything on Android/iOS, so manually delete
+      if (
+        typedSuffix.length > 0 &&
+        inputRef.current?.selectionStart === 0 &&
+        inputRef.current?.selectionEnd === 0
+      ) {
+        e.preventDefault();
+        handleBackspace();
+      }
+    }
+  };
+
+  const handleBeforeInput = (e: React.FormEvent<HTMLInputElement>) => {
+    const nativeEvent = e.nativeEvent as InputEvent;
+    if (!nativeEvent) return;
+
+    if (
+      nativeEvent.inputType === 'deleteContentBackward' ||
+      nativeEvent.inputType === 'deleteContentForward' ||
+      nativeEvent.inputType === 'deleteWordBackward' ||
+      nativeEvent.inputType === 'deleteHardLineBackward'
+    ) {
+      // If selection is at 0, standard browser delete won't delete anything on mobile,
+      // so intercept and ensure the last letter is deleted!
+      if (
+        inputRef.current &&
+        inputRef.current.selectionStart === 0 &&
+        inputRef.current.selectionEnd === 0 &&
+        typedSuffix.length > 0
+      ) {
+        e.preventDefault();
+        handleBackspace();
+      }
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isMyTurn) return;
@@ -84,29 +157,14 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
 
   return (
     <div
-      onClick={() => isMyTurn && inputRef.current?.focus()}
+      onClick={() => {
+        if (isMyTurn) {
+          inputRef.current?.focus();
+          syncCaretToEnd();
+        }
+      }}
       className="w-full max-w-2xl mx-auto flex flex-col items-center gap-3 sm:gap-4 select-none cursor-pointer"
     >
-      {/* Hidden real input capturing all keyboard and mobile soft-keyboard strokes */}
-      <input
-        ref={inputRef}
-        type="text"
-        value={typedSuffix}
-        onChange={handleInputChange}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            handleFormSubmit();
-          }
-        }}
-        disabled={!isMyTurn}
-        className="opacity-0 absolute -z-50 pointer-events-none w-0 h-0"
-        autoCapitalize="characters"
-        autoComplete="off"
-        autoCorrect="off"
-        spellCheck="false"
-      />
-
       {/* Round & Mode Badge */}
       <div className="flex items-center gap-2">
         <span
@@ -135,7 +193,13 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
       {/* Primary Animated Word Stage */}
       <div
         key={shakeTrigger}
-        className={`w-full bg-slate-900/70 border-2 rounded-2xl sm:rounded-3xl p-4 sm:p-6 backdrop-blur-md shadow-2xl flex flex-col items-center justify-center transition-all ${
+        onClick={() => {
+          if (isMyTurn) {
+            inputRef.current?.focus();
+            syncCaretToEnd();
+          }
+        }}
+        className={`relative w-full bg-slate-900/70 border-2 rounded-2xl sm:rounded-3xl p-4 sm:p-6 backdrop-blur-md shadow-2xl flex flex-col items-center justify-center transition-all overflow-hidden cursor-text ${
           shakeTrigger > 0 ? 'animate-shake border-rose-500/80 ring-2 ring-rose-500/30' : ''
         } ${
           isMyTurn
@@ -143,8 +207,25 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
             : 'border-slate-800'
         }`}
       >
+        {/* Real input overlay: Has real bounding rect, captures touch & virtual keyboard directly */}
+        <input
+          ref={inputRef}
+          type="text"
+          value={typedSuffix}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onBeforeInput={handleBeforeInput}
+          disabled={!isMyTurn}
+          className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer caret-transparent text-base"
+          autoCapitalize="characters"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck="false"
+          enterKeyHint="send"
+        />
+
         {/* Turn prompt message */}
-        <div className="text-xs sm:text-sm font-semibold tracking-wide mb-3 sm:mb-4 flex items-center gap-1.5">
+        <div className="text-xs sm:text-sm font-semibold tracking-wide mb-3 sm:mb-4 flex items-center gap-1.5 pointer-events-none">
           {isMyTurn ? (
             <span className="text-accent-secondary flex items-center gap-1.5 animate-pulse">
               <Sparkles className="w-4 h-4" />
@@ -159,7 +240,7 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
         </div>
 
         {/* Central Letter Tiles Display (Locked Prefix + Smooth Pop Suffix) */}
-        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2.5 min-h-[56px] sm:min-h-[72px]">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2.5 min-h-[56px] sm:min-h-[72px] pointer-events-none">
           {/* 1. Locked Prefix Tiles */}
           {prefixChars.map((char, index) => (
             <div
@@ -198,7 +279,7 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
         </div>
 
         {/* Word Length Counter & Tip */}
-        <div className="mt-4 pt-3 border-t border-slate-800/80 w-full flex items-center justify-between text-[11px] text-slate-500 font-mono px-2">
+        <div className="mt-4 pt-3 border-t border-slate-800/80 w-full flex items-center justify-between text-[11px] text-slate-500 font-mono px-2 pointer-events-none">
           <span>
             Total: <strong className="text-slate-300">{prefixChars.length + suffixChars.length}</strong> / 46
           </span>
@@ -217,18 +298,41 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
         </div>
       )}
 
-      {/* Mobile Submit Button for touch users when it's their turn */}
+      {/* Mobile Controls (Backspace & Submit) for touch users when it's their turn */}
       {isMyTurn && (
-        <div className="w-full flex items-center gap-2 pt-1">
+        <div className="w-full flex items-center gap-2 pt-1 relative z-20">
+          {/* Dedicated Backspace Button */}
           <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleBackspace();
+              inputRef.current?.focus();
+              syncCaretToEnd();
+            }}
+            disabled={typedSuffix.length === 0}
+            className={`px-4 sm:px-6 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all border ${
+              typedSuffix.length > 0
+                ? 'bg-slate-800 hover:bg-slate-700 text-rose-300 border-rose-500/30 active:scale-95 shadow-md cursor-pointer'
+                : 'bg-slate-900/50 text-slate-600 border-slate-800 cursor-not-allowed'
+            }`}
+            title="Delete last letter"
+          >
+            <Delete className="w-5 h-5 text-rose-400" />
+            <span className="font-mono font-bold tracking-wider">DELETE</span>
+          </button>
+
+          {/* Submit Word Button */}
+          <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               handleFormSubmit();
             }}
             disabled={typedSuffix.trim().length === 0 || isThrottled}
-            className={`w-full py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all shadow-glow ${
+            className={`flex-1 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all shadow-glow ${
               typedSuffix.trim().length > 0 && !isThrottled
-                ? 'bg-gradient-to-r from-accent-primary to-accent-secondary text-slate-950 hover:scale-[1.01] active:scale-[0.99]'
+                ? 'bg-gradient-to-r from-accent-primary to-accent-secondary text-slate-950 hover:scale-[1.01] active:scale-[0.99] cursor-pointer'
                 : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
             }`}
           >
