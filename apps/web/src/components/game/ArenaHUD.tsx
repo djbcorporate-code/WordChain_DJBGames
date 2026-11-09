@@ -1,11 +1,12 @@
 import { GameMode, PlayerInGame } from '@wordchain/shared';
-import { Flame, Volume2, VolumeX, X } from 'lucide-react';
-import React, { useState } from 'react';
+import { Flame, History, Volume2, VolumeX, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 import { soundManager } from '../../utils/sound.js';
 import { CenterWordStage } from './CenterWordStage.js';
 import { PlayerPodium } from './PlayerPodium.js';
 import { RadialTimer } from './RadialTimer.js';
 import { SpectatorOverlay } from './SpectatorOverlay.js';
+import { WordHistoryPanel } from './WordHistoryPanel.js';
 
 interface ArenaHUDProps {
   mode: GameMode;
@@ -46,11 +47,19 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
   onLeaveMatch,
 }) => {
   const [isMuted, setIsMuted] = useState(soundManager.getMuted());
+  const [showMobileHistory, setShowMobileHistory] = useState(false);
 
   const handleToggleMute = () => {
     const muted = soundManager.toggleMute();
     setIsMuted(muted);
   };
+
+  // On mobile, auto-close the drawer as soon as it's the user's turn so it never intervenes with typing
+  useEffect(() => {
+    if (isMyTurn) {
+      setShowMobileHistory(false);
+    }
+  }, [isMyTurn]);
 
   const myPlayer = players.find((p) => p.userId === myUserId);
   const isSpectating = !myPlayer || !myPlayer.isAlive;
@@ -59,7 +68,7 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
   const isRound20Plus = roundNumber >= 20;
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-5 flex flex-col justify-between min-h-[100dvh] gap-3 sm:gap-4 animate-fadeIn">
+    <div className="w-full max-w-6xl xl:max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-4 flex flex-col justify-between min-h-[100dvh] gap-2.5 sm:gap-3.5 animate-fadeIn relative">
       {/* Top Header: Clean, Uncluttered Arena Navigation */}
       <div className="flex items-center justify-between bg-slate-900/60 border border-slate-800/80 rounded-2xl px-3.5 py-2 sm:px-4 sm:py-2.5 backdrop-blur-md">
         <div className="flex items-center gap-2">
@@ -77,6 +86,20 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Mobile History Drawer Toggle */}
+          <button
+            onClick={() => setShowMobileHistory((prev) => !prev)}
+            className={`lg:hidden p-2 rounded-xl border transition-colors flex items-center gap-1.5 ${
+              showMobileHistory
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800 border-slate-700/60'
+            }`}
+            title="Toggle Word History"
+          >
+            <History className="w-4 h-4" />
+            <span className="text-[11px] font-mono font-bold">{wordHistory.length}</span>
+          </button>
+
           <button
             onClick={handleToggleMute}
             className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 border border-slate-700/60 transition-colors"
@@ -98,28 +121,67 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
         </div>
       </div>
 
-      {/* Main Center Stage: Radial Timer + Animated Pop-up Word Stage */}
-      <div className="flex flex-col items-center justify-center gap-4 my-auto py-2">
-        <RadialTimer
-          remainingMs={remainingMs}
-          totalDurationMs={totalDurationMs}
-          isActive={true}
-          size={90}
-        />
+      {/* Mobile Non-Intervening Chain Ticker (Directly below header, stays clear of keyboard and stage) */}
+      {wordHistory.length > 0 && (
+        <div className="lg:hidden w-full flex items-center gap-2 bg-slate-900/60 border border-slate-800/80 rounded-xl px-3 py-1.5 text-xs font-mono overflow-x-auto no-scrollbar shadow-sm">
+          <span className="text-cyan-400 shrink-0 font-bold flex items-center gap-1">
+            <History className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase tracking-wider text-slate-400">Chain:</span>
+          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {wordHistory.map((w, idx) => {
+              const isLatest = idx === wordHistory.length - 1;
+              return (
+                <React.Fragment key={`mobile-ticker-${idx}-${w}`}>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                      isLatest
+                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-sm'
+                        : 'bg-slate-800/70 text-slate-300 border border-slate-700/40'
+                    }`}
+                  >
+                    {w.toUpperCase()}
+                  </span>
+                  {idx < wordHistory.length - 1 && (
+                    <span className="text-slate-600 text-[10px]">→</span>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-        <CenterWordStage
-          requiredPrefix={requiredLetter}
-          roundNumber={roundNumber}
-          isMyTurn={isMyTurn}
-          activePlayerUsername={activePlayer?.username || 'Scholar'}
-          peerTypingSuffix={peerTypingSuffix}
-          wordHistory={wordHistory}
-          lastAcceptedByUsername={activePlayer?.username}
-          lastRejectionReason={lastRejectionReason}
-          shakeTrigger={shakeTrigger}
-          onSubmitSuffix={(suffix) => onSubmitWord(suffix)}
-          onTypingUpdate={onTypingUpdate}
-        />
+      {/* Main Arena Area: 12-column Grid on PC (Stage 8 cols, History Sidebar 4 cols) */}
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-center my-auto py-1 sm:py-2 w-full">
+        {/* Left/Center Area: Radial Timer + CenterWordStage */}
+        <div className="lg:col-span-8 flex flex-col items-center justify-center gap-4 w-full">
+          <RadialTimer
+            remainingMs={remainingMs}
+            totalDurationMs={totalDurationMs}
+            isActive={true}
+            size={90}
+          />
+
+          <CenterWordStage
+            requiredPrefix={requiredLetter}
+            roundNumber={roundNumber}
+            isMyTurn={isMyTurn}
+            activePlayerUsername={activePlayer?.username || 'Scholar'}
+            peerTypingSuffix={peerTypingSuffix}
+            wordHistory={wordHistory}
+            lastAcceptedByUsername={activePlayer?.username}
+            lastRejectionReason={lastRejectionReason}
+            shakeTrigger={shakeTrigger}
+            onSubmitSuffix={(suffix) => onSubmitWord(suffix)}
+            onTypingUpdate={onTypingUpdate}
+          />
+        </div>
+
+        {/* Right Side Area: Word Chain History sidebar for PC users */}
+        <div className="hidden lg:flex lg:col-span-4 h-full max-h-[480px] xl:max-h-[540px] flex-col">
+          <WordHistoryPanel wordHistory={wordHistory} roundNumber={roundNumber} />
+        </div>
       </div>
 
       {/* Bottom Area: Minimalist Scholar Podiums Grid or Spectator Banner */}
@@ -144,6 +206,26 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
           </div>
         )}
       </div>
+
+      {/* Mobile Drawer (Only shown when user taps History on mobile, auto-dismisses when turn starts) */}
+      {showMobileHistory && (
+        <div
+          onClick={() => setShowMobileHistory(false)}
+          className="lg:hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end justify-center p-3 animate-fadeIn"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md max-h-[70vh] animate-slideUp"
+          >
+            <WordHistoryPanel
+              wordHistory={wordHistory}
+              roundNumber={roundNumber}
+              isMobileDrawer={true}
+              onClose={() => setShowMobileHistory(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

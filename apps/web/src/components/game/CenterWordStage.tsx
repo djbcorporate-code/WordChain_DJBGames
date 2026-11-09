@@ -341,22 +341,6 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
           </button>
         </div>
       )}
-
-      {/* Recent chain breadcrumbs */}
-      {wordHistory.length > 1 && (
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-mono overflow-x-auto no-scrollbar max-w-full px-2 py-0.5">
-          <span className="text-slate-600 shrink-0">Chain:</span>
-          {wordHistory.slice(-4, -1).map((w, idx) => (
-            <span
-              key={idx}
-              className="flex items-center gap-1 bg-slate-900/60 px-2 py-0.5 rounded border border-slate-800 shrink-0 text-slate-300 font-semibold"
-            >
-              {w.toUpperCase()}
-              {idx < 2 && <span className="text-slate-600">→</span>}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 };
