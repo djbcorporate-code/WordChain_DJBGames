@@ -26,14 +26,9 @@ export class WordValidator {
     const trimmed = rawWord.trim().toUpperCase();
     const expectedPrefix = requiredLetter.trim().toUpperCase();
 
-    // Support both full candidate word ("TIME") or suffix-only input ("IME" with prefix "T")
-    let candidateWord = trimmed;
-    if (!trimmed.startsWith(expectedPrefix)) {
-      const combined = `${expectedPrefix}${trimmed}`;
-      if (this.lexicon.hasWord(combined)) {
-        candidateWord = combined;
-      }
-    }
+    // Strict suffix-only input: candidate word is ALWAYS expectedPrefix + typed suffix.
+    // Retyping the prefix is not considered (e.g. typing "TIME" when prefix is "T" forms "TTIME", which is rejected).
+    const candidateWord = `${expectedPrefix}${trimmed}`;
 
     // Perform Lexicon and Rule Validation
     const moveValidation = this.lexicon.validateMove(candidateWord, expectedPrefix, historyWords);

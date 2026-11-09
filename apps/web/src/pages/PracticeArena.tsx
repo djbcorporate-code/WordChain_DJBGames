@@ -210,10 +210,8 @@ export const PracticeArena: React.FC<PracticeArenaProps> = ({ onExit }) => {
     const trimmed = input.trim().toUpperCase();
     const expectedPrefix = requiredLetter.toUpperCase();
 
-    // Assemble candidate if suffix was submitted
-    const candidate = trimmed.startsWith(expectedPrefix)
-      ? trimmed
-      : `${expectedPrefix}${trimmed}`;
+    // Strict suffix-only candidate assembly: prefix is already set, user submits lacking letters
+    const candidate = `${expectedPrefix}${trimmed}`;
 
     // 1. Check length
     if (candidate.length < 3) {

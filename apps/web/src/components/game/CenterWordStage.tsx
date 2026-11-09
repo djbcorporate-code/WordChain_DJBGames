@@ -1,4 +1,4 @@
-import { ArrowRight, Flame, Send, ShieldAlert, Sparkles } from 'lucide-react';
+import { Flame, Send, ShieldAlert, Sparkles } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 interface CenterWordStageProps {
@@ -148,7 +148,7 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
           {isMyTurn ? (
             <span className="text-accent-secondary flex items-center gap-1.5 animate-pulse">
               <Sparkles className="w-4 h-4" />
-              Your Turn! Type the lacking letter{prefixChars.length > 1 ? 's' : ''}...
+              Your Turn! Type lacking letters (e.g. for &apos;TIME&apos;, type &apos;IME&apos;)
             </span>
           ) : (
             <span className="text-slate-400 flex items-center gap-1.5 font-mono">
@@ -174,11 +174,6 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
               </span>
             </div>
           ))}
-
-          {/* Suffix Divider Arrow */}
-          <div className="px-0.5 sm:px-1 text-slate-600">
-            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-accent-secondary/70" />
-          </div>
 
           {/* 2. Popping Suffix Letters */}
           {suffixChars.map((char, index) => (
@@ -208,7 +203,7 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
             Total: <strong className="text-slate-300">{prefixChars.length + suffixChars.length}</strong> / 46
           </span>
           <span className="hidden sm:inline">
-            {isMyTurn ? 'Press Enter to submit word' : 'Letters sync in real-time'}
+            {isMyTurn ? 'Type lacking letters only • Enter to submit' : 'Letters sync in real-time'}
           </span>
           <span>No repeats</span>
         </div>

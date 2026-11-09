@@ -54,26 +54,28 @@ describe('Authoritative Word Game Engine', () => {
   describe('WordValidator', () => {
     const validator = new WordValidator();
 
-    it('should validate chain submission correctly', () => {
+    it('should validate suffix submission correctly and assemble complete word', () => {
       const history = new Set(['PLANET']);
-      const res = validator.validateSubmission('TIGER', 'T', history);
+      // Prefix is 'T', player inputs suffix 'IGER' -> completes 'TIGER'
+      const res = validator.validateSubmission('IGER', 'T', history);
 
       expect(res.isValid).toBe(true);
       expect(res.normalizedWord).toBe('TIGER');
       expect(res.nextLetter).toBe('R');
     });
 
-    it('should reject wrong starting letter', () => {
+    it('should strictly reject retyping the prefix (e.g. typing TIME when prefix is T becomes TTIME and is rejected)', () => {
       const history = new Set(['PLANET']);
-      const res = validator.validateSubmission('APPLE', 'T', history);
+      // Typing 'TIME' when prefix is 'T' assembles 'TTIME' which is not in dictionary
+      const res = validator.validateSubmission('TIME', 'T', history);
 
       expect(res.isValid).toBe(false);
-      expect(res.reason).toBe('INVALID_PREFIX');
+      expect(res.reason).toBe('NOT_IN_DICTIONARY');
     });
 
     it('should reject already chained words', () => {
       const history = new Set(['PLANET', 'TIGER']);
-      const res = validator.validateSubmission('TIGER', 'T', history);
+      const res = validator.validateSubmission('IGER', 'T', history);
 
       expect(res.isValid).toBe(false);
       expect(res.reason).toBe('ALREADY_USED');
@@ -81,7 +83,7 @@ describe('Authoritative Word Game Engine', () => {
 
     it('should accept suffix-only submission and assemble candidate with required prefix', () => {
       const history = new Set(['PLANET']);
-      // Prefix is 'T', player inputs lacking letters 'IME'
+      // Prefix is 'T', player inputs lacking letters 'IME' -> forms 'TIME'
       const res = validator.validateSubmission('IME', 'T', history);
 
       expect(res.isValid).toBe(true);
@@ -90,8 +92,8 @@ describe('Authoritative Word Game Engine', () => {
 
     it('should use 2-letter trailing prefix in round 20 and up', () => {
       const history = new Set(['EARTH']);
-      // Round 20: accepted word 'PLANET' -> next trailing prefix is 'ET'
-      const res = validator.validateSubmission('PLANET', 'P', history, 20);
+      // Round 20: prefix 'P', suffix 'LANET' -> completes 'PLANET' -> next trailing prefix is 'ET'
+      const res = validator.validateSubmission('LANET', 'P', history, 20);
 
       expect(res.isValid).toBe(true);
       expect(res.normalizedWord).toBe('PLANET');
@@ -100,7 +102,7 @@ describe('Authoritative Word Game Engine', () => {
 
     it('should reject non-dictionary words', () => {
       const history = new Set(['PLANET']);
-      const res = validator.validateSubmission('TXQZJJ', 'T', history);
+      const res = validator.validateSubmission('XQZJJ', 'T', history);
 
       expect(res.isValid).toBe(false);
       expect(res.reason).toBe('NOT_IN_DICTIONARY');
@@ -169,18 +171,19 @@ describe('Authoritative Word Game Engine', () => {
       expect(nonTurnSub.success).toBe(false);
       expect(nonTurnSub.reason).toBe('NOT_YOUR_TURN');
 
-      // 2. Active player submits word with wrong letter
-      const wrongLetterWord = room.requiredLetter === 'T' ? 'APPLE' : 'TIGER';
-      const wrongSub = room.submitWord(firstActiveId, wrongLetterWord, Date.now());
+      // 2. Active player submits invalid suffix
+      const invalidSuffix = 'XQZJJ';
+      const wrongSub = room.submitWord(firstActiveId, invalidSuffix, Date.now());
       expect(wrongSub.success).toBe(false);
 
-      // 3. Active player submits valid word
+      // 3. Active player submits valid suffix
       const required = room.requiredLetter;
       const candidates = LexiconService.getInstance().getTrie().getWordsWithPrefix(required, 10);
       const validWord = candidates.find((w) => !room.historyWords.has(w))!;
       expect(validWord).toBeDefined();
 
-      const validSub = room.submitWord(firstActiveId, validWord, Date.now());
+      const validSuffix = validWord.slice(required.length);
+      const validSub = room.submitWord(firstActiveId, validSuffix, Date.now());
       expect(validSub.success).toBe(true);
 
       expect(onWordAccepted).toHaveBeenCalled();

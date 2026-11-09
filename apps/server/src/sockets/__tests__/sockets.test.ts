@@ -187,7 +187,7 @@ describe('Real-Time Socket.IO & Private Room Integration Tests', () => {
     expect(typingPayload.userId).toBe(activeUserId);
     expect(typingPayload.inputSuffix).toBe('GER');
 
-    // 8. Active player submits a valid chain word
+    // 8. Active player submits a valid chain word suffix
     const candidates = LexiconService.getInstance().getTrie().getWordsWithPrefix(requiredLetter, 10);
     const validWord = candidates.find((w) => !inProgressSummary.historyWords.includes(w))!;
     expect(validWord).toBeDefined();
@@ -198,7 +198,8 @@ describe('Real-Time Socket.IO & Private Room Integration Tests', () => {
       });
     });
 
-    activeSocket.emit('GAME_SUBMIT_WORD', { word: validWord, clientTimestamp: Date.now() });
+    const suffix = validWord.slice(requiredLetter.length);
+    activeSocket.emit('GAME_SUBMIT_WORD', { word: suffix, clientTimestamp: Date.now() });
     const acceptedWord = await wordAcceptedPromise;
 
     expect(acceptedWord).toBe(validWord);
