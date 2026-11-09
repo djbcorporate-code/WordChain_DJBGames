@@ -36,14 +36,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'logi
     setSuccessMessage(null);
 
     try {
-      const res = await register({ email, username, password });
-      setSuccessMessage('Registration successful! Verification token dispatched.');
-      if (res.verificationToken) {
-        setVerificationToken(res.verificationToken);
-        setTab('verify');
-      } else {
+      await register({ email, username, password });
+      setSuccessMessage('Registration successful! Welcome to WordChain.');
+      setTimeout(() => {
         onClose();
-      }
+      }, 600);
     } catch (err: any) {
       setError(err.message || 'Registration failed');
     } finally {

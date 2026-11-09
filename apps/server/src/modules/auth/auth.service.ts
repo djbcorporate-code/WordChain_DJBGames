@@ -37,14 +37,14 @@ export class AuthService {
     const passwordHash = await hashPassword(input.password);
     const verificationToken = generateRandomToken(32);
 
-    // Insert user
+    // Insert user (email verified by default, immediate login enabled)
     const [createdUser] = await db
       .insert(users)
       .values({
         email: normalizedEmail,
         username: normalizedUsername,
         passwordHash,
-        emailVerified: false,
+        emailVerified: true,
         verificationToken,
         role: 'USER',
       })

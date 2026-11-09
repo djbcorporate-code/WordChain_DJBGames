@@ -16,7 +16,7 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   username: varchar('username', { length: 32 }).notNull().unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
-  emailVerified: boolean('email_verified').default(false).notNull(),
+  emailVerified: boolean('email_verified').default(true).notNull(),
   verificationToken: varchar('verification_token', { length: 128 }),
   resetPasswordToken: varchar('reset_password_token', { length: 128 }),
   resetPasswordExpires: timestamp('reset_password_expires', { withTimezone: true }),

@@ -54,21 +54,9 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-1.5 sm:gap-3">
           {user ? (
             <div className="flex items-center gap-1.5 sm:gap-3">
-              {/* Email Verification Banner Pill */}
-              {!user.emailVerified ? (
-                <button
-                  onClick={() => onOpenAuth('verify')}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg bg-state-warning/15 border border-state-warning/30 text-amber-300 text-[11px] sm:text-xs font-semibold hover:bg-state-warning/25 transition-colors"
-                >
-                  <AlertCircle className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 animate-pulse" />
-                  <span className="hidden md:inline">Verify Email to Unlock Ranked</span>
-                  <span className="md:hidden">Verify</span>
-                </button>
-              ) : (
-                <span className="hidden lg:flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                  <CheckCircle2 className="w-3 h-3" /> Verified Scholar
-                </span>
-              )}
+              <span className="hidden lg:flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                <CheckCircle2 className="w-3 h-3" /> Verified Scholar
+              </span>
 
               {/* Admin Console Trigger */}
               {user.role === 'ADMIN' && (

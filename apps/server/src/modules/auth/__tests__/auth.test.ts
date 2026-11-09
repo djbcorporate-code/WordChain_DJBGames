@@ -31,7 +31,7 @@ describe('Auth Module Integration Tests', () => {
     expect(res.body.user).toBeDefined();
     expect(res.body.user.email).toBe(testUser.email);
     expect(res.body.user.username).toBe(testUser.username);
-    expect(res.body.user.emailVerified).toBe(false);
+    expect(res.body.user.emailVerified).toBe(true);
 
     // Verify academic rank initialization
     expect(res.body.user.currentRank).toBeDefined();

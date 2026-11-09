@@ -59,7 +59,7 @@ async function ensureTablesCreated(): Promise<void> {
       email VARCHAR(255) UNIQUE NOT NULL,
       username VARCHAR(32) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
-      email_verified BOOLEAN DEFAULT FALSE NOT NULL,
+      email_verified BOOLEAN DEFAULT TRUE NOT NULL,
       verification_token VARCHAR(128),
       reset_password_token VARCHAR(128),
       reset_password_expires TIMESTAMPTZ,

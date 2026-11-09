@@ -308,14 +308,6 @@ export class RankingService {
       return { eligible: false, reason: 'Scholar account not found.' };
     }
 
-    const user = foundUsers[0];
-    if (!user.emailVerified) {
-      return {
-        eligible: false,
-        reason: 'Email must be verified before entering competitive Ranked matches.',
-      };
-    }
-
     const profiles = await db
       .select()
       .from(playerProfiles)

@@ -239,7 +239,7 @@ describe('Phase 5: Casual Public Matchmaking & Disconnect Recovery', () => {
     const err = await errorPromise;
 
     expect(err.code).toBe('RANKED_NOT_ELIGIBLE');
-    expect(err.message).toContain('Email must be verified');
+    expect(err.message).toContain('Complete at least 5 casual matches');
 
     lockedSocket.disconnect();
   });

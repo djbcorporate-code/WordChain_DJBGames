@@ -48,7 +48,7 @@ export class AuthController {
 
       res.status(201).json({
         success: true,
-        message: 'Account successfully registered! Please check your email for the verification link.',
+        message: 'Account successfully registered! Welcome to WordChain.',
         user: result.user,
         token: result.token,
         verificationToken: process.env.NODE_ENV !== 'production' ? result.verificationToken : undefined,

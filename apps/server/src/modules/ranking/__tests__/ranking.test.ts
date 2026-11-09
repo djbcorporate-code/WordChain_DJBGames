@@ -342,24 +342,31 @@ describe('Phase 6: Competitive Ranking & Scoring Engine', () => {
   });
 
   describe('6. Ranked Eligibility Checking', () => {
-    it('should reject unverified email users from playing ranked', async () => {
+    it('should allow users to play ranked without email verification once casual match requirement is met', async () => {
       const db = await getDb();
-      const unverifiedId = '66666666-6666-6666-6666-666666666666';
+      const scholarId = '66666666-6666-6666-6666-666666666666';
 
       await db
         .insert(users)
         .values({
-          id: unverifiedId,
-          email: 'unverified@wordchain.io',
-          username: 'UnverifiedScholar',
+          id: scholarId,
+          email: 'scholar@wordchain.io',
+          username: 'DirectScholar',
           passwordHash: 'pass',
           emailVerified: false,
         })
         .onConflictDoNothing();
 
-      const eligibility = await RankingService.checkRankedEligibility(unverifiedId);
-      expect(eligibility.eligible).toBe(false);
-      expect(eligibility.reason).toContain('Email must be verified');
+      await db
+        .insert(playerProfiles)
+        .values({
+          userId: scholarId,
+          totalMatches: 5,
+        })
+        .onConflictDoNothing();
+
+      const eligibility = await RankingService.checkRankedEligibility(scholarId);
+      expect(eligibility.eligible).toBe(true);
     });
 
     it('should reject users with fewer than 5 completed matches from playing ranked', async () => {

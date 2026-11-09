@@ -16,9 +16,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
   const { joinQueue } = useGame();
 
   const rankTierConfig = user ? RANK_TIER_CONFIGS[user.currentRank.tier] : null;
-  const isEmailVerified = user?.emailVerified ?? false;
   const casualMatchesPlayed = user?.profile.totalMatches ?? 0;
-  const isRankedUnlocked = isEmailVerified && casualMatchesPlayed >= 5;
+  const isRankedUnlocked = casualMatchesPlayed >= 5;
 
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-6 sm:space-y-8 animate-fadeIn">
@@ -191,12 +190,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
               {/* Requirements & Unlock Status */}
               <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Email Verified:</span>
-                  <span className={isEmailVerified ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
-                    {isEmailVerified ? 'Verified ✓' : 'Required ✕'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
                   <span className="text-slate-400">Casual Matches:</span>
                   <span className={casualMatchesPlayed >= 5 ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
                     {casualMatchesPlayed} / 5 Played
@@ -208,7 +201,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
             <button
               onClick={() => {
                 if (!user) onOpenAuth('login');
-                else if (!isEmailVerified) onOpenAuth('verify');
                 else if (!isRankedUnlocked) alert('Please complete at least 5 Casual Matches before unlocking Ranked Mode!');
                 else joinQueue('RANKED');
               }}
