@@ -25,6 +25,7 @@ pnpm-debug.log*
 *.sqlite
 *.sqlite-journal
 .pglite
+.data/
 /data/
 !packages/lexicon/data/
 

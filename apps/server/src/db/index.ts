@@ -1,6 +1,8 @@
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
 import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
+import fs from 'fs';
+import path from 'path';
 import pg from 'pg';
 import * as schema from './schema.js';
 
@@ -27,8 +29,17 @@ export async function getDb(): Promise<DatabaseInstance> {
     });
     dbInstance = drizzlePg(pgPool, { schema });
   } else {
-    console.log('[Database] No DATABASE_URL specified. Initializing embedded in-memory PostgreSQL (PGlite)...');
-    pgliteClient = new PGlite();
+    const isTest = process.env.NODE_ENV === 'test';
+    const dataDir = process.env.PGLITE_DATA_DIR || (isTest ? undefined : path.resolve(process.cwd(), '.data/pglite'));
+
+    if (dataDir) {
+      fs.mkdirSync(dataDir, { recursive: true });
+      console.log(`[Database] No DATABASE_URL specified. Initializing embedded persistent PostgreSQL (PGlite at ${dataDir})...`);
+      pgliteClient = new PGlite(dataDir);
+    } else {
+      console.log('[Database] No DATABASE_URL specified. Initializing embedded in-memory PostgreSQL (PGlite)...');
+      pgliteClient = new PGlite();
+    }
     dbInstance = drizzlePglite(pgliteClient, { schema });
   }
 
