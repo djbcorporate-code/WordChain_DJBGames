@@ -9,6 +9,7 @@ import { Navbar } from './components/Navbar.js';
 import { ProfileModal } from './components/profile/ProfileModal.js';
 import { AuthProvider } from './context/AuthContext.js';
 import { GameProvider, useGame } from './context/GameContext.js';
+import { VoiceChatProvider } from './context/VoiceChatContext.js';
 import { Dashboard } from './pages/Dashboard.js';
 import { LiveMultiplayerArena } from './pages/LiveMultiplayerArena.js';
 import { PracticeArena } from './pages/PracticeArena.js';
@@ -121,7 +122,9 @@ export const App: React.FC = () => {
   return (
     <AuthProvider>
       <GameProvider>
-        <AppContent />
+        <VoiceChatProvider>
+          <AppContent />
+        </VoiceChatProvider>
       </GameProvider>
     </AuthProvider>
   );

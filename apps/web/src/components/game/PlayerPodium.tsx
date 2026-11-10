@@ -1,6 +1,7 @@
 import { PlayerInGame } from '@wordchain/shared';
-import { Skull, WifiOff } from 'lucide-react';
+import { Mic, MicOff, Skull, WifiOff } from 'lucide-react';
 import React from 'react';
+import { useVoiceChat } from '../../context/VoiceChatContext.js';
 import { RankEmblem } from '../RankEmblem.js';
 
 interface PlayerPodiumProps {
@@ -15,12 +16,17 @@ export const PlayerPodium: React.FC<PlayerPodiumProps> = ({
   isSelf,
 }) => {
   const isEliminated = !player.isAlive;
+  const { speakingUsers, mutedUsers, isOpenMicEnabled } = useVoiceChat();
+  const isSpeaking = speakingUsers.has(player.userId);
+  const isMuted = mutedUsers.has(player.userId);
 
   return (
     <div
       className={`relative flex items-center justify-between px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl sm:rounded-2xl border transition-all ${
         isEliminated
           ? 'bg-slate-950/40 border-slate-900/60 opacity-40 grayscale'
+          : isSpeaking
+          ? 'bg-emerald-950/30 border-emerald-500/70 shadow-glowEmerald scale-[1.01]'
           : isCurrentTurn
           ? 'bg-indigo-950/40 border-accent-primary/80 ring-2 ring-accent-primary/40 shadow-glow scale-[1.02]'
           : 'bg-slate-900/50 border-slate-800/80 hover:bg-slate-900/70'
@@ -36,9 +42,11 @@ export const PlayerPodium: React.FC<PlayerPodiumProps> = ({
       {/* Avatar + Info */}
       <div className="flex items-center gap-2 min-w-0">
         <div
-          className={`relative w-8 h-8 rounded-lg shrink-0 flex items-center justify-center font-black text-xs select-none ${
+          className={`relative w-8 h-8 rounded-lg shrink-0 flex items-center justify-center font-black text-xs select-none transition-all ${
             isEliminated
               ? 'bg-slate-800 text-slate-500'
+              : isSpeaking
+              ? 'ring-2 ring-emerald-400 shadow-glowEmerald animate-pulse bg-emerald-500/20 text-emerald-300'
               : isSelf
               ? 'bg-gradient-to-tr from-accent-primary to-accent-secondary text-slate-950 font-bold'
               : 'bg-slate-800 text-slate-200'
@@ -61,7 +69,7 @@ export const PlayerPodium: React.FC<PlayerPodiumProps> = ({
           <div className="flex items-center gap-1">
             <span
               className={`font-bold text-xs sm:text-sm tracking-tight truncate max-w-[80px] sm:max-w-[120px] ${
-                isSelf ? 'text-accent-secondary' : 'text-slate-200'
+                isSpeaking ? 'text-emerald-300 font-extrabold' : isSelf ? 'text-accent-secondary' : 'text-slate-200'
               }`}
             >
               {player.username}
@@ -70,6 +78,18 @@ export const PlayerPodium: React.FC<PlayerPodiumProps> = ({
               <span className="text-[8px] px-1 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-bold uppercase shrink-0">
                 YOU
               </span>
+            )}
+            {/* Live voice icon in arena */}
+            {isOpenMicEnabled && !isEliminated && (
+              isMuted ? (
+                <span title="Muted" className="text-rose-400">
+                  <MicOff className="w-2.5 h-2.5" />
+                </span>
+              ) : isSpeaking ? (
+                <span title="Speaking" className="text-emerald-400 animate-bounce">
+                  <Mic className="w-2.5 h-2.5" />
+                </span>
+              ) : null
             )}
           </div>
           <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">

@@ -2,6 +2,7 @@ import { GameMode, PlayerInGame } from '@wordchain/shared';
 import { Flame, History, Volume2, VolumeX, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { soundManager } from '../../utils/sound.js';
+import { OpenMicControlBar } from '../voice/OpenMicControlBar.js';
 import { CenterWordStage } from './CenterWordStage.js';
 import { PlayerPodium } from './PlayerPodium.js';
 import { RadialTimer } from './RadialTimer.js';
@@ -120,6 +121,13 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Private Room Voice Chat Bar */}
+      {mode === 'PRIVATE' && (
+        <div className="w-full">
+          <OpenMicControlBar compact={true} />
+        </div>
+      )}
 
       {/* Mobile Non-Intervening Chain Ticker (Directly below header, stays clear of keyboard and stage) */}
       {wordHistory.length > 0 && (

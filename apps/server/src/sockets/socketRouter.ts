@@ -452,6 +452,9 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
         return;
       }
 
+      // Notify voice peers before leaving
+      socket.to(roomId).emit('VOICE_PEER_LEFT', { userId: user.userId });
+
       // Leave socket channel immediately so no subsequent room state broadcasts reach this leaving socket
       socket.leave(roomId);
       delete socket.data.roomId;
@@ -472,12 +475,58 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       }
     });
 
+    // WEBRTC OPEN MIC VOICE CHAT (Private Rooms)
+    socket.on('VOICE_JOIN_ROOM', () => {
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+      socket.to(roomId).emit('VOICE_PEER_JOINED', { userId: user.userId });
+    });
+
+    socket.on('VOICE_SIGNAL', ({ targetUserId, signal }) => {
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+
+      const roomSockets = io.sockets.adapter.rooms.get(roomId);
+      if (!roomSockets) return;
+
+      for (const socketId of roomSockets) {
+        const peerSocket = io.sockets.sockets.get(socketId) as AuthenticatedSocket | undefined;
+        if (peerSocket && peerSocket.data?.user?.userId === targetUserId) {
+          peerSocket.emit('VOICE_SIGNAL', {
+            senderUserId: user.userId,
+            signal,
+          });
+          break;
+        }
+      }
+    });
+
+    socket.on('VOICE_STATE_UPDATE', ({ isMuted, isSpeaking }) => {
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+      socket.to(roomId).emit('VOICE_STATE_UPDATE', {
+        userId: user.userId,
+        isMuted,
+        isSpeaking,
+      });
+    });
+
+    socket.on('VOICE_LEAVE_ROOM', () => {
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+      socket.to(roomId).emit('VOICE_PEER_LEFT', { userId: user.userId });
+    });
+
     // DISCONNECT
     socket.on('disconnect', () => {
       // Dequeue if waiting in matchmaking queue
       matchmakingService.dequeue(user.userId);
 
       const roomId = socket.data.roomId;
+      if (!roomId) return;
+
+      // Notify voice peers of departure
+      socket.to(roomId).emit('VOICE_PEER_LEFT', { userId: user.userId });
       if (!roomId) return;
 
       const room = roomManager.getRoom(roomId);

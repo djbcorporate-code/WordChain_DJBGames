@@ -21,6 +21,12 @@ export interface ClientToServerEvents {
 
   // Reconnection
   ROOM_RECONNECT: (payload: { roomId: string; sessionToken?: string }) => void;
+
+  // WebRTC Open Mic Voice Chat (Private Rooms)
+  VOICE_SIGNAL: (payload: { targetUserId: string; signal: any }) => void;
+  VOICE_STATE_UPDATE: (payload: { isMuted: boolean; isSpeaking?: boolean }) => void;
+  VOICE_JOIN_ROOM: () => void;
+  VOICE_LEAVE_ROOM: () => void;
 }
 
 export interface ServerToClientEvents {
@@ -68,6 +74,12 @@ export interface ServerToClientEvents {
 
   // Latency & Time Sync
   CLOCK_SYNC_PONG: (payload: { clientPing: number; serverTimestamp: number }) => void;
+
+  // WebRTC Open Mic Voice Chat (Private Rooms)
+  VOICE_SIGNAL: (payload: { senderUserId: string; signal: any }) => void;
+  VOICE_STATE_UPDATE: (payload: { userId: string; isMuted: boolean; isSpeaking?: boolean }) => void;
+  VOICE_PEER_JOINED: (payload: { userId: string }) => void;
+  VOICE_PEER_LEFT: (payload: { userId: string }) => void;
 
   // General Notification / Error
   SOCKET_ERROR: (payload: { code: string; message: string }) => void;

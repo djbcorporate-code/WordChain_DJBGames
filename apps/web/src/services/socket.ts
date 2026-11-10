@@ -136,6 +136,23 @@ class SocketService {
   public requestSync(): void {
     this.getSocket().emit('GAME_REQUEST_SYNC');
   }
+
+  // Voice Chat Emitters
+  public sendVoiceSignal(targetUserId: string, signal: any): void {
+    this.getSocket().emit('VOICE_SIGNAL', { targetUserId, signal });
+  }
+
+  public sendVoiceState(isMuted: boolean, isSpeaking?: boolean): void {
+    this.getSocket().emit('VOICE_STATE_UPDATE', { isMuted, isSpeaking });
+  }
+
+  public joinVoiceRoom(): void {
+    this.getSocket().emit('VOICE_JOIN_ROOM');
+  }
+
+  public leaveVoiceRoom(): void {
+    this.getSocket().emit('VOICE_LEAVE_ROOM');
+  }
 }
 
 export const socketService = new SocketService();

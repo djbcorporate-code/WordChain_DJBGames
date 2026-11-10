@@ -1,12 +1,15 @@
-import { Check, CheckCircle2, Clock, Copy, Crown, LogOut, Play, Shield, UserPlus, Users } from 'lucide-react';
+import { Check, CheckCircle2, Clock, Copy, Crown, LogOut, Mic, MicOff, Play, Shield, UserPlus, Users } from 'lucide-react';
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext.js';
 import { useGame } from '../../context/GameContext.js';
+import { useVoiceChat } from '../../context/VoiceChatContext.js';
+import { OpenMicControlBar } from '../voice/OpenMicControlBar.js';
 import { RankEmblem } from '../RankEmblem.js';
 
 export const LobbyRoomView: React.FC = () => {
   const { user } = useAuth();
   const { currentRoom, leaveRoom, toggleReady, startMatch, addGuestPlayer, error } = useGame();
+  const { speakingUsers, mutedUsers, isOpenMicEnabled } = useVoiceChat();
   const [copied, setCopied] = useState(false);
 
   if (!currentRoom) return null;
@@ -62,6 +65,9 @@ export const LobbyRoomView: React.FC = () => {
         </div>
       </div>
 
+      {/* Private Room Voice Chat Bar */}
+      <OpenMicControlBar />
+
       {error && (
         <div className="p-3.5 rounded-2xl bg-state-danger/15 border border-state-danger/30 text-rose-300 text-xs">
           {error}
@@ -81,14 +87,24 @@ export const LobbyRoomView: React.FC = () => {
           {currentRoom.players.map((player) => {
             const isPlayerHost = player.userId === currentRoom.hostUserId;
             const isMe = player.userId === user?.id;
+            const isSpeaking = speakingUsers.has(player.userId);
+            const isUserMuted = mutedUsers.has(player.userId);
 
             return (
               <div
                 key={player.userId}
-                className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800/80 hover:border-slate-700 transition-all"
+                className={`flex items-center justify-between p-3.5 rounded-2xl bg-slate-900/80 border transition-all ${
+                  isSpeaking
+                    ? 'border-emerald-500/70 shadow-glowEmerald bg-emerald-950/20'
+                    : 'border-slate-800/80 hover:border-slate-700'
+                }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="relative w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center font-bold text-sm text-slate-200">
+                  <div
+                    className={`relative w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center font-bold text-sm text-slate-200 transition-all ${
+                      isSpeaking ? 'ring-2 ring-emerald-400 shadow-glowEmerald animate-pulse' : ''
+                    }`}
+                  >
                     {player.username.substring(0, 2).toUpperCase()}
                     {isPlayerHost && (
                       <div className="absolute -top-1.5 -right-1.5 p-1 bg-amber-500 rounded-full shadow-md" title="Host">
@@ -104,6 +120,18 @@ export const LobbyRoomView: React.FC = () => {
                         <span className="text-[9px] px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-bold uppercase">
                           YOU
                         </span>
+                      )}
+                      {/* Voice Activity Pill */}
+                      {isOpenMicEnabled && (
+                        isUserMuted ? (
+                          <span title="Muted" className="text-rose-400 p-0.5 rounded bg-rose-500/10">
+                            <MicOff className="w-3 h-3" />
+                          </span>
+                        ) : isSpeaking ? (
+                          <span title="Speaking" className="text-emerald-400 p-0.5 rounded bg-emerald-500/10 animate-bounce">
+                            <Mic className="w-3 h-3" />
+                          </span>
+                        ) : null
                       )}
                     </div>
                     <div className="flex items-center gap-1 mt-0.5">
