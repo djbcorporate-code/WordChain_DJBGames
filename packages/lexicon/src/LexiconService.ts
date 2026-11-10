@@ -73,12 +73,45 @@ export class LexiconService {
 
     // Read words dataset
     if (fs.existsSync(wordsFile)) {
-      const fileStream = fs.readFileSync(wordsFile, 'utf8');
-      const lines = fileStream.split(/\r?\n/);
+      this.loadWordsFromFile(wordsFile, blacklist);
+    } else {
+      console.warn(`[LexiconService] Dictionary file not found at ${wordsFile}. Using default seeds.`);
+      for (const word of INITIAL_SEED_WORDS) {
+        this.wordSet.add(word);
+        this.trie.insert(word);
+      }
+    }
 
-      for (let i = 0; i < lines.length; i++) {
-        const word = lines[i].trim().toUpperCase();
-        if (word && !blacklist.has(word)) {
+    // Load supplemental country names and personal names
+    const countriesFile = path.join(dataDir, 'countries.txt');
+    const namesFile = path.join(dataDir, 'names.txt');
+
+    const countriesAdded = this.loadWordsFromFile(countriesFile, blacklist);
+    const namesAdded = this.loadWordsFromFile(namesFile, blacklist);
+
+    this.isLoaded = true;
+    console.log(
+      `[LexiconService] Indexed ${this.wordSet.size.toLocaleString()} English words into memory (including ${countriesAdded} countries and ${namesAdded} names).`
+    );
+  }
+
+  private loadWordsFromFile(filePath: string, blacklist: Set<string>): number {
+    if (!fs.existsSync(filePath)) return 0;
+    const fileStream = fs.readFileSync(filePath, 'utf8');
+    const lines = fileStream.split(/\r?\n/);
+    let addedCount = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const word = lines[i].trim().toUpperCase();
+      if (
+        word &&
+        !word.startsWith('#') &&
+        !blacklist.has(word) &&
+        /^[A-Z]+$/.test(word) &&
+        word.length >= WORD_MIN_LENGTH &&
+        word.length <= WORD_MAX_LENGTH
+      ) {
+        if (!this.wordSet.has(word)) {
           this.wordSet.add(word);
           this.trie.insert(word);
 
@@ -89,18 +122,11 @@ export class LexiconService {
             this.letterBuckets.set(firstLetter, bucket);
           }
           bucket.push(word);
+          addedCount++;
         }
       }
-    } else {
-      console.warn(`[LexiconService] Dictionary file not found at ${wordsFile}. Using default seeds.`);
-      for (const word of INITIAL_SEED_WORDS) {
-        this.wordSet.add(word);
-        this.trie.insert(word);
-      }
     }
-
-    this.isLoaded = true;
-    console.log(`[LexiconService] Indexed ${this.wordSet.size.toLocaleString()} English words into memory.`);
+    return addedCount;
   }
 
   public hasWord(word: string): boolean {

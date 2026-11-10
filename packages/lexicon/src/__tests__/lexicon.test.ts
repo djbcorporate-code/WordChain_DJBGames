@@ -25,6 +25,37 @@ describe('LexiconService & Trie Tests', () => {
     expect(lexicon.hasWord('notarealwordxyz99')).toBe(false);
   });
 
+  it('should accept country names as valid playable words', () => {
+    expect(lexicon.hasWord('FRANCE')).toBe(true);
+    expect(lexicon.hasWord('CANADA')).toBe(true);
+    expect(lexicon.hasWord('JAPAN')).toBe(true);
+    expect(lexicon.hasWord('BRAZIL')).toBe(true);
+    expect(lexicon.hasWord('PHILIPPINES')).toBe(true);
+    expect(lexicon.hasWord('GERMANY')).toBe(true);
+    expect(lexicon.hasWord('SPAIN')).toBe(true);
+    expect(lexicon.hasWord('ITALY')).toBe(true);
+
+    const history = new Set(['PARIS']);
+    const move = lexicon.validateMove('SPAIN', 'S', history);
+    expect(move.isValid).toBe(true);
+    expect(move.normalizedWord).toBe('SPAIN');
+  });
+
+  it('should accept personal first names as valid playable words', () => {
+    expect(lexicon.hasWord('JOHN')).toBe(true);
+    expect(lexicon.hasWord('EMMA')).toBe(true);
+    expect(lexicon.hasWord('ALEX')).toBe(true);
+    expect(lexicon.hasWord('SARAH')).toBe(true);
+    expect(lexicon.hasWord('NOAH')).toBe(true);
+    expect(lexicon.hasWord('CHLOE')).toBe(true);
+    expect(lexicon.hasWord('LUCAS')).toBe(true);
+
+    const history = new Set(['LION']);
+    const move = lexicon.validateMove('NOAH', 'N', history);
+    expect(move.isValid).toBe(true);
+    expect(move.normalizedWord).toBe('NOAH');
+  });
+
   it('validateMove: should accept valid chain word', () => {
     const history = new Set(['PLANET']);
     const result = lexicon.validateMove('TIGER', 'T', history);

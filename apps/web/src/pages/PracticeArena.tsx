@@ -47,13 +47,15 @@ const INITIAL_BOTS: PlayerInGame[] = [
   },
 ];
 
-// Fallback dictionary for practice simulation
+// Fallback dictionary for practice simulation (includes popular nouns, countries, and names)
 const SAMPLE_DICTIONARY = new Set([
   'PLANET', 'TIGER', 'RABBIT', 'TURTLE', 'ELEPHANT', 'TRAIN', 'NEST', 'TREE',
   'EAGLE', 'ENERGY', 'YELLOW', 'WATER', 'RIVER', 'ROAD', 'DOLPHIN', 'NIGHT',
   'TIME', 'EARTH', 'HEART', 'TEMPLE', 'LEMON', 'NATURE', 'EVENING', 'GRAPE',
   'EMERALD', 'DRAGON', 'NEEDLE', 'EAST', 'TOAD', 'DEER', 'RAIN', 'NOVA',
   'APPLE', 'ENGINE', 'ESCAPE', 'ECLIPSE', 'SHIELD', 'DIAMOND', 'DREAM', 'MAGIC',
+  'FRANCE', 'CANADA', 'BRAZIL', 'JAPAN', 'SPAIN', 'ITALY', 'EGYPT', 'GREECE',
+  'EMMA', 'JOHN', 'ALEX', 'SARAH', 'NOAH', 'CHLOE', 'LUCAS', 'OLIVIA', 'LIAM',
 ]);
 
 export const PracticeArena: React.FC<PracticeArenaProps> = ({ onExit }) => {
