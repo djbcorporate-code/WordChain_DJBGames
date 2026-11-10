@@ -129,12 +129,10 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
         </div>
       </div>
 
-      {/* Private Room Voice Chat Bar */}
-      {mode === 'PRIVATE' && (
-        <div className="w-full">
-          <OpenMicControlBar compact={true} />
-        </div>
-      )}
+      {/* Open Mic Voice Chat Bar (Casual, Ranked, and Private) */}
+      <div className="w-full">
+        <OpenMicControlBar compact={true} />
+      </div>
 
       {/* Mobile Non-Intervening Chain Ticker (Directly below header, stays clear of keyboard and stage) */}
       {wordHistory.length > 0 && (

@@ -58,7 +58,7 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const pendingIceCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const makingOfferRef = useRef<Map<string, boolean>>(new Map());
 
-  const isPrivateRoom = currentRoom?.mode === 'PRIVATE';
+  const isInRoom = !!currentRoom;
 
   // Helper: Resume/play all connected audio elements (bypasses browser autoplay lock)
   const resumeAllAudio = () => {
@@ -117,15 +117,15 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setActivePeersCount(0);
   };
 
-  // If leaving private room, teardown voice
+  // If leaving game room, teardown voice
   useEffect(() => {
-    if (!isPrivateRoom) {
+    if (!isInRoom) {
       if (isOpenMicEnabled) {
         socketService.leaveVoiceRoom();
         teardownVoice();
       }
     }
-  }, [isPrivateRoom]);
+  }, [isInRoom]);
 
   // Adjust volume / muted state of all remote audio elements when deafened changes
   useEffect(() => {
@@ -330,8 +330,8 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   // Turn Open Mic on or off
   const toggleOpenMic = async () => {
-    if (!isPrivateRoom) {
-      setError('Voice chat is only available in private rooms.');
+    if (!isInRoom) {
+      setError('Voice chat is only available inside a match.');
       return;
     }
 
@@ -469,7 +469,7 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     };
 
     const handleVoiceSignal = async ({ senderUserId, signal }: { senderUserId: string; signal: any }) => {
-      if (!isPrivateRoom || !user || senderUserId === user.id) return;
+      if (!isInRoom || !user || senderUserId === user.id) return;
 
       const pc = getOrCreatePeerConnection(senderUserId);
       // Perfect Negotiation Politeness Rule: Deterministic tiebreaker based on user ID
@@ -570,7 +570,7 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       socket.off('VOICE_STATE_UPDATE', handleVoiceStateUpdate);
       socket.off('VOICE_PEER_LEFT', handleVoicePeerLeft);
     };
-  }, [isOpenMicEnabled, isPrivateRoom, user]);
+  }, [isOpenMicEnabled, isInRoom, user]);
 
   return (
     <VoiceChatContext.Provider

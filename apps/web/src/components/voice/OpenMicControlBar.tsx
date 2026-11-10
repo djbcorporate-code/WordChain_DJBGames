@@ -22,8 +22,8 @@ export const OpenMicControlBar: React.FC<OpenMicControlBarProps> = ({ compact = 
     clearError,
   } = useVoiceChat();
 
-  // Voice chat is exclusive to private custom rooms
-  if (currentRoom?.mode !== 'PRIVATE') {
+  // Voice chat is available across all events (Casual, Ranked, and Private)
+  if (!currentRoom) {
     return null;
   }
 
@@ -97,7 +97,7 @@ export const OpenMicControlBar: React.FC<OpenMicControlBarProps> = ({ compact = 
             <p className="text-[10px] text-slate-400 font-mono truncate">
               {isOpenMicEnabled
                 ? `${activePeersCount} peer${activePeersCount === 1 ? '' : 's'} connected • Encrypted Voice`
-                : 'P2P voice chat for private rooms'}
+                : 'P2P open mic voice chat with players'}
             </p>
           </div>
         </div>
