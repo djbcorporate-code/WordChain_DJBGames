@@ -1,4 +1,5 @@
 import {
+  AcademicRankTier,
   AuthSession,
   ClientToServerEvents,
   GameLanguage,
@@ -121,6 +122,35 @@ export class MatchmakingService {
     this.processRankedQueue();
   }
 
+  private generateBotScholar(tier: AcademicRankTier = 'NURSERY', division: number = 3): PlayerInGame {
+    const names = [
+      'Scholar_Hypatia',
+      'Scholar_Newton',
+      'Scholar_Curie',
+      'Scholar_Tesla',
+      'Scholar_Ada',
+      'Scholar_Pascal',
+      'Scholar_Galileo',
+      'Scholar_Euler',
+      'Scholar_Turing',
+      'Scholar_Darwin',
+    ];
+    const name = `${names[Math.floor(Math.random() * names.length)]}_${Math.floor(100 + Math.random() * 900)}`;
+    const avatarNum = Math.floor(1 + Math.random() * 4);
+    return {
+      userId: `guest-bot-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      username: name,
+      avatarId: `avatar_0${avatarNum}`,
+      tier,
+      division,
+      lives: 3,
+      isAlive: true,
+      isReady: true,
+      wordsSubmitted: 0,
+      isDisconnected: false,
+    };
+  }
+
   private processCasualQueue(): void {
     const casualQueue = this.queue.filter((p) => p.mode === 'CASUAL');
     if (casualQueue.length === 0) return;
@@ -145,6 +175,17 @@ export class MatchmakingService {
       return;
     }
 
+    // Rule 3: Fast-match solo player with automated scholar opponents after 3.5 seconds
+    if (casualQueue.length === 1 && oldestWaitMs >= 3500) {
+      const solo = casualQueue[0];
+      const idx = this.queue.findIndex((p) => p.user.userId === solo.user.userId);
+      if (idx !== -1) this.queue.splice(idx, 1);
+
+      const bot = this.generateBotScholar('NURSERY', 3);
+      this.createCasualMatch([solo], [bot]);
+      return;
+    }
+
     // Broadcast updated queue positions to remaining players
     casualQueue.forEach((p, idx) => {
       p.socket.emit('QUEUE_STATUS', {
@@ -165,15 +206,27 @@ export class MatchmakingService {
 
   private processRankedQueueForLanguage(lang: GameLanguage): void {
     const rankedQueue = this.queue.filter((p) => p.mode === 'RANKED' && p.language === lang);
+    const now = Date.now();
+
     if (rankedQueue.length < 2) {
-      // Minimum 2 scholars required for Ranked match in this language
+      // If a solo ranked player has waited >= 5 seconds without finding another human, pair with an AI Scholar opponent!
+      const soloPlayer = rankedQueue[0];
+      if (soloPlayer && (now - soloPlayer.enqueuedAt) >= 5000) {
+        const idx = this.queue.findIndex((p) => p.user.userId === soloPlayer.user.userId);
+        if (idx !== -1) this.queue.splice(idx, 1);
+
+        const bot = this.generateBotScholar(soloPlayer.playerInfo.tier, soloPlayer.playerInfo.division);
+        this.createRankedMatch([soloPlayer], lang, [bot]);
+        return;
+      }
+
       rankedQueue.forEach((p, idx) => {
         p.socket.emit('QUEUE_STATUS', {
           inQueue: true,
           mode: 'RANKED',
           language: lang,
           position: idx + 1,
-          estimatedWaitSec: Math.max(3, 10 - Math.floor((Date.now() - p.enqueuedAt) / 1000)),
+          estimatedWaitSec: Math.max(1, 5 - Math.floor((now - p.enqueuedAt) / 1000)),
         });
       });
       return;
@@ -181,7 +234,6 @@ export class MatchmakingService {
 
     // Sort by MMR to find closely matched scholars
     const sorted = [...rankedQueue].sort((a, b) => a.mmr - b.mmr);
-    const now = Date.now();
 
     // Strategy 1: Check for 4-player FFA if 4+ players queued and MMR tolerance matches
     if (sorted.length >= 4) {
@@ -240,16 +292,17 @@ export class MatchmakingService {
     });
   }
 
-  private createCasualMatch(players: QueuedPlayer[]): void {
+  private createCasualMatch(players: QueuedPlayer[], botOpponents: PlayerInGame[] = []): void {
     const roomManager = RoomManager.getInstance();
     const host = players[0];
+    const totalCount = players.length + botOpponents.length;
 
     const room = roomManager.createRoom({
       mode: 'CASUAL',
       hostUserId: host.user.userId,
       startTimerSec: 15,
       minTimerSec: 8,
-      maxPlayers: 4,
+      maxPlayers: Math.max(2, totalCount),
     });
 
     this.bindCallbacksFn!(room);
@@ -271,14 +324,26 @@ export class MatchmakingService {
       });
     }
 
+    for (const bot of botOpponents) {
+      room.addPlayer({
+        ...bot,
+        isReady: true,
+      });
+    }
+
     this.io!.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
     room.startCountdown();
-    console.log(`[Matchmaking] Casual match created: ${room.roomCode} with ${players.length} scholars`);
+    console.log(`[Matchmaking] Casual match created: ${room.roomCode} with ${totalCount} scholars`);
   }
 
-  private createRankedMatch(players: QueuedPlayer[], language: GameLanguage = 'ENGLISH'): void {
+  private createRankedMatch(
+    players: QueuedPlayer[],
+    language: GameLanguage = 'ENGLISH',
+    botOpponents: PlayerInGame[] = []
+  ): void {
     const roomManager = RoomManager.getInstance();
     const host = players[0];
+    const totalCount = players.length + botOpponents.length;
 
     const room = roomManager.createRoom({
       mode: 'RANKED',
@@ -286,7 +351,7 @@ export class MatchmakingService {
       hostUserId: host.user.userId,
       startTimerSec: 15,
       minTimerSec: 6, // Competitive floor: 6s
-      maxPlayers: players.length,
+      maxPlayers: Math.max(2, totalCount),
     });
 
     this.bindCallbacksFn!(room);
@@ -309,10 +374,17 @@ export class MatchmakingService {
       });
     }
 
+    for (const bot of botOpponents) {
+      room.addPlayer({
+        ...bot,
+        isReady: true,
+      });
+    }
+
     this.io!.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
     room.startCountdown();
     console.log(
-      `[Matchmaking] Ranked match (${language}) created: ${room.roomCode} with ${players.length} scholars (avg MMR: ${Math.round(
+      `[Matchmaking] Ranked match (${language}) created: ${room.roomCode} with ${totalCount} scholars (avg MMR: ${Math.round(
         players.reduce((sum, p) => sum + p.mmr, 0) / players.length
       )})`
     );

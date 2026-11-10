@@ -500,4 +500,46 @@ describe('Phase 5: Casual Public Matchmaking & Disconnect Recovery', () => {
       s.disconnect();
     }
   }, 10000);
+
+  it('should auto-pair a solo ranked player with a matched scholar opponent after 5 seconds', async () => {
+    const db = await getDb();
+    const soloUser = { id: '91919191-9191-9191-9191-919191919191', username: 'SoloScholar' };
+    await db.insert(users).values({
+      id: soloUser.id,
+      username: soloUser.username,
+      passwordHash: 'hashed',
+      role: 'USER',
+      emailVerified: true,
+    }).onConflictDoNothing();
+
+    await db.insert(playerProfiles).values({
+      userId: soloUser.id,
+      totalMatches: 6,
+    }).onConflictDoNothing();
+
+    const token = generateJwt({
+      userId: soloUser.id,
+      username: soloUser.username,
+      role: 'USER',
+      emailVerified: true,
+    });
+
+    const s = Client(`http://localhost:${port}`, {
+      auth: { token },
+      transports: ['websocket'],
+    });
+    await new Promise<void>((r) => s.on('connect', () => r()));
+
+    const matchFoundPromise = new Promise<{ roomId: string; mode: string }>((resolve) => {
+      s.on('MATCH_FOUND', (payload: any) => resolve(payload));
+    });
+
+    s.emit('LOBBY_JOIN_QUEUE', { mode: 'RANKED', language: 'ENGLISH' });
+
+    const match = await matchFoundPromise;
+    expect(match.mode).toBe('RANKED');
+    expect(match.roomId).toBeDefined();
+
+    s.disconnect();
+  }, 12000);
 });

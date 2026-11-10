@@ -409,6 +409,7 @@ export class RankingService {
     // 3. Compute match metrics
     const winner = playersList.find((p) => p.placement === 1) || playersList[0];
     const durationSeconds = Math.max(0, Math.floor((Date.now() - room.createdAt) / 1000));
+    const winnerUserId = winner && !winner.userId.startsWith('guest-bot-') ? winner.userId : null;
 
     // Upsert match record
     if (existingMatches.length > 0) {
@@ -416,7 +417,7 @@ export class RankingService {
         .update(matches)
         .set({
           status: 'COMPLETED',
-          winnerUserId: winner ? winner.userId : null,
+          winnerUserId,
           totalRounds: room.roundNumber,
           durationSeconds,
           completedAt: new Date(),
@@ -429,7 +430,7 @@ export class RankingService {
         gameMode: room.mode,
         seasonId: activeSeason.id,
         status: 'COMPLETED',
-        winnerUserId: winner ? winner.userId : null,
+        winnerUserId,
         totalRounds: room.roundNumber,
         durationSeconds,
         completedAt: new Date(),
@@ -441,6 +442,24 @@ export class RankingService {
     let totalMmr = 0;
 
     for (const player of playersList) {
+      if (player.userId.startsWith('guest-bot-')) {
+        playerRankMap.set(player.userId, {
+          userId: player.userId,
+          seasonId: activeSeason.id,
+          tier: player.tier || 'NURSERY',
+          division: player.division || 3,
+          rankExp: 0,
+          scientistPoints: 0,
+          highestTier: player.tier || 'NURSERY',
+          highestScientistPoints: 0,
+          hiddenMmr: 1000,
+          seasonMatches: 0,
+          seasonWins: 0,
+        });
+        totalMmr += 1000;
+        continue;
+      }
+
       const existingRanks = await db
         .select()
         .from(playerRankProfiles)
@@ -473,8 +492,11 @@ export class RankingService {
     const avgMmr = playersList.length > 0 ? Math.round(totalMmr / playersList.length) : 1000;
     const progressionDeltas: Record<string, RankProgressionDelta> = {};
 
-    // 5. Update each player's profile and rank
+    // 5. Update each human player's profile and rank
     for (const player of playersList) {
+      if (player.userId.startsWith('guest-bot-')) {
+        continue;
+      }
       const currentRank = playerRankMap.get(player.userId);
       const placement = player.placement ?? 4;
       const isWinner = placement === 1;
