@@ -38,6 +38,10 @@ export interface GameRoomCallbacks {
     placement: number;
     reason: 'TIMEOUT' | 'FORFEIT' | 'DISCONNECT';
   }) => void;
+  onLifeLost?: (payload: {
+    userId: string;
+    livesRemaining: number;
+  }) => void;
   onMatchEnded?: (payload: {
     winnerId: string;
     standings: PlayerInGame[];
@@ -119,6 +123,7 @@ export class GameRoom {
 
     this.players.set(player.userId, {
       ...player,
+      lives: player.lives ?? 3,
       isAlive: true,
       isReady: player.userId === this.hostUserId, // Host is ready by default
       wordsSubmitted: 0,
@@ -211,6 +216,7 @@ export class GameRoom {
     // Reset player states
     for (const player of this.players.values()) {
       player.isAlive = true;
+      player.lives = 3;
       player.wordsSubmitted = 0;
       player.placement = undefined;
     }
@@ -378,7 +384,28 @@ export class GameRoom {
     const activeUserId = this.getActivePlayerId();
     if (!activeUserId) return;
 
-    this.eliminatePlayer(activeUserId, 'TIMEOUT');
+    const player = this.players.get(activeUserId);
+    if (!player || !player.isAlive) return;
+
+    // Deduct 1 life
+    const remainingLives = Math.max(0, (player.lives ?? 3) - 1);
+    player.lives = remainingLives;
+
+    this.callbacks.onLifeLost?.({
+      userId: activeUserId,
+      livesRemaining: remainingLives,
+    });
+
+    if (remainingLives <= 0) {
+      // Reached 0 lives -> eliminate player
+      this.eliminatePlayer(activeUserId, 'TIMEOUT');
+    } else {
+      // Still has lives! Advance turn to next alive player and continue match
+      this.advanceTurnIndex();
+      this.roundNumber += 1;
+      this.notifyStateChange();
+      this.beginTurn();
+    }
   }
 
   public eliminatePlayer(userId: string, reason: 'TIMEOUT' | 'FORFEIT' | 'DISCONNECT'): void {
@@ -386,6 +413,7 @@ export class GameRoom {
     if (!player || !player.isAlive) return;
 
     player.isAlive = false;
+    player.lives = 0;
 
     // Placement is the current number of surviving players + 1
     const aliveRemaining = this.getAlivePlayers().length;
@@ -492,6 +520,7 @@ export class GameRoom {
 
     for (const player of this.players.values()) {
       player.isAlive = true;
+      player.lives = 3;
       player.isReady = player.userId === this.hostUserId;
       player.wordsSubmitted = 0;
       player.placement = undefined;

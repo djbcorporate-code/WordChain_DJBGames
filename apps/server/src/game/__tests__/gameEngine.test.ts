@@ -118,6 +118,7 @@ describe('Authoritative Word Game Engine', () => {
       division: 3,
       isAlive: true,
       isReady: true,
+      lives: 3,
       wordsSubmitted: 0,
       isDisconnected: false,
     });
@@ -194,9 +195,10 @@ describe('Authoritative Word Game Engine', () => {
       room.cleanup();
     });
 
-    it('should handle timeout elimination and declare last survivor as winner', () => {
+    it('should grant players 3 lives and eliminate on 3rd timeout instead of instant game over', () => {
       const onPlayerEliminated = vi.fn();
       const onMatchEnded = vi.fn();
+      const onLifeLost = vi.fn();
 
       const room = new GameRoom({
         mode: 'CASUAL',
@@ -204,6 +206,7 @@ describe('Authoritative Word Game Engine', () => {
         callbacks: {
           onPlayerEliminated,
           onMatchEnded,
+          onLifeLost,
         },
       });
 
@@ -211,11 +214,32 @@ describe('Authoritative Word Game Engine', () => {
       room.addPlayer(createPlayer('p2', 'PlayerTwo'));
       room.startMatch();
 
+      const p1 = room.players.get('p1')!;
+      const p2 = room.players.get('p2')!;
+      expect(p1.lives).toBe(3);
+      expect(p2.lives).toBe(3);
+
       const firstActiveId = room.getActivePlayerId()!;
+      const targetPlayer = room.players.get(firstActiveId)!;
       const expectedWinnerId = firstActiveId === 'p1' ? 'p2' : 'p1';
 
-      // Simulate timeout for the active player
+      // 1st Timeout: Loses 1 life -> 2 lives remaining, match stays IN_PROGRESS
       room.handleTimeout();
+      expect(targetPlayer.lives).toBe(2);
+      expect(targetPlayer.isAlive).toBe(true);
+      expect(room.status).toBe('IN_PROGRESS');
+      expect(onLifeLost).toHaveBeenCalledWith({ userId: firstActiveId, livesRemaining: 2 });
+      expect(onPlayerEliminated).not.toHaveBeenCalled();
+
+      // Set targetPlayer lives to 1 and active to test final elimination
+      targetPlayer.lives = 1;
+      (room as any).turnOrder = [firstActiveId, expectedWinnerId];
+      (room as any).turnIndex = 0;
+
+      // Final Timeout: Reaches 0 lives -> now eliminated!
+      room.handleTimeout();
+      expect(targetPlayer.lives).toBe(0);
+      expect(targetPlayer.isAlive).toBe(false);
 
       expect(onPlayerEliminated).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -225,7 +249,7 @@ describe('Authoritative Word Game Engine', () => {
         })
       );
 
-      // Since only 2 players were in match, the other wins immediately!
+      // Since only 2 players were in match, the other wins!
       expect(room.status).toBe('FINISHED');
       expect(onMatchEnded).toHaveBeenCalledWith(
         expect.objectContaining({

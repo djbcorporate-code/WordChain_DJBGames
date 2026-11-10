@@ -43,6 +43,9 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       onPlayerEliminated: (payload) => {
         io.to(room.roomId).emit('GAME_PLAYER_ELIMINATED', payload);
       },
+      onLifeLost: (payload) => {
+        io.to(room.roomId).emit('GAME_LIFE_LOST', payload);
+      },
       onMatchEnded: async (payload) => {
         try {
           const deltas = await RankingService.settleMatchResults(room.roomId, room);
@@ -118,6 +121,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           avatarId: fullUser.profile.avatarId,
           tier: fullUser.currentRank.tier,
           division: fullUser.currentRank.division,
+          lives: 3,
           isAlive: true,
           isReady: true,
           wordsSubmitted: 0,
@@ -180,6 +184,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           avatarId: fullUser.profile.avatarId,
           tier: fullUser.currentRank.tier,
           division: fullUser.currentRank.division,
+          lives: 3,
           isAlive: true,
           isReady: true,
           wordsSubmitted: 0,
@@ -233,6 +238,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           avatarId: fullUser.profile.avatarId,
           tier: fullUser.currentRank.tier,
           division: fullUser.currentRank.division,
+          lives: 3,
           isAlive: true,
           isReady: false,
           wordsSubmitted: 0,
@@ -298,6 +304,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
         avatarId: `avatar_0${(guestIndex % 4) + 1}`,
         tier: 'NURSERY',
         division: 3,
+        lives: 3,
         isAlive: true,
         isReady: true,
         wordsSubmitted: 0,

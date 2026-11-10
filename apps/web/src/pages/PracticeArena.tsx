@@ -15,6 +15,7 @@ const INITIAL_BOTS: PlayerInGame[] = [
     avatarId: 'avatar_02',
     tier: 'KINDER',
     division: 2,
+    lives: 3,
     isAlive: true,
     isReady: true,
     wordsSubmitted: 0,
@@ -26,6 +27,7 @@ const INITIAL_BOTS: PlayerInGame[] = [
     avatarId: 'avatar_03',
     tier: 'HIGH_SCHOOL',
     division: 1,
+    lives: 3,
     isAlive: true,
     isReady: true,
     wordsSubmitted: 0,
@@ -37,6 +39,7 @@ const INITIAL_BOTS: PlayerInGame[] = [
     avatarId: 'avatar_04',
     tier: 'DOCTORATE',
     division: 4,
+    lives: 3,
     isAlive: true,
     isReady: true,
     wordsSubmitted: 0,
@@ -68,6 +71,7 @@ export const PracticeArena: React.FC<PracticeArenaProps> = ({ onExit }) => {
       avatarId: 'avatar_default_01',
       tier: myTier,
       division: myDivision,
+      lives: 3,
       isAlive: true,
       isReady: true,
       wordsSubmitted: 0,
@@ -114,49 +118,59 @@ export const PracticeArena: React.FC<PracticeArenaProps> = ({ onExit }) => {
     return () => clearInterval(interval);
   }, [activePlayerIndex, roundNumber]);
 
-  // Handle Timeout (Eliminates the active player if clock hits 0)
+  // Handle Timeout (Deducts a life; eliminates when lives reach 0)
   const handleTimeout = () => {
-    soundManager.playEliminated();
+    let eliminated = false;
+    let nextList: PlayerInGame[] = [];
 
     setPlayers((prev) => {
       const updated = [...prev];
       const target = updated[activePlayerIndex];
       if (target) {
-        target.isAlive = false;
-        target.placement = updated.filter((p) => p.isAlive).length;
+        const nextLives = Math.max(0, (target.lives ?? 3) - 1);
+        target.lives = nextLives;
+        if (nextLives <= 0) {
+          target.isAlive = false;
+          target.placement = updated.filter((p) => p.isAlive).length;
+          eliminated = true;
+        }
       }
+      nextList = updated;
       return updated;
     });
 
-    advanceToNextAlivePlayer();
+    if (eliminated) {
+      soundManager.playEliminated();
+    } else {
+      soundManager.playWordRejected();
+    }
+
+    advanceToNextAlivePlayer(undefined, nextList);
   };
 
-  const advanceToNextAlivePlayer = (nextWord?: string) => {
-    setPlayers((prev) => {
-      const alive = prev.filter((p) => p.isAlive);
-      if (alive.length <= 1) {
-        soundManager.playVictory();
-        soundManager.stopIntenseMusic();
-        return prev;
-      }
-      return prev;
-    });
+  const advanceToNextAlivePlayer = (nextWord?: string, customPlayersList?: PlayerInGame[]) => {
+    const list = customPlayersList && customPlayersList.length > 0 ? customPlayersList : players;
+    const alive = list.filter((p) => p.isAlive);
+    if (alive.length <= 1) {
+      soundManager.playVictory();
+      soundManager.stopIntenseMusic();
+      return;
+    }
 
     // Advance turn index (randomized for multiple alive players)
-    const alive = players.filter((p) => p.isAlive);
-    let nextIndex = (activePlayerIndex + 1) % players.length;
+    let nextIndex = (activePlayerIndex + 1) % list.length;
 
     if (alive.length > 2) {
-      const otherAlive = alive.filter((p) => p.userId !== activePlayer?.userId);
+      const otherAlive = alive.filter((p) => p.userId !== list[activePlayerIndex]?.userId);
       if (otherAlive.length > 0) {
         const chosen = otherAlive[Math.floor(Math.random() * otherAlive.length)];
-        const idx = players.findIndex((p) => p.userId === chosen.userId);
+        const idx = list.findIndex((p) => p.userId === chosen.userId);
         if (idx !== -1) nextIndex = idx;
       }
     } else {
       let attempts = 0;
-      while (!players[nextIndex].isAlive && attempts < players.length) {
-        nextIndex = (nextIndex + 1) % players.length;
+      while (!list[nextIndex]?.isAlive && attempts < list.length) {
+        nextIndex = (nextIndex + 1) % list.length;
         attempts++;
       }
     }

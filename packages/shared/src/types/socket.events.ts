@@ -66,6 +66,10 @@ export interface ServerToClientEvents {
     placement: number;
     reason: 'TIMEOUT' | 'FORFEIT' | 'DISCONNECT';
   }) => void;
+  GAME_LIFE_LOST: (payload: {
+    userId: string;
+    livesRemaining: number;
+  }) => void;
   GAME_MATCH_ENDED: (payload: {
     winnerId: string;
     standings: PlayerInGame[];

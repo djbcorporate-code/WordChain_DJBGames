@@ -193,6 +193,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setShakeTrigger((s) => s + 1);
     };
 
+    const handleLifeLost = (payload: { userId: string; livesRemaining: number }) => {
+      soundManager.playWordRejected();
+      if (payload.userId === user.id) {
+        setLastRejectionReason(
+          payload.livesRemaining > 0
+            ? `Turn expired! You lost a life (${payload.livesRemaining} left)`
+            : 'Out of lives! You have been eliminated.'
+        );
+        setShakeTrigger((s) => s + 1);
+      }
+    };
+
     const handlePlayerEliminated = () => {
       soundManager.playEliminated();
       setPeerTyping(null);
@@ -232,6 +244,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socket.on('GAME_PLAYER_TYPING', handlePlayerTyping);
     socket.on('GAME_WORD_ACCEPTED', handleWordAccepted);
     socket.on('GAME_WORD_REJECTED', handleWordRejected);
+    socket.on('GAME_LIFE_LOST', handleLifeLost);
     socket.on('GAME_PLAYER_ELIMINATED', handlePlayerEliminated);
     socket.on('GAME_MATCH_ENDED', handleMatchEnded);
     socket.on('SOCKET_ERROR', handleSocketError);
@@ -246,6 +259,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socket.off('GAME_PLAYER_TYPING', handlePlayerTyping);
       socket.off('GAME_WORD_ACCEPTED', handleWordAccepted);
       socket.off('GAME_WORD_REJECTED', handleWordRejected);
+      socket.off('GAME_LIFE_LOST', handleLifeLost);
       socket.off('GAME_PLAYER_ELIMINATED', handlePlayerEliminated);
       socket.off('GAME_MATCH_ENDED', handleMatchEnded);
       socket.off('SOCKET_ERROR', handleSocketError);

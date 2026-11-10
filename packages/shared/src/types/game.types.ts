@@ -22,6 +22,7 @@ export interface PlayerInGame {
   division: number;
   isAlive: boolean;
   isReady: boolean;
+  lives?: number; // 3 lives per match
   placement?: number;
   wordsSubmitted: number;
   isDisconnected: boolean;

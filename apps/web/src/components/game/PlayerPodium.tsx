@@ -1,5 +1,5 @@
 import { PlayerInGame } from '@wordchain/shared';
-import { Mic, MicOff, Skull, WifiOff } from 'lucide-react';
+import { Heart, Mic, MicOff, Skull, WifiOff } from 'lucide-react';
 import React from 'react';
 import { useVoiceChat } from '../../context/VoiceChatContext.js';
 import { RankEmblem } from '../RankEmblem.js';
@@ -99,8 +99,26 @@ export const PlayerPodium: React.FC<PlayerPodiumProps> = ({
         </div>
       </div>
 
-      {/* Status indicator */}
-      <div className="shrink-0 pl-1">
+      {/* Status indicator & Lives */}
+      <div className="shrink-0 pl-1 flex flex-col items-end gap-1">
+        <div className="flex items-center gap-0.5" title={`${player.lives ?? 3} Lives Remaining`}>
+          {[1, 2, 3].map((lifeNum) => {
+            const hasLife = !isEliminated && (player.lives ?? 3) >= lifeNum;
+            const isDanger = (player.lives ?? 3) === 1;
+            return (
+              <Heart
+                key={lifeNum}
+                className={`w-3 h-3 transition-all ${
+                  hasLife
+                    ? isDanger
+                      ? 'text-rose-500 fill-rose-500 animate-pulse drop-shadow-[0_0_4px_rgba(244,63,94,0.8)]'
+                      : 'text-rose-500 fill-rose-500'
+                    : 'text-slate-700 fill-slate-800/60 opacity-30'
+                }`}
+              />
+            );
+          })}
+        </div>
         {isEliminated ? (
           <span className="text-[10px] font-mono font-bold text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded">
             OUT
