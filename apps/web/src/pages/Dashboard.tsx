@@ -205,10 +205,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
                     <Globe className="w-3.5 h-3.5 text-accent-secondary" /> Language
                   </span>
                   <span className="text-[10px] text-indigo-300 font-mono font-bold">
-                    {rankedLanguage === 'ENGLISH' ? 'English (Global)' : rankedLanguage === 'TAGALOG' ? 'Tagalog (Filipino)' : 'Bisaya (Cebuano)'}
+                    {rankedLanguage === 'ENGLISH'
+                      ? 'English (Global)'
+                      : rankedLanguage === 'TAGALOG'
+                      ? 'Tagalog (Filipino)'
+                      : rankedLanguage === 'BISAYA'
+                      ? 'Bisaya (Cebuano)'
+                      : 'Mixed (3 Languages)'}
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-900/90 border border-slate-800">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-xl bg-slate-900/90 border border-slate-800">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -255,6 +261,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
                   >
                     <span>🇵🇭</span>
                     <span>Bisaya</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRankedLanguage('MIXED');
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      rankedLanguage === 'MIXED'
+                        ? 'bg-accent-primary text-white shadow-sm ring-1 ring-accent-primary/50'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <span>🌐</span>
+                    <span>Mixed</span>
                   </button>
                 </div>
               </div>

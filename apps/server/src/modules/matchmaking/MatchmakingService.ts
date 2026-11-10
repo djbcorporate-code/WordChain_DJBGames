@@ -157,7 +157,7 @@ export class MatchmakingService {
   }
 
   private processRankedQueue(): void {
-    const languages: GameLanguage[] = ['ENGLISH', 'TAGALOG', 'BISAYA'];
+    const languages: GameLanguage[] = ['ENGLISH', 'TAGALOG', 'BISAYA', 'MIXED'];
     for (const lang of languages) {
       this.processRankedQueueForLanguage(lang);
     }

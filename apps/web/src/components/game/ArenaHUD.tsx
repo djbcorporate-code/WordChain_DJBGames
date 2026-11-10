@@ -79,7 +79,7 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
             <span>{mode} ARENA</span>
             {language && language !== 'ENGLISH' && (
               <span className="px-1.5 py-0.2 rounded bg-indigo-500/30 text-accent-secondary text-[9px] font-black border border-accent-secondary/40">
-                {language === 'TAGALOG' ? '🇵🇭 TAGALOG' : '🇵🇭 BISAYA'}
+                {language === 'TAGALOG' ? '🇵🇭 TAGALOG' : language === 'BISAYA' ? '🇵🇭 BISAYA' : '🌐 MIXED (3 LANGS)'}
               </span>
             )}
           </span>

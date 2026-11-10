@@ -440,4 +440,64 @@ describe('Phase 5: Casual Public Matchmaking & Disconnect Recovery', () => {
       s.disconnect();
     }
   }, 10000);
+
+  it('should assemble scholars queueing for MIXED into a language-specific match', async () => {
+    const db = await getDb();
+    const mixedScholars = [
+      { id: '81818181-8181-8181-8181-818181818181', username: 'PolyglotA' },
+      { id: '82828282-8282-8282-8282-828282828282', username: 'PolyglotB' },
+    ];
+    for (const u of mixedScholars) {
+      await db.insert(users).values({
+        id: u.id,
+        username: u.username,
+        passwordHash: 'hashed',
+        role: 'USER',
+        emailVerified: true,
+      }).onConflictDoNothing();
+
+      await db.insert(playerProfiles).values({
+        userId: u.id,
+        totalMatches: 10,
+      }).onConflictDoNothing();
+    }
+
+    const sockets: ClientSocket[] = [];
+    for (const u of mixedScholars) {
+      const token = generateJwt({
+        userId: u.id,
+        username: u.username,
+        role: 'USER',
+        emailVerified: true,
+      });
+
+      const s = Client(`http://localhost:${port}`, {
+        auth: { token },
+        transports: ['websocket'],
+      });
+      await new Promise<void>((r) => s.on('connect', () => r()));
+      sockets.push(s);
+    }
+
+    const matchFoundPromises = sockets.map((s) => {
+      return new Promise<{ roomId: string; mode: string; language: string }>((resolve) => {
+        s.on('MATCH_FOUND', (payload: any) => resolve(payload));
+      });
+    });
+
+    // Enqueue both into Ranked MIXED queue
+    for (const s of sockets) {
+      s.emit('LOBBY_JOIN_QUEUE', { mode: 'RANKED', language: 'MIXED' });
+    }
+
+    const matchResults = await Promise.all(matchFoundPromises);
+
+    expect(matchResults[0].mode).toBe('RANKED');
+    expect(matchResults[0].language).toBe('MIXED');
+    expect(matchResults[0].roomId).toBe(matchResults[1].roomId);
+
+    for (const s of sockets) {
+      s.disconnect();
+    }
+  }, 10000);
 });

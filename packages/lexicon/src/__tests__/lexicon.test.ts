@@ -73,11 +73,33 @@ describe('LexiconService & Trie Tests', () => {
     expect(lexicon.hasWord('DAGHAN', 'BISAYA')).toBe(true);
     expect(lexicon.hasWord('GUGMA', 'BISAYA')).toBe(true);
     expect(lexicon.hasWord('IGSOON', 'BISAYA')).toBe(true);
+    expect(lexicon.hasWord('ATOA', 'BISAYA')).toBe(true);
+    expect(lexicon.hasWord('AKOA', 'BISAYA')).toBe(true);
 
     const history = new Set(['BALAY']);
-    const move = lexicon.validateMove('YUTA', 'Y', history, 'BISAYA');
+    const move = lexicon.validateMove('ATOA', 'A', history, 'BISAYA');
     expect(move.isValid).toBe(true);
-    expect(move.normalizedWord).toBe('YUTA');
+    expect(move.normalizedWord).toBe('ATOA');
+  });
+
+  it('should accept English, Tagalog, and Bisaya words in MIXED language mode', () => {
+    // English words
+    expect(lexicon.hasWord('APPLE', 'MIXED')).toBe(true);
+    // Tagalog words
+    expect(lexicon.hasWord('BAYANI', 'MIXED')).toBe(true);
+    // Bisaya words
+    expect(lexicon.hasWord('ATOA', 'MIXED')).toBe(true);
+
+    const history = new Set(['START']);
+    // Chaining Tagalog into Bisaya into English
+    const moveTagalog = lexicon.validateMove('TAGALOG', 'T', history, 'MIXED');
+    expect(moveTagalog.isValid).toBe(true);
+
+    const moveBisaya = lexicon.validateMove('GUGMA', 'G', history, 'MIXED');
+    expect(moveBisaya.isValid).toBe(true);
+
+    const moveEnglish = lexicon.validateMove('APPLE', 'A', history, 'MIXED');
+    expect(moveEnglish.isValid).toBe(true);
   });
 
   it('validateMove: should accept valid chain word', () => {

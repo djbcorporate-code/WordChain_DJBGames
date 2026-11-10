@@ -19,16 +19,19 @@ export class LexiconService {
     ['ENGLISH', new Set()],
     ['TAGALOG', new Set()],
     ['BISAYA', new Set()],
+    ['MIXED', new Set()],
   ]);
   private letterBuckets: Map<GameLanguage, Map<string, string[]>> = new Map([
     ['ENGLISH', new Map()],
     ['TAGALOG', new Map()],
     ['BISAYA', new Map()],
+    ['MIXED', new Map()],
   ]);
   private tries: Map<GameLanguage, LexiconTrie> = new Map([
     ['ENGLISH', new LexiconTrie()],
     ['TAGALOG', new LexiconTrie()],
     ['BISAYA', new LexiconTrie()],
+    ['MIXED', new LexiconTrie()],
   ]);
   private isLoaded: boolean = false;
 
@@ -141,9 +144,32 @@ export class LexiconService {
     this.loadWordsFromFile(countriesFile, blacklist, 'BISAYA');
     this.loadWordsFromFile(namesFile, blacklist, 'BISAYA');
 
+    // 4. Build MIXED dictionary (union of English, Tagalog, and Bisaya)
+    const mixedSet = this.wordSets.get('MIXED')!;
+    const mixedBuckets = this.letterBuckets.get('MIXED')!;
+    const mixedTrie = this.tries.get('MIXED')!;
+
+    for (const lang of ['ENGLISH', 'TAGALOG', 'BISAYA'] as GameLanguage[]) {
+      const set = this.wordSets.get(lang);
+      if (!set) continue;
+      for (const word of set) {
+        if (!mixedSet.has(word)) {
+          mixedSet.add(word);
+          mixedTrie.insert(word);
+          const firstLetter = word[0];
+          let bucket = mixedBuckets.get(firstLetter);
+          if (!bucket) {
+            bucket = [];
+            mixedBuckets.set(firstLetter, bucket);
+          }
+          bucket.push(word);
+        }
+      }
+    }
+
     this.isLoaded = true;
     console.log(
-      `[LexiconService] Indexed dictionaries into memory: English (${this.size('ENGLISH').toLocaleString()}), Tagalog (${this.size('TAGALOG').toLocaleString()}), Bisaya (${this.size('BISAYA').toLocaleString()}) words.`
+      `[LexiconService] Indexed dictionaries into memory: English (${this.size('ENGLISH').toLocaleString()}), Tagalog (${this.size('TAGALOG').toLocaleString()}), Bisaya (${this.size('BISAYA').toLocaleString()}), Mixed (${this.size('MIXED').toLocaleString()}) words.`
     );
   }
 
@@ -272,6 +298,10 @@ export class LexiconService {
     if (language === 'BISAYA') {
       return BISAYA_SEED_WORDS[Math.floor(Math.random() * BISAYA_SEED_WORDS.length)];
     }
+    if (language === 'MIXED') {
+      const allSeeds = [...INITIAL_SEED_WORDS, ...TAGALOG_SEED_WORDS, ...BISAYA_SEED_WORDS];
+      return allSeeds[Math.floor(Math.random() * allSeeds.length)];
+    }
     const seeds = INITIAL_SEED_WORDS;
     return seeds[Math.floor(Math.random() * seeds.length)];
   }
@@ -335,6 +365,11 @@ export class LexiconService {
       buckets.set(firstLetter, bucket);
     }
     bucket.push(normalized);
+
+    if (language !== 'MIXED') {
+      this.addWord(normalized, 'MIXED');
+    }
+
     return true;
   }
 
@@ -342,7 +377,7 @@ export class LexiconService {
     const normalized = word.trim().toUpperCase();
     if (!normalized) return false;
 
-    const langs: GameLanguage[] = language ? [language] : ['ENGLISH', 'TAGALOG', 'BISAYA'];
+    const langs: GameLanguage[] = language ? [language] : ['ENGLISH', 'TAGALOG', 'BISAYA', 'MIXED'];
     let removedAny = false;
 
     for (const lang of langs) {

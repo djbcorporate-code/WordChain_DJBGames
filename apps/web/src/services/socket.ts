@@ -95,8 +95,8 @@ class SocketService {
     this.getSocket().emit('ROOM_RECONNECT', { roomId });
   }
 
-  public createPrivateRoom(customTimerSec: number = 15): void {
-    this.getSocket().emit('ROOM_CREATE_PRIVATE', { customTimerSec });
+  public createPrivateRoom(customTimerSec: number = 15, language: GameLanguage = 'ENGLISH'): void {
+    this.getSocket().emit('ROOM_CREATE_PRIVATE', { customTimerSec, language });
   }
 
   public joinRoom(roomCode: string): void {

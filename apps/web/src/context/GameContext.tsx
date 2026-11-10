@@ -37,7 +37,7 @@ interface GameContextType {
   isConnected: boolean;
   joinQueue: (mode?: GameMode, language?: GameLanguage) => void;
   leaveQueue: () => void;
-  createPrivateRoom: (timerSec?: number) => void;
+  createPrivateRoom: (timerSec?: number, language?: GameLanguage) => void;
   joinRoomByCode: (code: string) => void;
   leaveRoom: () => void;
   toggleReady: (isReady: boolean) => void;
@@ -297,10 +297,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMatchFoundNotice(null);
   };
 
-  const createPrivateRoom = (timerSec: number = 15) => {
+  const createPrivateRoom = (timerSec: number = 15, language: GameLanguage = 'ENGLISH') => {
     setError(null);
     setMatchWinner(null);
-    socketService.createPrivateRoom(timerSec);
+    socketService.createPrivateRoom(timerSec, language);
   };
 
   const joinRoomByCode = (code: string) => {

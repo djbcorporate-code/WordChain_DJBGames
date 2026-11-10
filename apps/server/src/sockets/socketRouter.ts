@@ -1,5 +1,6 @@
 import {
   ClientToServerEvents,
+  GameLanguage,
   GameRoomSummary,
   PlayerInGame,
   ServerToClientEvents,
@@ -34,7 +35,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
         io.to(room.roomId).emit('GAME_WORD_REJECTED', {
           word: payload.word,
           reason: payload.reason,
-          message: getRejectionMessage(payload.reason, payload.word),
+          message: getRejectionMessage(payload.reason, payload.word, room.language),
         });
       },
       onLetterExhausted: (payload) => {
@@ -632,10 +633,20 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
   });
 }
 
-function getRejectionMessage(reason: string, word: string): string {
+function getRejectionMessage(reason: string, word: string, language: GameLanguage = 'ENGLISH'): string {
   switch (reason) {
-    case 'NOT_IN_DICTIONARY':
+    case 'NOT_IN_DICTIONARY': {
+      if (language === 'BISAYA') {
+        return `'${word}' is not in the approved Bisaya dictionary.`;
+      }
+      if (language === 'TAGALOG') {
+        return `'${word}' is not in the approved Tagalog dictionary.`;
+      }
+      if (language === 'MIXED') {
+        return `'${word}' is not in the approved dictionary (English / Tagalog / Bisaya).`;
+      }
       return `'${word}' is not in the approved English dictionary.`;
+    }
     case 'ALREADY_USED':
       return `'${word}' has already been chained in this match!`;
     case 'INVALID_PREFIX':

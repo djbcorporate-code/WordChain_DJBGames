@@ -2,7 +2,7 @@ import { AcademicRankTier } from './ranking.types.js';
 
 export type GameMode = 'CASUAL' | 'RANKED' | 'PRIVATE';
 
-export type GameLanguage = 'ENGLISH' | 'TAGALOG' | 'BISAYA';
+export type GameLanguage = 'ENGLISH' | 'TAGALOG' | 'BISAYA' | 'MIXED';
 
 export type RoomStatus = 'WAITING' | 'COUNTDOWN' | 'IN_PROGRESS' | 'FINISHED' | 'ABORTED';
 

@@ -1,5 +1,6 @@
-import { Clock, KeyRound, PlusCircle, Users, X } from 'lucide-react';
+import { Clock, Globe, KeyRound, PlusCircle, Users, X } from 'lucide-react';
 import React, { useState } from 'react';
+import { GameLanguage } from '@wordchain/shared';
 import { useGame } from '../../context/GameContext.js';
 
 interface PrivateRoomModalProps {
@@ -12,12 +13,13 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({ isOpen, onCl
   const [activeTab, setActiveTab] = useState<'create' | 'join'>('create');
   const [roomCode, setRoomCode] = useState('');
   const [selectedTimer, setSelectedTimer] = useState<number>(15);
+  const [selectedLanguage, setSelectedLanguage] = useState<GameLanguage>('ENGLISH');
 
   if (!isOpen) return null;
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    createPrivateRoom(selectedTimer);
+    createPrivateRoom(selectedTimer, selectedLanguage);
     onClose();
   };
 
@@ -106,6 +108,46 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({ isOpen, onCl
                     >
                       <div className="font-bold text-sm text-slate-100">{preset.label}</div>
                       <div className="text-[11px] font-mono mt-0.5 text-slate-400">{preset.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Language Preset */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-accent-secondary" /> Dictionary Language
+                  </span>
+                  <span className="text-[11px] text-indigo-300 font-mono font-bold">
+                    {selectedLanguage === 'ENGLISH'
+                      ? 'English'
+                      : selectedLanguage === 'TAGALOG'
+                      ? 'Tagalog'
+                      : selectedLanguage === 'BISAYA'
+                      ? 'Bisaya'
+                      : 'Mixed (3 Languages)'}
+                  </span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'ENGLISH' as const, label: 'English', icon: '🇬🇧' },
+                    { id: 'TAGALOG' as const, label: 'Tagalog', icon: '🇵🇭' },
+                    { id: 'BISAYA' as const, label: 'Bisaya', icon: '🇵🇭' },
+                    { id: 'MIXED' as const, label: 'Mixed', icon: '🌐' },
+                  ].map((lang) => (
+                    <button
+                      key={lang.id}
+                      type="button"
+                      onClick={() => setSelectedLanguage(lang.id)}
+                      className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-0.5 ${
+                        selectedLanguage === lang.id
+                          ? 'border-accent-primary bg-accent-primary/20 text-white shadow-glow'
+                          : 'border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <span className="text-base">{lang.icon}</span>
+                      <span className="font-bold text-xs text-slate-200">{lang.label}</span>
                     </button>
                   ))}
                 </div>
