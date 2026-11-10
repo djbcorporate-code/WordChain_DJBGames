@@ -486,32 +486,80 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
     // WEBRTC OPEN MIC VOICE CHAT (Private Rooms)
     socket.on('VOICE_JOIN_ROOM', () => {
-      const roomId = socket.data.roomId;
+      let roomId = socket.data.roomId;
+      if (!roomId) {
+        for (const r of socket.rooms) {
+          if (r !== socket.id) {
+            roomId = r;
+            socket.data.roomId = r;
+            break;
+          }
+        }
+      }
       if (!roomId) return;
       socket.to(roomId).emit('VOICE_PEER_JOINED', { userId: user.userId });
     });
 
     socket.on('VOICE_SIGNAL', ({ targetUserId, signal }) => {
-      const roomId = socket.data.roomId;
-      if (!roomId) return;
+      let roomId = socket.data.roomId;
+      if (!roomId) {
+        for (const r of socket.rooms) {
+          if (r !== socket.id) {
+            roomId = r;
+            socket.data.roomId = r;
+            break;
+          }
+        }
+      }
 
-      const roomSockets = io.sockets.adapter.rooms.get(roomId);
-      if (!roomSockets) return;
+      let delivered = false;
 
-      for (const socketId of roomSockets) {
-        const peerSocket = io.sockets.sockets.get(socketId) as AuthenticatedSocket | undefined;
-        if (peerSocket && peerSocket.data?.user?.userId === targetUserId) {
-          peerSocket.emit('VOICE_SIGNAL', {
-            senderUserId: user.userId,
-            signal,
-          });
-          break;
+      // 1. Look in room sockets first
+      if (roomId) {
+        const roomSockets = io.sockets.adapter.rooms.get(roomId);
+        if (roomSockets) {
+          for (const socketId of roomSockets) {
+            const peerSocket = io.sockets.sockets.get(socketId) as AuthenticatedSocket | undefined;
+            const peerUserId = peerSocket?.data?.user?.userId || (peerSocket?.data?.user as any)?.id;
+            if (peerSocket && peerUserId === targetUserId) {
+              peerSocket.emit('VOICE_SIGNAL', {
+                senderUserId: user.userId,
+                signal,
+              });
+              delivered = true;
+              break;
+            }
+          }
+        }
+      }
+
+      // 2. Global fallback across connected sockets
+      if (!delivered) {
+        for (const [, peerSocket] of io.sockets.sockets) {
+          const authSocket = peerSocket as AuthenticatedSocket;
+          const peerUserId = authSocket?.data?.user?.userId || (authSocket?.data?.user as any)?.id;
+          if (peerUserId === targetUserId) {
+            authSocket.emit('VOICE_SIGNAL', {
+              senderUserId: user.userId,
+              signal,
+            });
+            break;
+          }
         }
       }
     });
 
     socket.on('VOICE_STATE_UPDATE', ({ isMuted, isSpeaking }) => {
-      const roomId = socket.data.roomId;
+      let roomId = socket.data.roomId;
+      if (!roomId) {
+        for (const r of socket.rooms) {
+          if (r !== socket.id) {
+            roomId = r;
+            socket.data.roomId = r;
+            break;
+          }
+        }
+      }
       if (!roomId) return;
       socket.to(roomId).emit('VOICE_STATE_UPDATE', {
         userId: user.userId,
@@ -521,7 +569,16 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
     });
 
     socket.on('VOICE_LEAVE_ROOM', () => {
-      const roomId = socket.data.roomId;
+      let roomId = socket.data.roomId;
+      if (!roomId) {
+        for (const r of socket.rooms) {
+          if (r !== socket.id) {
+            roomId = r;
+            socket.data.roomId = r;
+            break;
+          }
+        }
+      }
       if (!roomId) return;
       socket.to(roomId).emit('VOICE_PEER_LEFT', { userId: user.userId });
     });

@@ -21,12 +21,17 @@ interface VoiceChatContextType {
 
 const VoiceChatContext = createContext<VoiceChatContextType | undefined>(undefined);
 
+// High-availability global STUN servers for WebRTC NAT traversal
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
   ],
+  iceCandidatePoolSize: 10,
 };
 
 export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -51,10 +56,20 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const pendingIceCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
+  const makingOfferRef = useRef<Map<string, boolean>>(new Map());
 
   const isPrivateRoom = currentRoom?.mode === 'PRIVATE';
 
-  // Cleanup helper
+  // Helper: Resume/play all connected audio elements (bypasses browser autoplay lock)
+  const resumeAllAudio = () => {
+    audioElementsRef.current.forEach((audio) => {
+      if (audio.paused) {
+        audio.play().catch(() => {});
+      }
+    });
+  };
+
+  // Teardown helper
   const teardownVoice = () => {
     if (vadIntervalRef.current) {
       clearInterval(vadIntervalRef.current);
@@ -65,7 +80,7 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         audioContextRef.current.close();
       } catch {
-        // Ignore close error
+        // Ignore
       }
       audioContextRef.current = null;
     }
@@ -79,7 +94,7 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       try {
         pc.close();
       } catch {
-        // Ignore close error
+        // Ignore
       }
     });
     peersRef.current.clear();
@@ -87,10 +102,13 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     audioElementsRef.current.forEach((audio) => {
       audio.pause();
       audio.srcObject = null;
-      audio.remove();
+      if (audio.parentNode) {
+        audio.parentNode.removeChild(audio);
+      }
     });
     audioElementsRef.current.clear();
     pendingIceCandidatesRef.current.clear();
+    makingOfferRef.current.clear();
 
     setIsOpenMicEnabled(false);
     setIsSpeaking(false);
@@ -99,7 +117,7 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setActivePeersCount(0);
   };
 
-  // If leaving private room, automatically teardown voice
+  // If leaving private room, teardown voice
   useEffect(() => {
     if (!isPrivateRoom) {
       if (isOpenMicEnabled) {
@@ -109,28 +127,47 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [isPrivateRoom]);
 
-  // Adjust volume of all audio elements if deafened
+  // Adjust volume / muted state of all remote audio elements when deafened changes
   useEffect(() => {
     audioElementsRef.current.forEach((audio) => {
       audio.muted = isDeafened;
     });
   }, [isDeafened]);
 
-  // Create or retrieve Peer Connection for a remote user
-  const getOrCreatePeerConnection = (remoteUserId: string, isInitiator: boolean): RTCPeerConnection => {
-    const existing = peersRef.current.get(remoteUserId);
-    if (existing && existing.signalingState !== 'closed') {
-      return existing;
+  // Create or retrieve Peer Connection for a remote user with proper track binding
+  const getOrCreatePeerConnection = (remoteUserId: string): RTCPeerConnection => {
+    let pc = peersRef.current.get(remoteUserId);
+
+    if (pc && pc.signalingState !== 'closed') {
+      // Ensure local tracks are attached if available
+      if (localStreamRef.current) {
+        const senders = pc.getSenders();
+        localStreamRef.current.getAudioTracks().forEach((track) => {
+          const hasSender = senders.some((s) => s.track === track || s.track?.id === track.id);
+          if (!hasSender) {
+            try {
+              pc!.addTrack(track, localStreamRef.current!);
+            } catch {
+              // Ignore already added track
+            }
+          }
+        });
+      }
+      return pc;
     }
 
-    const pc = new RTCPeerConnection(RTC_CONFIG);
+    pc = new RTCPeerConnection(RTC_CONFIG);
     peersRef.current.set(remoteUserId, pc);
     setActivePeersCount(peersRef.current.size);
 
-    // Add local tracks if we have mic stream
+    // Attach local mic tracks if available
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => {
-        pc.addTrack(track, localStreamRef.current!);
+      localStreamRef.current.getAudioTracks().forEach((track) => {
+        try {
+          pc!.addTrack(track, localStreamRef.current!);
+        } catch {
+          // Ignore
+        }
       });
     }
 
@@ -141,26 +178,47 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
     };
 
-    // Remote audio track received
+    // Remote audio track received -> play through DOM-attached audio element
     pc.ontrack = (event) => {
-      const remoteStream = event.streams[0];
-      let audio = audioElementsRef.current.get(remoteUserId);
+      console.log(`[VoiceChat] Remote track received from ${remoteUserId}:`, event.track.kind);
+      const remoteStream =
+        event.streams && event.streams[0] ? event.streams[0] : new MediaStream([event.track]);
 
+      let audio = audioElementsRef.current.get(remoteUserId);
       if (!audio) {
-        audio = new Audio();
+        audio = document.createElement('audio');
+        audio.id = `webrtc-voice-peer-${remoteUserId}`;
         audio.autoplay = true;
+        (audio as any).playsInline = true;
         audio.muted = isDeafened;
+        audio.volume = 1.0;
+        // Mount to body so modern browser engines don't suspend or silence it
+        document.body.appendChild(audio);
         audioElementsRef.current.set(remoteUserId, audio);
       }
 
       audio.srcObject = remoteStream;
-      audio.play().catch(() => {
-        // User gesture may be required on some mobile browsers
+      audio.play().catch((playErr) => {
+        console.warn(`[VoiceChat] Autoplay catch for ${remoteUserId}:`, playErr.message);
       });
     };
 
+    pc.oniceconnectionstatechange = () => {
+      console.log(`[VoiceChat] ICE state with ${remoteUserId}: ${pc?.iceConnectionState}`);
+      if (pc?.iceConnectionState === 'failed') {
+        // Attempt ICE restart if initiator
+        if (user && user.id.localeCompare(remoteUserId) > 0) {
+          initiateCall(remoteUserId, true);
+        }
+      }
+    };
+
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+      if (
+        pc?.connectionState === 'disconnected' ||
+        pc?.connectionState === 'failed' ||
+        pc?.connectionState === 'closed'
+      ) {
         cleanupPeer(remoteUserId);
       }
     };
@@ -183,11 +241,14 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (audio) {
       audio.pause();
       audio.srcObject = null;
-      audio.remove();
+      if (audio.parentNode) {
+        audio.parentNode.removeChild(audio);
+      }
       audioElementsRef.current.delete(remoteUserId);
     }
 
     pendingIceCandidatesRef.current.delete(remoteUserId);
+    makingOfferRef.current.delete(remoteUserId);
     setActivePeersCount(peersRef.current.size);
 
     setSpeakingUsers((prev) => {
@@ -205,7 +266,7 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     });
   };
 
-  // Setup Voice Activity Detection (VAD)
+  // Voice Activity Detection (VAD)
   const setupVAD = (stream: MediaStream) => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -223,7 +284,6 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
-
       let speakingCounter = 0;
 
       vadIntervalRef.current = setInterval(() => {
@@ -241,8 +301,6 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           sum += dataArray[i];
         }
         const average = sum / bufferLength;
-
-        // Threshold for speaking
         const currentlySpeaking = average > 18;
 
         if (currentlySpeaking) {
@@ -252,7 +310,6 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
 
         const shouldBeSpeaking = speakingCounter >= 2;
-
         if (shouldBeSpeaking !== isSpeaking) {
           setIsSpeaking(shouldBeSpeaking);
           socketService.sendVoiceState(isMuted, shouldBeSpeaking);
@@ -279,7 +336,6 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
 
     if (isOpenMicEnabled) {
-      // Turn Off
       socketService.leaveVoiceRoom();
       teardownVoice();
       return;
@@ -308,10 +364,24 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setIsOpenMicEnabled(true);
       setIsMuted(false);
 
+      // Attach new audio tracks to all existing peer connections
+      peersRef.current.forEach((pc) => {
+        const senders = pc.getSenders();
+        stream.getAudioTracks().forEach((track) => {
+          const sender = senders.find((s) => s.track?.kind === 'audio');
+          if (sender) {
+            sender.replaceTrack(track);
+          } else {
+            pc.addTrack(track, stream);
+          }
+        });
+      });
+
       setupVAD(stream);
+      resumeAllAudio();
       socketService.joinVoiceRoom();
 
-      // Initiate connection to all other human players in the room
+      // Initiate connection to all other human scholars in the room
       if (currentRoom && user) {
         for (const player of currentRoom.players) {
           if (player.userId !== user.id && !player.userId.startsWith('guest-')) {
@@ -331,16 +401,29 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   };
 
-  const initiateCall = async (remoteUserId: string) => {
+  // WebRTC Call Initiation
+  const initiateCall = async (remoteUserId: string, isRestart: boolean = false) => {
     try {
-      const pc = getOrCreatePeerConnection(remoteUserId, true);
+      const pc = getOrCreatePeerConnection(remoteUserId);
+      makingOfferRef.current.set(remoteUserId, true);
+
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
+        iceRestart: isRestart,
       });
+
+      // Avoid setting local description if state changed mid-flight
+      if (pc.signalingState !== 'stable' && pc.signalingState !== 'have-local-offer') {
+        makingOfferRef.current.set(remoteUserId, false);
+        return;
+      }
+
       await pc.setLocalDescription(offer);
       socketService.sendVoiceSignal(remoteUserId, { type: 'offer', sdp: offer.sdp });
     } catch (err: any) {
       console.warn(`[VoiceChat] Error initiating call to ${remoteUserId}:`, err.message);
+    } finally {
+      makingOfferRef.current.set(remoteUserId, false);
     }
   };
 
@@ -372,48 +455,70 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsDeafened((prev) => !prev);
   };
 
-  // Socket Event Listeners for WebRTC signaling
+  // Socket Event Listeners for WebRTC signaling (with Perfect Negotiation)
   useEffect(() => {
     const socket = socketService.getSocket();
 
     const handleVoicePeerJoined = async ({ userId }: { userId: string }) => {
-      if (!isOpenMicEnabled || !user || userId === user.id) return;
-      // Offer call to newly joined voice peer
-      await initiateCall(userId);
+      if (!user || userId === user.id) return;
+      console.log(`[VoiceChat] Remote peer joined voice: ${userId}`);
+      // The peer with the alphabetically higher user ID initiates to avoid duplicate offers
+      if (user.id.localeCompare(userId) > 0) {
+        await initiateCall(userId);
+      }
     };
 
     const handleVoiceSignal = async ({ senderUserId, signal }: { senderUserId: string; signal: any }) => {
       if (!isPrivateRoom || !user || senderUserId === user.id) return;
 
+      const pc = getOrCreatePeerConnection(senderUserId);
+      // Perfect Negotiation Politeness Rule: Deterministic tiebreaker based on user ID
+      const isPolite = user.id.localeCompare(senderUserId) < 0;
+
       try {
         if (signal.type === 'offer') {
-          const pc = getOrCreatePeerConnection(senderUserId, false);
+          const isMakingOffer = makingOfferRef.current.get(senderUserId) || false;
+          const offerCollision = isMakingOffer || pc.signalingState !== 'stable';
+
+          if (offerCollision) {
+            if (!isPolite) {
+              console.log(`[VoiceChat] Glare collision with ${senderUserId}; impolite peer ignoring offer`);
+              return;
+            }
+            console.log(`[VoiceChat] Glare collision with ${senderUserId}; polite peer rolling back offer`);
+            await pc.setLocalDescription({ type: 'rollback' });
+          }
+
           await pc.setRemoteDescription(new RTCSessionDescription(signal));
 
-          // Apply any pending candidates
+          // Apply pending ICE candidates
           const pending = pendingIceCandidatesRef.current.get(senderUserId) || [];
           for (const cand of pending) {
-            await pc.addIceCandidate(new RTCIceCandidate(cand));
+            await pc.addIceCandidate(cand).catch(() => {});
           }
           pendingIceCandidatesRef.current.delete(senderUserId);
 
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
           socketService.sendVoiceSignal(senderUserId, { type: 'answer', sdp: answer.sdp });
+          resumeAllAudio();
         } else if (signal.type === 'answer') {
-          const pc = peersRef.current.get(senderUserId);
-          if (pc) {
+          if (pc.signalingState === 'have-local-offer') {
             await pc.setRemoteDescription(new RTCSessionDescription(signal));
+
+            // Apply pending ICE candidates
             const pending = pendingIceCandidatesRef.current.get(senderUserId) || [];
             for (const cand of pending) {
-              await pc.addIceCandidate(new RTCIceCandidate(cand));
+              await pc.addIceCandidate(cand).catch(() => {});
             }
             pendingIceCandidatesRef.current.delete(senderUserId);
+            resumeAllAudio();
           }
         } else if (signal.candidate) {
-          const pc = peersRef.current.get(senderUserId);
-          if (pc && pc.remoteDescription && pc.remoteDescription.type) {
-            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+          if (pc.remoteDescription && pc.remoteDescription.type) {
+            await pc.addIceCandidate(signal.candidate).catch((e) => {
+              console.warn(`[VoiceChat] Error adding candidate from ${senderUserId}:`, e.message);
+            });
           } else {
             // Queue candidate until remote description is set
             const queued = pendingIceCandidatesRef.current.get(senderUserId) || [];
@@ -422,7 +527,7 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           }
         }
       } catch (signalErr: any) {
-        console.warn(`[VoiceChat] Signal error with ${senderUserId}:`, signalErr.message);
+        console.warn(`[VoiceChat] Signal handling error with ${senderUserId}:`, signalErr.message);
       }
     };
 
