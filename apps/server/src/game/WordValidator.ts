@@ -26,8 +26,7 @@ export class WordValidator {
     const trimmed = rawWord.trim().toUpperCase();
     const expectedPrefix = requiredLetter.trim().toUpperCase();
 
-    // Strict suffix-only input: candidate word is ALWAYS expectedPrefix + typed suffix.
-    // Retyping the prefix is not considered (e.g. typing "TIME" when prefix is "T" forms "TTIME", which is rejected).
+    // Suffix-only candidate assembly: candidate word is strictly expectedPrefix + typed suffix.
     const candidateWord = `${expectedPrefix}${trimmed}`;
 
     // Perform Lexicon and Rule Validation
@@ -36,6 +35,7 @@ export class WordValidator {
       return {
         isValid: false,
         reason: moveValidation.reason,
+        normalizedWord: candidateWord,
       };
     }
 

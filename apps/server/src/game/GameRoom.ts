@@ -318,7 +318,7 @@ export class GameRoom {
     if (!validation.isValid) {
       this.callbacks.onWordRejected?.({
         userId,
-        word: rawWord.trim().toUpperCase(),
+        word: validation.normalizedWord || rawWord.trim().toUpperCase(),
         reason: validation.reason!,
       });
       return { success: false, reason: validation.reason };

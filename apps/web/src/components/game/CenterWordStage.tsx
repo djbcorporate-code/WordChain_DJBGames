@@ -125,9 +125,16 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isMyTurn) return;
     const raw = e.target.value;
-    // Allow only letters, uppercase, enforce maximum word length of 46
+    const prefixUpper = (requiredPrefix || '').toUpperCase();
     const maxSuffixLen = Math.max(1, 46 - prefixChars.length);
-    const cleaned = raw.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, maxSuffixLen);
+    let cleaned = raw.replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, maxSuffixLen + prefixUpper.length);
+
+    // If user starts typing the required prefix letter(s) (e.g. typing "ELEPHANTS" or "E" when prefix is "E"),
+    // automatically strip the redundant leading prefix so only the lacking letters are added as the suffix!
+    if (prefixUpper && cleaned.startsWith(prefixUpper)) {
+      cleaned = cleaned.slice(prefixUpper.length);
+    }
+    cleaned = cleaned.slice(0, maxSuffixLen);
 
     setTypedSuffix(cleaned);
     onTypingUpdate(cleaned);
@@ -254,9 +261,6 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
               <div className="w-10 h-13 sm:w-14 sm:h-18 flex items-center justify-center rounded-xl font-mono font-black text-2xl sm:text-4xl bg-gradient-to-tr from-accent-primary via-indigo-500 to-accent-secondary text-white shadow-glow border-2 border-cyan-300">
                 {char}
               </div>
-              <span className="absolute -bottom-4 text-[9px] font-mono font-bold text-cyan-300 uppercase tracking-tighter opacity-80">
-                Prefix
-              </span>
             </div>
           ))}
 
