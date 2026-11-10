@@ -142,15 +142,16 @@ export class GameRoom {
 
     this.players.delete(userId);
 
-    // Host reassignment if needed
+    // If no human players remain, room must close immediately (bots shouldn't hold a room open)
+    const remainingHumans = Array.from(this.players.values()).filter((p) => !p.userId.startsWith('guest-bot-'));
+    const shouldClose = remainingHumans.length === 0;
+
+    // Host reassignment if needed (prefer remaining human scholars)
     let newHostId: string | undefined;
-    if (wasHost && this.players.size > 0) {
-      const remainingUserIds = Array.from(this.players.keys());
-      this.hostUserId = remainingUserIds[0];
+    if (wasHost && !shouldClose) {
+      this.hostUserId = remainingHumans[0].userId;
       newHostId = this.hostUserId;
     }
-
-    const shouldClose = this.players.size === 0;
 
     if (!shouldClose) {
       this.notifyStateChange();

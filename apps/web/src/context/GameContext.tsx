@@ -111,7 +111,36 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }, (payload.countdownSec || 3) * 1000 + 300);
     };
 
-    const handleRoomUpdate = (summary: GameRoomSummary) => {
+    const handleRoomUpdate = (summary: GameRoomSummary | null) => {
+      if (!summary) {
+        setCurrentRoom(null);
+        setTurnState(null);
+        setMatchWinner(null);
+        setPeerTyping(null);
+        setLastRejectionReason(null);
+        try {
+          localStorage.removeItem('wordchain_active_room');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+
+      // If user is logged in, ensure user is actually a participant in this room
+      if (user && !summary.players.some((p) => p.userId === user.id)) {
+        setCurrentRoom(null);
+        setTurnState(null);
+        setMatchWinner(null);
+        setPeerTyping(null);
+        setLastRejectionReason(null);
+        try {
+          localStorage.removeItem('wordchain_active_room');
+        } catch {
+          // ignore
+        }
+        return;
+      }
+
       setCurrentRoom(summary);
       if (summary.turnState) {
         setTurnState(summary.turnState);
@@ -269,6 +298,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentRoom(null);
     setTurnState(null);
     setMatchWinner(null);
+    setPeerTyping(null);
+    setLastRejectionReason(null);
+    soundManager.stopIntenseMusic();
     try {
       localStorage.removeItem('wordchain_active_room');
     } catch {

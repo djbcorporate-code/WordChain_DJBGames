@@ -19,25 +19,34 @@ export const LiveMultiplayerArena: React.FC = () => {
     resetRematch,
   } = useGame();
 
-  const [remainingMs, setRemainingMs] = useState<number>(15000);
+  const activeTurn = turnState || currentRoom?.turnState || null;
+  const totalDurationMs = (activeTurn?.turnDurationSec || 15) * 1000;
+  const isMyTurn = activeTurn?.activeUserId === user?.id;
 
-  // Sync high-precision countdown ticker to authoritative turnDeadlineUtc
+  const [remainingMs, setRemainingMs] = useState<number>(totalDurationMs);
+
+  // Sync high-precision countdown ticker to authoritative turnDeadlineUtc with clock skew compensation
   useEffect(() => {
-    if (!turnState) return;
+    if (!activeTurn) return;
 
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const left = Math.max(0, turnState.turnDeadlineUtc - now);
+    const durationMs = (activeTurn.turnDurationSec || 15) * 1000;
+    const clientReceiveTime = Date.now();
+    // Compensate for clock skew between client computer and authoritative game server
+    const clockOffset = activeTurn.serverNowUtc ? (activeTurn.serverNowUtc - clientReceiveTime) : 0;
+
+    const tick = () => {
+      const estimatedServerNow = Date.now() + clockOffset;
+      const left = Math.max(0, Math.min(durationMs, activeTurn.turnDeadlineUtc - estimatedServerNow));
       setRemainingMs(left);
-    }, 50);
+    };
+
+    tick();
+    const interval = setInterval(tick, 50);
 
     return () => clearInterval(interval);
-  }, [turnState]);
+  }, [activeTurn]);
 
   if (!currentRoom) return null;
-
-  const totalDurationMs = (turnState?.turnDurationSec || 15) * 1000;
-  const isMyTurn = turnState?.activeUserId === user?.id;
 
   return (
     <>

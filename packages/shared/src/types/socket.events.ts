@@ -29,7 +29,7 @@ export interface ServerToClientEvents {
   MATCH_FOUND: (payload: { roomId: string; mode: GameMode; countdownSec: number }) => void;
 
   // Room State
-  ROOM_STATE_UPDATE: (payload: GameRoomSummary) => void;
+  ROOM_STATE_UPDATE: (payload: GameRoomSummary | null) => void;
   ROOM_PLAYER_JOINED: (payload: { player: PlayerInGame }) => void;
   ROOM_PLAYER_LEFT: (payload: { userId: string; newHostUserId?: string }) => void;
   ROOM_COUNTDOWN_TICK: (payload: { remainingSec: number }) => void;

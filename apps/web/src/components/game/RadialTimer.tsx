@@ -14,14 +14,16 @@ export const RadialTimer: React.FC<RadialTimerProps> = ({
   isActive,
   size = 110,
 }) => {
-  const strokeWidth = 8;
-  const radius = (size - strokeWidth) / 2;
+  const strokeWidth = 7;
+  // 2px margin prevents stroke edges from touching the SVG box boundary on desktop high-DPI scaling
+  const radius = (size - strokeWidth) / 2 - 2;
   const circumference = 2 * Math.PI * radius;
 
-  const fraction = Math.max(0, Math.min(1, remainingMs / Math.max(1, totalDurationMs)));
+  const clampedRemainingMs = Math.max(0, Math.min(totalDurationMs, remainingMs));
+  const fraction = Math.max(0, Math.min(1, clampedRemainingMs / Math.max(1, totalDurationMs)));
   const strokeDashoffset = circumference - fraction * circumference;
 
-  const remainingSeconds = Math.max(0, remainingMs / 1000);
+  const remainingSeconds = clampedRemainingMs / 1000;
   const formattedTime = remainingSeconds.toFixed(1);
 
   // Determine color and urgency
@@ -52,7 +54,12 @@ export const RadialTimer: React.FC<RadialTimerProps> = ({
 
   return (
     <div className={`relative flex items-center justify-center select-none ${isUrgent ? 'animate-urgent' : ''}`}>
-      <svg width={size} height={size} className="transform -rotate-90">
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        className="transform -rotate-90 overflow-visible"
+      >
         {/* Background track */}
         <circle
           cx={size / 2}

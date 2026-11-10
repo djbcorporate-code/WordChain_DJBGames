@@ -447,13 +447,21 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
     // LEAVE ROOM
     socket.on('ROOM_LEAVE', () => {
       const roomId = socket.data.roomId;
-      if (!roomId) return;
+      if (!roomId) {
+        socket.emit('ROOM_STATE_UPDATE', null);
+        return;
+      }
+
+      // Leave socket channel immediately so no subsequent room state broadcasts reach this leaving socket
+      socket.leave(roomId);
+      delete socket.data.roomId;
+
+      // Definitively clear the room state on this client
+      socket.emit('ROOM_STATE_UPDATE', null);
 
       const room = roomManager.getRoom(roomId);
       if (room) {
         const { newHostId, shouldClose } = room.removePlayer(user.userId);
-        socket.leave(room.roomId);
-        delete socket.data.roomId;
 
         if (shouldClose) {
           roomManager.removeRoom(roomId);
