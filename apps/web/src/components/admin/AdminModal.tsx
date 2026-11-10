@@ -299,7 +299,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
                         <strong className="text-slate-100">{telemetry.rooms.casual}</strong>
                       </div>
                       <div className="flex justify-between text-slate-300">
-                        <span>Competitive Ranked (4-FFA):</span>
+                        <span>Competitive Ranked:</span>
                         <strong className="text-indigo-400">{telemetry.rooms.ranked}</strong>
                       </div>
                       <div className="flex justify-between text-slate-300">

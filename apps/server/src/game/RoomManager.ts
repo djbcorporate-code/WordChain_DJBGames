@@ -53,7 +53,7 @@ export class RoomManager {
 
   public findAvailableRankedRoom(): GameRoom | undefined {
     for (const room of this.rooms.values()) {
-      if (room.mode === 'RANKED' && room.status === 'WAITING' && room.players.size < 4) {
+      if (room.mode === 'RANKED' && room.status === 'WAITING' && room.players.size < room.maxPlayers) {
         return room;
       }
     }

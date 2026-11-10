@@ -152,43 +152,65 @@ export class MatchmakingService {
 
   private processRankedQueue(): void {
     const rankedQueue = this.queue.filter((p) => p.mode === 'RANKED');
-    if (rankedQueue.length < 4) {
-      // Not enough players for strict 4-player FFA yet; broadcast status
+    if (rankedQueue.length < 2) {
+      // Minimum 2 scholars required for Ranked match
       rankedQueue.forEach((p, idx) => {
         p.socket.emit('QUEUE_STATUS', {
           inQueue: true,
           mode: 'RANKED',
           position: idx + 1,
-          estimatedWaitSec: Math.max(5, 15 - Math.floor((Date.now() - p.enqueuedAt) / 1000)),
+          estimatedWaitSec: Math.max(3, 10 - Math.floor((Date.now() - p.enqueuedAt) / 1000)),
         });
       });
       return;
     }
 
-    // Sort by MMR to find closely matched 4-player pods
+    // Sort by MMR to find closely matched scholars
     const sorted = [...rankedQueue].sort((a, b) => a.mmr - b.mmr);
     const now = Date.now();
 
-    // Check sliding window of 4 adjacent players
-    for (let i = 0; i <= sorted.length - 4; i++) {
-      const pod = sorted.slice(i, i + 4);
-      const minMmr = pod[0].mmr;
-      const maxMmr = pod[3].mmr;
-      const mmrSpread = maxMmr - minMmr;
+    // Strategy 1: Check for 4-player FFA if 4+ players queued and MMR tolerance matches
+    if (sorted.length >= 4) {
+      for (let i = 0; i <= sorted.length - 4; i++) {
+        const pod = sorted.slice(i, i + 4);
+        const minMmr = pod[0].mmr;
+        const maxMmr = pod[3].mmr;
+        const mmrSpread = maxMmr - minMmr;
+        const maxWait = Math.max(...pod.map((p) => now - p.enqueuedAt));
+        const allowedTolerance = Math.min(300, 100 + Math.floor(maxWait / 5000) * 50);
 
-      // Dynamic tolerance based on wait times (100 base + 50 per 5s wait, max 300)
-      const maxWait = Math.max(...pod.map((p) => now - p.enqueuedAt));
-      const allowedTolerance = Math.min(300, 100 + Math.floor(maxWait / 5000) * 50);
+        if (mmrSpread <= allowedTolerance) {
+          for (const matched of pod) {
+            const idx = this.queue.findIndex((p) => p.user.userId === matched.user.userId);
+            if (idx !== -1) this.queue.splice(idx, 1);
+          }
 
-      if (mmrSpread <= allowedTolerance) {
-        // Matched pod found!
-        for (const matched of pod) {
-          const idx = this.queue.findIndex((p) => p.user.userId === matched.user.userId);
-          if (idx !== -1) this.queue.splice(idx, 1);
+          this.createRankedMatch(pod);
+          return;
         }
+      }
+    }
 
-        this.createRankedMatch(pod);
-        return;
+    // Strategy 2: Match 2 players (1v1 Ranked Duel) if oldest queued player has waited >= 2.5 seconds
+    const oldestWaitMs = now - sorted[0].enqueuedAt;
+    const shouldMatchPair = oldestWaitMs >= 2500;
+
+    if (shouldMatchPair) {
+      for (let i = 0; i <= sorted.length - 2; i++) {
+        const pair = sorted.slice(i, i + 2);
+        const mmrSpread = Math.abs(pair[1].mmr - pair[0].mmr);
+        const maxWait = Math.max(now - pair[0].enqueuedAt, now - pair[1].enqueuedAt);
+        const allowedTolerance = Math.min(400, 150 + Math.floor(maxWait / 2000) * 50);
+
+        if (mmrSpread <= allowedTolerance || maxWait >= 4000) {
+          for (const matched of pair) {
+            const idx = this.queue.findIndex((p) => p.user.userId === matched.user.userId);
+            if (idx !== -1) this.queue.splice(idx, 1);
+          }
+
+          this.createRankedMatch(pair);
+          return;
+        }
       }
     }
 
@@ -198,7 +220,7 @@ export class MatchmakingService {
         inQueue: true,
         mode: 'RANKED',
         position: idx + 1,
-        estimatedWaitSec: Math.max(5, 15 - Math.floor((Date.now() - p.enqueuedAt) / 1000)),
+        estimatedWaitSec: Math.max(2, 6 - Math.floor((Date.now() - p.enqueuedAt) / 1000)),
       });
     });
   }
@@ -248,7 +270,7 @@ export class MatchmakingService {
       hostUserId: host.user.userId,
       startTimerSec: 15,
       minTimerSec: 6, // Competitive floor: 6s
-      maxPlayers: 4,
+      maxPlayers: players.length,
     });
 
     this.bindCallbacksFn!(room);

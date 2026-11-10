@@ -314,4 +314,70 @@ describe('Phase 5: Casual Public Matchmaking & Disconnect Recovery', () => {
       s.disconnect();
     }
   }, 10000);
+
+  it('should assemble 2 eligible scholars into a 2-Player Ranked match', async () => {
+    const db = await getDb();
+    const duelUsers = [
+      { id: '56565656-5656-5656-5656-565656565656', username: 'RankedDuelA' },
+      { id: '67676767-6767-6767-6767-676767676767', username: 'RankedDuelB' },
+    ];
+
+    const sockets: ClientSocket[] = [];
+
+    for (const u of duelUsers) {
+      await db
+        .insert(users)
+        .values({
+          id: u.id,
+          email: `${u.username.toLowerCase()}@wordchain.io`,
+          username: u.username,
+          passwordHash: 'hash',
+          emailVerified: true,
+        })
+        .onConflictDoNothing();
+
+      await db
+        .insert(playerProfiles)
+        .values({
+          userId: u.id,
+          totalMatches: 6,
+          totalWins: 2,
+        })
+        .onConflictDoNothing();
+
+      const token = generateJwt({
+        userId: u.id,
+        username: u.username,
+        role: 'USER',
+        emailVerified: true,
+      });
+
+      const s = Client(`http://localhost:${port}`, {
+        auth: { token },
+        transports: ['websocket'],
+      });
+      await new Promise<void>((r) => s.on('connect', () => r()));
+      sockets.push(s);
+    }
+
+    const matchFoundPromises = sockets.map((s) => {
+      return new Promise<{ roomId: string; mode: string }>((resolve) => {
+        s.on('MATCH_FOUND', (payload) => resolve(payload));
+      });
+    });
+
+    // Enqueue both into Ranked queue
+    for (const s of sockets) {
+      s.emit('LOBBY_JOIN_QUEUE', { mode: 'RANKED' });
+    }
+
+    const matchResults = await Promise.all(matchFoundPromises);
+
+    expect(matchResults[0].mode).toBe('RANKED');
+    expect(matchResults[0].roomId).toBe(matchResults[1].roomId);
+
+    for (const s of sockets) {
+      s.disconnect();
+    }
+  }, 10000);
 });

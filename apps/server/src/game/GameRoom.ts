@@ -73,9 +73,9 @@ export class GameRoom {
   public historyWords: Set<string> = new Set();
   public roundNumber: number = 0;
 
-  private startTimerSec: number;
-  private minTimerSec: number;
-  private maxPlayers: number;
+  public startTimerSec: number;
+  public minTimerSec: number;
+  public maxPlayers: number;
 
   private activeTimer: TurnTimer | null = null;
   private countdownTimer: NodeJS.Timeout | null = null;
@@ -170,7 +170,7 @@ export class GameRoom {
     this.notifyStateChange();
 
     // Auto-start check for Casual/Ranked when all players ready
-    if (this.mode === 'RANKED' && this.players.size === 4) {
+    if (this.mode === 'RANKED' && this.players.size >= 2) {
       const allReady = Array.from(this.players.values()).every((p) => p.isReady);
       if (allReady) {
         this.startCountdown();

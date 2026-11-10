@@ -54,9 +54,14 @@ export class RankingService {
   /**
    * Calculates Account XP earned from placement and words played in any game mode.
    */
-  public static calculateAccountXpGain(placement: number, wordsSubmitted: number): number {
+  public static calculateAccountXpGain(
+    placement: number,
+    wordsSubmitted: number,
+    totalPlayers: number = 4
+  ): number {
     let basePlacementXp = 20;
     if (placement === 1) basePlacementXp = 100;
+    else if (totalPlayers === 2 && placement === 2) basePlacementXp = 50;
     else if (placement === 2) basePlacementXp = 60;
     else if (placement === 3) basePlacementXp = 35;
     else if (placement === 4) basePlacementXp = 20;
@@ -71,20 +76,26 @@ export class RankingService {
   public static calculatePlacementRewards(
     tier: AcademicRankTier,
     placement: number,
-    isUnderdog: boolean = false
+    isUnderdog: boolean = false,
+    totalPlayers: number = 4
   ): { expChange: number; pointsChange: number } {
     let expChange = 0;
     let pointsChange = 0;
 
     if (tier === 'SCIENTIST') {
       // Scientist tier uses Scientist Points (SP)
-      if (placement === 1) pointsChange = 3;
-      else if (placement === 2) pointsChange = 1;
-      else if (placement === 3) pointsChange = -1;
-      else pointsChange = -3;
+      if (totalPlayers === 2) {
+        if (placement === 1) pointsChange = 3;
+        else pointsChange = -3;
+      } else {
+        if (placement === 1) pointsChange = 3;
+        else if (placement === 2) pointsChange = 1;
+        else if (placement === 3) pointsChange = -1;
+        else pointsChange = -3;
+      }
 
       if (isUnderdog) {
-        if (placement <= 2) pointsChange += 1;
+        if (placement <= (totalPlayers === 2 ? 1 : 2)) pointsChange += 1;
         else pointsChange = Math.min(0, pointsChange + 1); // reduce loss
       }
 
@@ -92,7 +103,30 @@ export class RankingService {
     }
 
     // Non-Scientist tiers use Rank EXP
-    if (tier === 'NURSERY' || tier === 'KINDER') {
+    if (totalPlayers === 2) {
+      if (placement === 1) {
+        if (tier === 'NURSERY' || tier === 'KINDER') expChange = 35;
+        else if (tier === 'GRADER' || tier === 'HIGH_SCHOOL') expChange = 32;
+        else if (
+          tier === 'UNDERGRAD' ||
+          tier === 'CUM_LAUDE' ||
+          tier === 'MAGNA_CUM_LAUDE' ||
+          tier === 'SUMMA_CUM_LAUDE'
+        ) expChange = 30;
+        else expChange = 28;
+      } else {
+        // In 2-player match, 2nd place is the defeated opponent
+        if (tier === 'NURSERY' || tier === 'KINDER') expChange = 0;
+        else if (tier === 'GRADER' || tier === 'HIGH_SCHOOL') expChange = -16;
+        else if (
+          tier === 'UNDERGRAD' ||
+          tier === 'CUM_LAUDE' ||
+          tier === 'MAGNA_CUM_LAUDE' ||
+          tier === 'SUMMA_CUM_LAUDE'
+        ) expChange = -20;
+        else expChange = -26;
+      }
+    } else if (tier === 'NURSERY' || tier === 'KINDER') {
       if (placement === 1) expChange = 35;
       else if (placement === 2) expChange = 20;
       else expChange = 0; // Demotion-protected at 3rd/4th
@@ -119,7 +153,7 @@ export class RankingService {
     }
 
     if (isUnderdog) {
-      if (placement <= 2) {
+      if (placement <= (totalPlayers === 2 ? 1 : 2)) {
         expChange += 5;
       } else if (expChange < 0) {
         expChange = Math.min(0, expChange + 5); // reduce negative loss by 5
@@ -279,12 +313,22 @@ export class RankingService {
   /**
    * Calculates hidden MMR delta after match completion.
    */
-  public static calculateMmrDelta(playerMmr: number, avgMmr: number, placement: number): number {
+  public static calculateMmrDelta(
+    playerMmr: number,
+    avgMmr: number,
+    placement: number,
+    totalPlayers: number = 4
+  ): number {
     let baseDelta = 0;
-    if (placement === 1) baseDelta = 25;
-    else if (placement === 2) baseDelta = 8;
-    else if (placement === 3) baseDelta = -8;
-    else baseDelta = -25;
+    if (totalPlayers === 2) {
+      if (placement === 1) baseDelta = 25;
+      else baseDelta = -25;
+    } else {
+      if (placement === 1) baseDelta = 25;
+      else if (placement === 2) baseDelta = 8;
+      else if (placement === 3) baseDelta = -8;
+      else baseDelta = -25;
+    }
 
     const diff = avgMmr - playerMmr;
     const adjustment = Math.round(diff * 0.05);
@@ -441,17 +485,17 @@ export class RankingService {
       let pointsChange = 0;
 
       if (room.mode === 'RANKED') {
-        const rewards = this.calculatePlacementRewards(currentRank.tier, placement, isUnderdog);
+        const rewards = this.calculatePlacementRewards(currentRank.tier, placement, isUnderdog, playersList.length);
         expChange = rewards.expChange;
         pointsChange = rewards.pointsChange;
       }
 
       const progression = this.calculateProgression(currentRank, expChange, pointsChange);
-      const mmrDelta = this.calculateMmrDelta(currentRank.hiddenMmr, avgMmr, placement);
+      const mmrDelta = this.calculateMmrDelta(currentRank.hiddenMmr, avgMmr, placement, playersList.length);
       const newMmr = Math.max(100, currentRank.hiddenMmr + mmrDelta);
 
       // Account XP calculation
-      const accountXpEarned = this.calculateAccountXpGain(placement, player.wordsSubmitted);
+      const accountXpEarned = this.calculateAccountXpGain(placement, player.wordsSubmitted, playersList.length);
 
       // Fetch user profile
       const profiles = await db

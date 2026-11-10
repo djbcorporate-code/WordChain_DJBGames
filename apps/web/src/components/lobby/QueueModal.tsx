@@ -94,17 +94,17 @@ export const QueueModal: React.FC = () => {
             {isMatched
               ? 'Match Confirmed'
               : isRanked
-              ? 'Competitive Ranked Queue (4-FFA)'
+              ? 'Competitive Ranked Queue'
               : 'Casual Matchmaking Queue'}
           </span>
           <h3 className="text-xl sm:text-2xl font-black text-white">
-            {isMatched ? 'Match Found!' : isRanked ? 'Finding FFA Scholars...' : 'Searching for Scholars...'}
+            {isMatched ? 'Match Found!' : isRanked ? 'Finding Opponents...' : 'Searching for Scholars...'}
           </h3>
           <p className="text-xs text-slate-400">
             {isMatched
               ? `Entering Arena in ${countdownRemaining > 0 ? countdownRemaining : 1} second${countdownRemaining === 1 ? '' : 's'}`
               : isRanked
-              ? 'Searching for 4 players within your Academic MMR window.'
+              ? 'Pairing you with 2 to 4 scholars within your Academic MMR window.'
               : 'Pairing you with 2 to 4 players for a casual word chain match.'}
           </p>
         </div>

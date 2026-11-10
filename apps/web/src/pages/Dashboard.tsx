@@ -189,11 +189,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-white">Competitive Ranked</h3>
                   <span className="text-xs px-2 py-0.5 rounded bg-accent-primary/30 text-indigo-300 font-bold">
-                    4-Player FFA
+                    2-4 Players
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                  Battle for Rank EXP and climb from Nursery to Scientist. Strict authoritative turn timers and anti-cheat telemetry.
+                  Battle for Rank EXP and climb from Nursery to Scientist. 1v1 Duels or up to 4-Player FFA with competitive turn timers.
                 </p>
               </div>
 
@@ -221,7 +221,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
               }`}
             >
               {!isRankedUnlocked && <Lock className="w-4 h-4 text-slate-400" />}
-              <span>{user ? (isRankedUnlocked ? 'Queue for Ranked (4-FFA)' : 'Ranked Locked') : 'Sign In to Unlock'}</span>
+              <span>{user ? (isRankedUnlocked ? 'Queue for Ranked (2-4 Players)' : 'Ranked Locked') : 'Sign In to Unlock'}</span>
             </button>
           </div>
 
