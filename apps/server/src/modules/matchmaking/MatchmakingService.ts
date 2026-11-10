@@ -1,6 +1,7 @@
 import {
   AuthSession,
   ClientToServerEvents,
+  GameLanguage,
   GameMode,
   PlayerInGame,
   ServerToClientEvents,
@@ -16,6 +17,7 @@ interface QueuedPlayer {
   socket: AuthenticatedSocket;
   playerInfo: PlayerInGame;
   mode: GameMode;
+  language: GameLanguage;
   mmr: number;
   enqueuedAt: number;
 }
@@ -51,7 +53,8 @@ export class MatchmakingService {
     socket: AuthenticatedSocket,
     playerInfo: PlayerInGame,
     mode: GameMode = 'CASUAL',
-    mmr: number = 1000
+    mmr: number = 1000,
+    language: GameLanguage = 'ENGLISH'
   ): Promise<boolean> {
     // Check Ranked eligibility if queuing for Ranked
     if (mode === 'RANKED') {
@@ -69,6 +72,7 @@ export class MatchmakingService {
     const existingIndex = this.queue.findIndex((p) => p.user.userId === user.userId);
     if (existingIndex !== -1) {
       this.queue[existingIndex].socket = socket;
+      this.queue[existingIndex].language = language;
       return true;
     }
 
@@ -77,6 +81,7 @@ export class MatchmakingService {
       socket,
       playerInfo,
       mode,
+      language,
       mmr,
       enqueuedAt: Date.now(),
     });
@@ -84,7 +89,8 @@ export class MatchmakingService {
     socket.emit('QUEUE_STATUS', {
       inQueue: true,
       mode,
-      position: this.queue.filter((p) => p.mode === mode).length,
+      language,
+      position: this.queue.filter((p) => p.mode === mode && p.language === language).length,
       estimatedWaitSec: mode === 'RANKED' ? 10 : 3,
     });
 
@@ -151,13 +157,21 @@ export class MatchmakingService {
   }
 
   private processRankedQueue(): void {
-    const rankedQueue = this.queue.filter((p) => p.mode === 'RANKED');
+    const languages: GameLanguage[] = ['ENGLISH', 'TAGALOG', 'BISAYA'];
+    for (const lang of languages) {
+      this.processRankedQueueForLanguage(lang);
+    }
+  }
+
+  private processRankedQueueForLanguage(lang: GameLanguage): void {
+    const rankedQueue = this.queue.filter((p) => p.mode === 'RANKED' && p.language === lang);
     if (rankedQueue.length < 2) {
-      // Minimum 2 scholars required for Ranked match
+      // Minimum 2 scholars required for Ranked match in this language
       rankedQueue.forEach((p, idx) => {
         p.socket.emit('QUEUE_STATUS', {
           inQueue: true,
           mode: 'RANKED',
+          language: lang,
           position: idx + 1,
           estimatedWaitSec: Math.max(3, 10 - Math.floor((Date.now() - p.enqueuedAt) / 1000)),
         });
@@ -185,7 +199,7 @@ export class MatchmakingService {
             if (idx !== -1) this.queue.splice(idx, 1);
           }
 
-          this.createRankedMatch(pod);
+          this.createRankedMatch(pod, lang);
           return;
         }
       }
@@ -208,17 +222,18 @@ export class MatchmakingService {
             if (idx !== -1) this.queue.splice(idx, 1);
           }
 
-          this.createRankedMatch(pair);
+          this.createRankedMatch(pair, lang);
           return;
         }
       }
     }
 
-    // Broadcast queue status to ranked players
+    // Broadcast queue status to ranked players of this language
     rankedQueue.forEach((p, idx) => {
       p.socket.emit('QUEUE_STATUS', {
         inQueue: true,
         mode: 'RANKED',
+        language: lang,
         position: idx + 1,
         estimatedWaitSec: Math.max(2, 6 - Math.floor((Date.now() - p.enqueuedAt) / 1000)),
       });
@@ -261,12 +276,13 @@ export class MatchmakingService {
     console.log(`[Matchmaking] Casual match created: ${room.roomCode} with ${players.length} scholars`);
   }
 
-  private createRankedMatch(players: QueuedPlayer[]): void {
+  private createRankedMatch(players: QueuedPlayer[], language: GameLanguage = 'ENGLISH'): void {
     const roomManager = RoomManager.getInstance();
     const host = players[0];
 
     const room = roomManager.createRoom({
       mode: 'RANKED',
+      language,
       hostUserId: host.user.userId,
       startTimerSec: 15,
       minTimerSec: 6, // Competitive floor: 6s
@@ -288,6 +304,7 @@ export class MatchmakingService {
       p.socket.emit('MATCH_FOUND', {
         roomId: room.roomId,
         mode: 'RANKED',
+        language,
         countdownSec: 3,
       });
     }
@@ -295,8 +312,8 @@ export class MatchmakingService {
     this.io!.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
     room.startCountdown();
     console.log(
-      `[Matchmaking] Ranked 4-Player FFA match created: ${room.roomCode} with 4 scholars (avg MMR: ${Math.round(
-        players.reduce((sum, p) => sum + p.mmr, 0) / 4
+      `[Matchmaking] Ranked match (${language}) created: ${room.roomCode} with ${players.length} scholars (avg MMR: ${Math.round(
+        players.reduce((sum, p) => sum + p.mmr, 0) / players.length
       )})`
     );
   }

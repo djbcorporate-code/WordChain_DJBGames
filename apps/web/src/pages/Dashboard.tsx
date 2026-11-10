@@ -1,6 +1,6 @@
-import { RANK_TIER_CONFIGS } from '@wordchain/shared';
-import { ArrowRight, Flame, Gamepad2, Lock, Shield, Sparkles, Swords, Trophy, Users, Zap } from 'lucide-react';
-import React from 'react';
+import { GameLanguage, RANK_TIER_CONFIGS } from '@wordchain/shared';
+import { ArrowRight, Flame, Gamepad2, Globe, Lock, Shield, Sparkles, Swords, Trophy, Users, Zap } from 'lucide-react';
+import React, { useState } from 'react';
 import { RankEmblem } from '../components/RankEmblem.js';
 import { useAuth } from '../context/AuthContext.js';
 import { useGame } from '../context/GameContext.js';
@@ -14,6 +14,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractice, onOpenPrivateRoom }) => {
   const { user, loginAsGuest } = useAuth();
   const { joinQueue } = useGame();
+  const [rankedLanguage, setRankedLanguage] = useState<GameLanguage>('ENGLISH');
 
   const rankTierConfig = user ? RANK_TIER_CONFIGS[user.currentRank.tier] : null;
   const casualMatchesPlayed = user?.profile.totalMatches ?? 0;
@@ -197,6 +198,67 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
                 </p>
               </div>
 
+              {/* Language Selector for Competitive Rank */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between text-[11px] font-medium">
+                  <span className="flex items-center gap-1 text-slate-300 font-bold">
+                    <Globe className="w-3.5 h-3.5 text-accent-secondary" /> Language
+                  </span>
+                  <span className="text-[10px] text-indigo-300 font-mono font-bold">
+                    {rankedLanguage === 'ENGLISH' ? 'English (Global)' : rankedLanguage === 'TAGALOG' ? 'Tagalog (Filipino)' : 'Bisaya (Cebuano)'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-900/90 border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRankedLanguage('ENGLISH');
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      rankedLanguage === 'ENGLISH'
+                        ? 'bg-accent-primary text-white shadow-sm ring-1 ring-accent-primary/50'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <span>🇬🇧</span>
+                    <span>English</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRankedLanguage('TAGALOG');
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      rankedLanguage === 'TAGALOG'
+                        ? 'bg-accent-primary text-white shadow-sm ring-1 ring-accent-primary/50'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <span>🇵🇭</span>
+                    <span>Tagalog</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRankedLanguage('BISAYA');
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      rankedLanguage === 'BISAYA'
+                        ? 'bg-accent-primary text-white shadow-sm ring-1 ring-accent-primary/50'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <span>🇵🇭</span>
+                    <span>Bisaya</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Requirements & Unlock Status */}
               <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between">
@@ -212,7 +274,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
               onClick={() => {
                 if (!user) onOpenAuth('login');
                 else if (!isRankedUnlocked) alert('Please complete at least 5 Casual Matches before unlocking Ranked Mode!');
-                else joinQueue('RANKED');
+                else joinQueue('RANKED', rankedLanguage);
               }}
               className={`mt-6 w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
                 isRankedUnlocked
@@ -221,7 +283,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
               }`}
             >
               {!isRankedUnlocked && <Lock className="w-4 h-4 text-slate-400" />}
-              <span>{user ? (isRankedUnlocked ? 'Queue for Ranked (2-4 Players)' : 'Ranked Locked') : 'Sign In to Unlock'}</span>
+              <span>{user ? (isRankedUnlocked ? `Queue for Ranked (${rankedLanguage})` : 'Ranked Locked') : 'Sign In to Unlock'}</span>
             </button>
           </div>
 

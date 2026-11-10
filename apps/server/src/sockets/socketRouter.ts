@@ -106,7 +106,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
     }
 
     // MATCHMAKING: JOIN QUEUE (Casual / Ranked)
-    socket.on('LOBBY_JOIN_QUEUE', async ({ mode }) => {
+    socket.on('LOBBY_JOIN_QUEUE', async ({ mode, language }) => {
       try {
         const fullUser = await AuthService.getFullUserProfile(user.userId).catch(() => ({
           id: user.userId,
@@ -133,7 +133,8 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           socket,
           playerInfo,
           mode || 'CASUAL',
-          (fullUser.currentRank as any).hiddenMmr || 1000
+          (fullUser.currentRank as any).hiddenMmr || 1000,
+          language || 'ENGLISH'
         );
       } catch (err: any) {
         socket.emit('SOCKET_ERROR', { code: 'QUEUE_FAILED', message: err.message });
@@ -172,6 +173,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
         const room = roomManager.createRoom({
           mode: 'PRIVATE',
+          language: payload?.language || 'ENGLISH',
           hostUserId: user.userId,
           startTimerSec: payload?.customTimerSec || 15,
         });

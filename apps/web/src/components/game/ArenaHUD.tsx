@@ -1,4 +1,4 @@
-import { GameMode, PlayerInGame } from '@wordchain/shared';
+import { GameLanguage, GameMode, PlayerInGame } from '@wordchain/shared';
 import { Flame, History, Volume2, VolumeX, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { soundManager } from '../../utils/sound.js';
@@ -11,6 +11,7 @@ import { WordHistoryPanel } from './WordHistoryPanel.js';
 
 interface ArenaHUDProps {
   mode: GameMode;
+  language?: GameLanguage;
   roundNumber: number;
   currentWord: string;
   requiredLetter: string;
@@ -31,6 +32,7 @@ interface ArenaHUDProps {
 
 export const ArenaHUD: React.FC<ArenaHUDProps> = ({
   mode,
+  language,
   roundNumber,
   requiredLetter,
   wordHistory,
@@ -73,8 +75,13 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
       {/* Top Header: Clean, Uncluttered Arena Navigation */}
       <div className="flex items-center justify-between bg-slate-900/60 border border-slate-800/80 rounded-2xl px-3.5 py-2 sm:px-4 sm:py-2.5 backdrop-blur-md">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] sm:text-xs font-mono font-black px-2.5 py-0.5 rounded-lg bg-accent-primary/20 text-indigo-300 border border-accent-primary/30 uppercase tracking-wider">
-            {mode} ARENA
+          <span className="text-[10px] sm:text-xs font-mono font-black px-2.5 py-0.5 rounded-lg bg-accent-primary/20 text-indigo-300 border border-accent-primary/30 uppercase tracking-wider flex items-center gap-1.5">
+            <span>{mode} ARENA</span>
+            {language && language !== 'ENGLISH' && (
+              <span className="px-1.5 py-0.2 rounded bg-indigo-500/30 text-accent-secondary text-[9px] font-black border border-accent-secondary/40">
+                {language === 'TAGALOG' ? '🇵🇭 TAGALOG' : '🇵🇭 BISAYA'}
+              </span>
+            )}
           </span>
           <span className="text-[11px] sm:text-xs text-slate-400 font-mono">
             {alivePlayers.length} / {players.length} Alive

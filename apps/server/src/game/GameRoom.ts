@@ -1,5 +1,6 @@
 import {
   DIFFICULTY_PRESETS,
+  GameLanguage,
   GameMode,
   GameRoomSummary,
   GameTurnState,
@@ -53,6 +54,7 @@ export interface GameRoomOptions {
   roomId?: string;
   roomCode?: string;
   mode: GameMode;
+  language?: GameLanguage;
   hostUserId: string;
   startTimerSec?: number;
   minTimerSec?: number;
@@ -64,6 +66,7 @@ export class GameRoom {
   public readonly roomId: string;
   public readonly roomCode: string;
   public readonly mode: GameMode;
+  public readonly language: GameLanguage;
   public readonly createdAt: number = Date.now();
   public hostUserId: string;
 
@@ -91,6 +94,7 @@ export class GameRoom {
     this.roomId = options.roomId || crypto.randomUUID();
     this.roomCode = options.roomCode || this.generateRoomCode();
     this.mode = options.mode;
+    this.language = options.language || 'ENGLISH';
     this.hostUserId = options.hostUserId;
 
     // Difficulty settings
@@ -204,7 +208,7 @@ export class GameRoom {
     this.historyWords.clear();
 
     // Pick seed word
-    this.currentWord = this.validator.getRandomSeedWord();
+    this.currentWord = this.validator.getRandomSeedWord(this.language);
     this.requiredLetter = this.currentWord.slice(-1);
     this.historyWords.add(this.currentWord);
 
@@ -283,7 +287,7 @@ export class GameRoom {
     // If active player is an automated guest scholar, auto-play a valid suffix word
     if (activeUserId.startsWith('guest-bot-')) {
       const prefix = this.requiredLetter;
-      const candidates = LexiconService.getInstance().getTrie().getWordsWithPrefix(prefix, 30);
+      const candidates = LexiconService.getInstance().getTrie(this.language).getWordsWithPrefix(prefix, 30);
       const valid = candidates.find((w) => !this.historyWords.has(w) && w.length >= 3);
       const chosenWord = valid || `${prefix}EST`;
       const suffix = chosenWord.slice(prefix.length);
@@ -318,7 +322,8 @@ export class GameRoom {
       rawWord,
       this.requiredLetter,
       this.historyWords,
-      nextRound
+      nextRound,
+      this.language
     );
 
     if (!validation.isValid) {
@@ -563,6 +568,7 @@ export class GameRoom {
       roomId: this.roomId,
       roomCode: this.roomCode,
       mode: this.mode,
+      language: this.language,
       status: this.status,
       hostUserId: this.hostUserId,
       players: Array.from(this.players.values()),

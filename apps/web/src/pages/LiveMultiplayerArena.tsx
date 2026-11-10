@@ -52,6 +52,7 @@ export const LiveMultiplayerArena: React.FC = () => {
     <>
       <ArenaHUD
         mode={currentRoom.mode}
+        language={currentRoom.language}
         roundNumber={turnState?.roundNumber || currentRoom.turnState?.roundNumber || 1}
         currentWord={currentRoom.currentWord}
         requiredLetter={currentRoom.requiredLetter}

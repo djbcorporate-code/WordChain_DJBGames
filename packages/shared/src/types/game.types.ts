@@ -2,6 +2,8 @@ import { AcademicRankTier } from './ranking.types.js';
 
 export type GameMode = 'CASUAL' | 'RANKED' | 'PRIVATE';
 
+export type GameLanguage = 'ENGLISH' | 'TAGALOG' | 'BISAYA';
+
 export type RoomStatus = 'WAITING' | 'COUNTDOWN' | 'IN_PROGRESS' | 'FINISHED' | 'ABORTED';
 
 export type WordRejectionReason =
@@ -42,6 +44,7 @@ export interface GameRoomSummary {
   roomId: string;
   roomCode: string;
   mode: GameMode;
+  language?: GameLanguage;
   status: RoomStatus;
   hostUserId: string;
   players: PlayerInGame[];

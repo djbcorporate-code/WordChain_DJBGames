@@ -1,11 +1,11 @@
-import { GameMode, GameRoomSummary, GameTurnState, PlayerInGame, WordRejectionReason } from './game.types.js';
+import { GameLanguage, GameMode, GameRoomSummary, GameTurnState, PlayerInGame, WordRejectionReason } from './game.types.js';
 import { RankProgressionDelta } from './ranking.types.js';
 
 export interface ClientToServerEvents {
   // Lobby & Matchmaking
-  LOBBY_JOIN_QUEUE: (payload: { mode: GameMode }) => void;
+  LOBBY_JOIN_QUEUE: (payload: { mode: GameMode; language?: GameLanguage }) => void;
   LOBBY_LEAVE_QUEUE: () => void;
-  ROOM_CREATE_PRIVATE: (payload?: { customTimerSec?: number }) => void;
+  ROOM_CREATE_PRIVATE: (payload?: { customTimerSec?: number; language?: GameLanguage }) => void;
   ROOM_JOIN: (payload: { roomCode: string }) => void;
   ROOM_LEAVE: () => void;
   ROOM_READY_TOGGLE: (payload: { isReady: boolean }) => void;
@@ -31,8 +31,19 @@ export interface ClientToServerEvents {
 
 export interface ServerToClientEvents {
   // Queue & Matchmaking Status
-  QUEUE_STATUS: (payload: { inQueue: boolean; mode?: GameMode; position?: number; estimatedWaitSec?: number }) => void;
-  MATCH_FOUND: (payload: { roomId: string; mode: GameMode; countdownSec: number }) => void;
+  QUEUE_STATUS: (payload: {
+    inQueue: boolean;
+    mode?: GameMode;
+    language?: GameLanguage;
+    position?: number;
+    estimatedWaitSec?: number;
+  }) => void;
+  MATCH_FOUND: (payload: {
+    roomId: string;
+    mode: GameMode;
+    language?: GameLanguage;
+    countdownSec: number;
+  }) => void;
 
   // Room State
   ROOM_STATE_UPDATE: (payload: GameRoomSummary | null) => void;

@@ -1,6 +1,9 @@
 import {
+  BISAYA_SEED_WORDS,
+  GameLanguage,
   HIGH_FREQUENCY_LETTERS,
   INITIAL_SEED_WORDS,
+  TAGALOG_SEED_WORDS,
   WORD_MAX_LENGTH,
   WORD_MIN_LENGTH,
   WordRejectionReason,
@@ -12,10 +15,31 @@ import { LexiconTrie } from './LexiconTrie.js';
 
 export class LexiconService {
   private static instance: LexiconService | null = null;
-  private wordSet: Set<string> = new Set();
-  private letterBuckets: Map<string, string[]> = new Map();
-  private trie: LexiconTrie = new LexiconTrie();
+  private wordSets: Map<GameLanguage, Set<string>> = new Map([
+    ['ENGLISH', new Set()],
+    ['TAGALOG', new Set()],
+    ['BISAYA', new Set()],
+  ]);
+  private letterBuckets: Map<GameLanguage, Map<string, string[]>> = new Map([
+    ['ENGLISH', new Map()],
+    ['TAGALOG', new Map()],
+    ['BISAYA', new Map()],
+  ]);
+  private tries: Map<GameLanguage, LexiconTrie> = new Map([
+    ['ENGLISH', new LexiconTrie()],
+    ['TAGALOG', new LexiconTrie()],
+    ['BISAYA', new LexiconTrie()],
+  ]);
   private isLoaded: boolean = false;
+
+  // Backwards-compatible accessors for default English dictionary
+  public get wordSet(): Set<string> {
+    return this.wordSets.get('ENGLISH')!;
+  }
+
+  public get trie(): LexiconTrie {
+    return this.tries.get('ENGLISH')!;
+  }
 
   public static getInstance(): LexiconService {
     if (!LexiconService.instance) {
@@ -71,35 +95,67 @@ export class LexiconService {
       });
     }
 
-    // Read words dataset
+    // 1. Read English words dataset
     if (fs.existsSync(wordsFile)) {
-      this.loadWordsFromFile(wordsFile, blacklist);
+      this.loadWordsFromFile(wordsFile, blacklist, 'ENGLISH');
     } else {
       console.warn(`[LexiconService] Dictionary file not found at ${wordsFile}. Using default seeds.`);
       for (const word of INITIAL_SEED_WORDS) {
-        this.wordSet.add(word);
-        this.trie.insert(word);
+        this.wordSets.get('ENGLISH')!.add(word);
+        this.tries.get('ENGLISH')!.insert(word);
       }
     }
 
-    // Load supplemental country names and personal names
+    // Supplemental country names and personal names
     const countriesFile = path.join(dataDir, 'countries.txt');
     const namesFile = path.join(dataDir, 'names.txt');
 
-    const countriesAdded = this.loadWordsFromFile(countriesFile, blacklist);
-    const namesAdded = this.loadWordsFromFile(namesFile, blacklist);
+    this.loadWordsFromFile(countriesFile, blacklist, 'ENGLISH');
+    this.loadWordsFromFile(namesFile, blacklist, 'ENGLISH');
+
+    // 2. Read Tagalog words dataset
+    const tagalogFile = path.join(dataDir, 'words_tagalog.txt');
+    if (fs.existsSync(tagalogFile)) {
+      this.loadWordsFromFile(tagalogFile, blacklist, 'TAGALOG');
+    } else {
+      for (const word of TAGALOG_SEED_WORDS) {
+        this.wordSets.get('TAGALOG')!.add(word);
+        this.tries.get('TAGALOG')!.insert(word);
+      }
+    }
+    // Also include countries and names in Tagalog
+    this.loadWordsFromFile(countriesFile, blacklist, 'TAGALOG');
+    this.loadWordsFromFile(namesFile, blacklist, 'TAGALOG');
+
+    // 3. Read Bisaya words dataset
+    const bisayaFile = path.join(dataDir, 'words_bisaya.txt');
+    if (fs.existsSync(bisayaFile)) {
+      this.loadWordsFromFile(bisayaFile, blacklist, 'BISAYA');
+    } else {
+      for (const word of BISAYA_SEED_WORDS) {
+        this.wordSets.get('BISAYA')!.add(word);
+        this.tries.get('BISAYA')!.insert(word);
+      }
+    }
+    // Also include countries and names in Bisaya
+    this.loadWordsFromFile(countriesFile, blacklist, 'BISAYA');
+    this.loadWordsFromFile(namesFile, blacklist, 'BISAYA');
 
     this.isLoaded = true;
     console.log(
-      `[LexiconService] Indexed ${this.wordSet.size.toLocaleString()} English words into memory (including ${countriesAdded} countries and ${namesAdded} names).`
+      `[LexiconService] Indexed dictionaries into memory: English (${this.size('ENGLISH').toLocaleString()}), Tagalog (${this.size('TAGALOG').toLocaleString()}), Bisaya (${this.size('BISAYA').toLocaleString()}) words.`
     );
   }
 
-  private loadWordsFromFile(filePath: string, blacklist: Set<string>): number {
+  private loadWordsFromFile(filePath: string, blacklist: Set<string>, language: GameLanguage): number {
     if (!fs.existsSync(filePath)) return 0;
     const fileStream = fs.readFileSync(filePath, 'utf8');
     const lines = fileStream.split(/\r?\n/);
     let addedCount = 0;
+
+    const set = this.wordSets.get(language)!;
+    const buckets = this.letterBuckets.get(language)!;
+    const trie = this.tries.get(language)!;
 
     for (let i = 0; i < lines.length; i++) {
       const word = lines[i].trim().toUpperCase();
@@ -111,15 +167,15 @@ export class LexiconService {
         word.length >= WORD_MIN_LENGTH &&
         word.length <= WORD_MAX_LENGTH
       ) {
-        if (!this.wordSet.has(word)) {
-          this.wordSet.add(word);
-          this.trie.insert(word);
+        if (!set.has(word)) {
+          set.add(word);
+          trie.insert(word);
 
           const firstLetter = word[0];
-          let bucket = this.letterBuckets.get(firstLetter);
+          let bucket = buckets.get(firstLetter);
           if (!bucket) {
             bucket = [];
-            this.letterBuckets.set(firstLetter, bucket);
+            buckets.set(firstLetter, bucket);
           }
           bucket.push(word);
           addedCount++;
@@ -129,14 +185,19 @@ export class LexiconService {
     return addedCount;
   }
 
-  public hasWord(word: string): boolean {
-    return this.wordSet.has(word.trim().toUpperCase());
+  public size(language: GameLanguage = 'ENGLISH'): number {
+    return this.wordSets.get(language)?.size || 0;
+  }
+
+  public hasWord(word: string, language: GameLanguage = 'ENGLISH'): boolean {
+    return this.wordSets.get(language)?.has(word.trim().toUpperCase()) ?? false;
   }
 
   public validateMove(
     candidateWord: string,
     requiredLetter: string,
-    historyWords: Set<string>
+    historyWords: Set<string>,
+    language: GameLanguage = 'ENGLISH'
   ): { isValid: boolean; reason?: WordRejectionReason; normalizedWord: string } {
     const normalized = candidateWord.trim().toUpperCase();
 
@@ -148,7 +209,7 @@ export class LexiconService {
       return { isValid: false, reason: 'TOO_LONG', normalizedWord: normalized };
     }
 
-    // 2. Alphabetic character validation (English letters only)
+    // 2. Alphabetic character validation (letters only)
     if (!/^[A-Z]+$/.test(normalized)) {
       return { isValid: false, reason: 'NOT_IN_DICTIONARY', normalizedWord: normalized };
     }
@@ -164,18 +225,25 @@ export class LexiconService {
       return { isValid: false, reason: 'ALREADY_USED', normalizedWord: normalized };
     }
 
-    // 5. Lexicon existence check
-    if (!this.hasWord(normalized)) {
+    // 5. Lexicon existence check for the match's language
+    if (!this.hasWord(normalized, language)) {
       return { isValid: false, reason: 'NOT_IN_DICTIONARY', normalizedWord: normalized };
     }
 
     return { isValid: true, normalizedWord: normalized };
   }
 
-  public getRemainingWordsCount(startingPrefix: string, historyWords: Set<string>): number {
+  public getRemainingWordsCount(
+    startingPrefix: string,
+    historyWords: Set<string>,
+    language: GameLanguage = 'ENGLISH'
+  ): number {
     const prefix = startingPrefix.toUpperCase();
+    const buckets = this.letterBuckets.get(language);
+    if (!buckets) return 0;
+
     if (prefix.length === 1) {
-      const bucket = this.letterBuckets.get(prefix) || [];
+      const bucket = buckets.get(prefix) || [];
       let count = 0;
       for (let i = 0; i < bucket.length; i++) {
         if (!historyWords.has(bucket[i])) {
@@ -186,7 +254,8 @@ export class LexiconService {
     }
 
     // Multi-letter prefix (e.g. 2 letters for round 20+)
-    const candidateWords = this.trie.getWordsWithPrefix(prefix, 1000);
+    const trie = this.tries.get(language) || this.tries.get('ENGLISH')!;
+    const candidateWords = trie.getWordsWithPrefix(prefix, 1000);
     let count = 0;
     for (let i = 0; i < candidateWords.length; i++) {
       if (!historyWords.has(candidateWords[i])) {
@@ -196,23 +265,32 @@ export class LexiconService {
     return count;
   }
 
-  public getRandomSeedWord(): string {
+  public getRandomSeedWord(language: GameLanguage = 'ENGLISH'): string {
+    if (language === 'TAGALOG') {
+      return TAGALOG_SEED_WORDS[Math.floor(Math.random() * TAGALOG_SEED_WORDS.length)];
+    }
+    if (language === 'BISAYA') {
+      return BISAYA_SEED_WORDS[Math.floor(Math.random() * BISAYA_SEED_WORDS.length)];
+    }
     const seeds = INITIAL_SEED_WORDS;
-    const randomSeed = seeds[Math.floor(Math.random() * seeds.length)];
-    return randomSeed;
+    return seeds[Math.floor(Math.random() * seeds.length)];
   }
 
-  public getFallbackLetter(historyWords: Set<string>): string {
-    return this.getFallbackPrefix(historyWords, 1);
+  public getFallbackLetter(historyWords: Set<string>, language: GameLanguage = 'ENGLISH'): string {
+    return this.getFallbackPrefix(historyWords, 1, language);
   }
 
-  public getFallbackPrefix(historyWords: Set<string>, prefixLength: number = 1): string {
+  public getFallbackPrefix(
+    historyWords: Set<string>,
+    prefixLength: number = 1,
+    language: GameLanguage = 'ENGLISH'
+  ): string {
     if (prefixLength >= 2) {
-      const common2LetterPrefixes = ['TH', 'ST', 'CH', 'SH', 'PR', 'RE', 'IN', 'DE', 'TR', 'PL'];
-      let bestPrefix = 'TH';
+      const common2LetterPrefixes = ['TH', 'ST', 'CH', 'SH', 'PR', 'RE', 'IN', 'DE', 'TR', 'PL', 'MA', 'PA', 'KA'];
+      let bestPrefix = common2LetterPrefixes[0];
       let maxRemaining = 0;
       for (const prefix of common2LetterPrefixes) {
-        const remaining = this.getRemainingWordsCount(prefix, historyWords);
+        const remaining = this.getRemainingWordsCount(prefix, historyWords, language);
         if (remaining > maxRemaining) {
           maxRemaining = remaining;
           bestPrefix = prefix;
@@ -226,7 +304,7 @@ export class LexiconService {
     let maxRemaining = 0;
 
     for (const letter of HIGH_FREQUENCY_LETTERS) {
-      const remaining = this.getRemainingWordsCount(letter, historyWords);
+      const remaining = this.getRemainingWordsCount(letter, historyWords, language);
       if (remaining > maxRemaining) {
         maxRemaining = remaining;
         bestLetter = letter;
@@ -236,43 +314,53 @@ export class LexiconService {
     return bestLetter;
   }
 
-  public getTrie(): LexiconTrie {
-    return this.trie;
+  public getTrie(language: GameLanguage = 'ENGLISH'): LexiconTrie {
+    return this.tries.get(language) || this.tries.get('ENGLISH')!;
   }
 
-  public addWord(word: string): boolean {
+  public addWord(word: string, language: GameLanguage = 'ENGLISH'): boolean {
     const normalized = word.trim().toUpperCase();
-    if (!normalized || this.wordSet.has(normalized)) return false;
+    const set = this.wordSets.get(language);
+    const buckets = this.letterBuckets.get(language);
+    const trie = this.tries.get(language);
+    if (!set || !buckets || !trie || !normalized || set.has(normalized)) return false;
 
-    this.wordSet.add(normalized);
-    this.trie.insert(normalized);
+    set.add(normalized);
+    trie.insert(normalized);
 
     const firstLetter = normalized[0];
-    let bucket = this.letterBuckets.get(firstLetter);
+    let bucket = buckets.get(firstLetter);
     if (!bucket) {
       bucket = [];
-      this.letterBuckets.set(firstLetter, bucket);
+      buckets.set(firstLetter, bucket);
     }
     bucket.push(normalized);
     return true;
   }
 
-  public banWord(word: string): boolean {
+  public banWord(word: string, language?: GameLanguage): boolean {
     const normalized = word.trim().toUpperCase();
-    if (!this.wordSet.has(normalized)) return false;
+    if (!normalized) return false;
 
-    this.wordSet.delete(normalized);
+    const langs: GameLanguage[] = language ? [language] : ['ENGLISH', 'TAGALOG', 'BISAYA'];
+    let removedAny = false;
 
-    const firstLetter = normalized[0];
-    const bucket = this.letterBuckets.get(firstLetter);
-    if (bucket) {
-      const idx = bucket.indexOf(normalized);
-      if (idx !== -1) bucket.splice(idx, 1);
+    for (const lang of langs) {
+      const set = this.wordSets.get(lang);
+      const buckets = this.letterBuckets.get(lang);
+      if (set && set.has(normalized)) {
+        set.delete(normalized);
+        if (buckets) {
+          const firstLetter = normalized[0];
+          const bucket = buckets.get(firstLetter);
+          if (bucket) {
+            const idx = bucket.indexOf(normalized);
+            if (idx !== -1) bucket.splice(idx, 1);
+          }
+        }
+        removedAny = true;
+      }
     }
-    return true;
-  }
-
-  public size(): number {
-    return this.wordSet.size;
+    return removedAny;
   }
 }

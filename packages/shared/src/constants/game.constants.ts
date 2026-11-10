@@ -41,3 +41,33 @@ export const INITIAL_SEED_WORDS = [
   'ORANGE',
   'WIZARD',
 ];
+
+export const TAGALOG_SEED_WORDS = [
+  'BAYANI',
+  'PAGIBIG',
+  'KAPATID',
+  'SAMPAGUITA',
+  'PILIPINAS',
+  'LIGAYA',
+  'PANGARAP',
+  'KULAY',
+  'LIWANAG',
+  'HANGIN',
+  'BITUIN',
+  'DAGAT',
+];
+
+export const BISAYA_SEED_WORDS = [
+  'SUGBO',
+  'DAGHAN',
+  'IGSOON',
+  'KASINGKASING',
+  'PAGLAUM',
+  'KINABUHI',
+  'KALIPAY',
+  'KUSOG',
+  'HAYAG',
+  'BITUON',
+  'PANGANOD',
+  'PULONG',
+];

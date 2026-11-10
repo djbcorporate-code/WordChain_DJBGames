@@ -1,5 +1,5 @@
 import { LexiconService } from '@wordchain/lexicon';
-import { WordRejectionReason } from '@wordchain/shared';
+import { GameLanguage, WordRejectionReason } from '@wordchain/shared';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -21,7 +21,8 @@ export class WordValidator {
     rawWord: string,
     requiredLetter: string,
     historyWords: Set<string>,
-    nextRoundNumber: number = 1
+    nextRoundNumber: number = 1,
+    language: GameLanguage = 'ENGLISH'
   ): ValidationResult {
     const trimmed = rawWord.trim().toUpperCase();
     const expectedPrefix = requiredLetter.trim().toUpperCase();
@@ -29,8 +30,8 @@ export class WordValidator {
     // Suffix-only candidate assembly: candidate word is strictly expectedPrefix + typed suffix.
     const candidateWord = `${expectedPrefix}${trimmed}`;
 
-    // Perform Lexicon and Rule Validation
-    const moveValidation = this.lexicon.validateMove(candidateWord, expectedPrefix, historyWords);
+    // Perform Lexicon and Rule Validation for the active language
+    const moveValidation = this.lexicon.validateMove(candidateWord, expectedPrefix, historyWords, language);
     if (!moveValidation.isValid) {
       return {
         isValid: false,
@@ -44,10 +45,10 @@ export class WordValidator {
     const trailingPrefix = acceptedWord.slice(-prefixLength);
 
     // Check if the trailing prefix has available moves left in the dictionary
-    const remainingCount = this.lexicon.getRemainingWordsCount(trailingPrefix, historyWords);
+    const remainingCount = this.lexicon.getRemainingWordsCount(trailingPrefix, historyWords, language);
     if (remainingCount === 0) {
       // Prefix is exhausted! Pick an alternative fallback prefix
-      const replacementPrefix = this.lexicon.getFallbackPrefix(historyWords, prefixLength);
+      const replacementPrefix = this.lexicon.getFallbackPrefix(historyWords, prefixLength, language);
       return {
         isValid: true,
         normalizedWord: acceptedWord,
@@ -65,7 +66,7 @@ export class WordValidator {
     };
   }
 
-  public getRandomSeedWord(): string {
-    return this.lexicon.getRandomSeedWord();
+  public getRandomSeedWord(language: GameLanguage = 'ENGLISH'): string {
+    return this.lexicon.getRandomSeedWord(language);
   }
 }

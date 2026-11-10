@@ -380,4 +380,64 @@ describe('Phase 5: Casual Public Matchmaking & Disconnect Recovery', () => {
       s.disconnect();
     }
   }, 10000);
+
+  it('should assemble scholars queueing for Tagalog into a language-specific match', async () => {
+    const db = await getDb();
+    const tagalogScholars = [
+      { id: '71717171-7171-7171-7171-717171717171', username: 'PinoyA' },
+      { id: '72727272-7272-7272-7272-727272727272', username: 'PinoyB' },
+    ];
+    for (const u of tagalogScholars) {
+      await db.insert(users).values({
+        id: u.id,
+        username: u.username,
+        passwordHash: 'hashed',
+        role: 'USER',
+        emailVerified: true,
+      }).onConflictDoNothing();
+
+      await db.insert(playerProfiles).values({
+        userId: u.id,
+        totalMatches: 8,
+      }).onConflictDoNothing();
+    }
+
+    const sockets: ClientSocket[] = [];
+    for (const u of tagalogScholars) {
+      const token = generateJwt({
+        userId: u.id,
+        username: u.username,
+        role: 'USER',
+        emailVerified: true,
+      });
+
+      const s = Client(`http://localhost:${port}`, {
+        auth: { token },
+        transports: ['websocket'],
+      });
+      await new Promise<void>((r) => s.on('connect', () => r()));
+      sockets.push(s);
+    }
+
+    const matchFoundPromises = sockets.map((s) => {
+      return new Promise<{ roomId: string; mode: string; language: string }>((resolve) => {
+        s.on('MATCH_FOUND', (payload: any) => resolve(payload));
+      });
+    });
+
+    // Enqueue both into Ranked Tagalog queue
+    for (const s of sockets) {
+      s.emit('LOBBY_JOIN_QUEUE', { mode: 'RANKED', language: 'TAGALOG' });
+    }
+
+    const matchResults = await Promise.all(matchFoundPromises);
+
+    expect(matchResults[0].mode).toBe('RANKED');
+    expect(matchResults[0].language).toBe('TAGALOG');
+    expect(matchResults[0].roomId).toBe(matchResults[1].roomId);
+
+    for (const s of sockets) {
+      s.disconnect();
+    }
+  }, 10000);
 });

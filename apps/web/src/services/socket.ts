@@ -1,5 +1,6 @@
 import {
   ClientToServerEvents,
+  GameLanguage,
   GameMode,
   GameRoomSummary,
   GameTurnState,
@@ -82,8 +83,8 @@ class SocketService {
   }
 
   // Emitters
-  public joinQueue(mode: GameMode = 'CASUAL'): void {
-    this.getSocket().emit('LOBBY_JOIN_QUEUE', { mode });
+  public joinQueue(mode: GameMode = 'CASUAL', language: GameLanguage = 'ENGLISH'): void {
+    this.getSocket().emit('LOBBY_JOIN_QUEUE', { mode, language });
   }
 
   public leaveQueue(): void {

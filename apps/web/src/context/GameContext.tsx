@@ -1,4 +1,5 @@
 import {
+  GameLanguage,
   GameMode,
   GameRoomSummary,
   GameTurnState,
@@ -14,6 +15,7 @@ import { useAuth } from './AuthContext.js';
 export interface QueueState {
   inQueue: boolean;
   mode?: GameMode;
+  language?: GameLanguage;
   position?: number;
   estimatedWaitSec?: number;
 }
@@ -33,7 +35,7 @@ interface GameContextType {
   } | null;
   error: string | null;
   isConnected: boolean;
-  joinQueue: (mode?: GameMode) => void;
+  joinQueue: (mode?: GameMode, language?: GameLanguage) => void;
   leaveQueue: () => void;
   createPrivateRoom: (timerSec?: number) => void;
   joinRoomByCode: (code: string) => void;
@@ -283,10 +285,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [currentRoom?.status, turnState?.roundNumber, currentRoom?.turnState?.roundNumber]);
 
-  const joinQueue = (mode: GameMode = 'CASUAL') => {
+  const joinQueue = (mode: GameMode = 'CASUAL', language: GameLanguage = 'ENGLISH') => {
     setError(null);
     setMatchWinner(null);
-    socketService.joinQueue(mode);
+    socketService.joinQueue(mode, language);
   };
 
   const leaveQueue = () => {

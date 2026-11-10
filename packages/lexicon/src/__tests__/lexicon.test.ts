@@ -56,6 +56,30 @@ describe('LexiconService & Trie Tests', () => {
     expect(move.normalizedWord).toBe('NOAH');
   });
 
+  it('should accept Tagalog words in Tagalog language mode', () => {
+    expect(lexicon.hasWord('BAYANI', 'TAGALOG')).toBe(true);
+    expect(lexicon.hasWord('SALAMAT', 'TAGALOG')).toBe(true);
+    expect(lexicon.hasWord('PAGIBIG', 'TAGALOG')).toBe(true);
+    expect(lexicon.hasWord('KAPATID', 'TAGALOG')).toBe(true);
+
+    const history = new Set(['ARAW']);
+    const move = lexicon.validateMove('WIKA', 'W', history, 'TAGALOG');
+    expect(move.isValid).toBe(true);
+    expect(move.normalizedWord).toBe('WIKA');
+  });
+
+  it('should accept Bisaya words in Bisaya language mode', () => {
+    expect(lexicon.hasWord('SUGBO', 'BISAYA')).toBe(true);
+    expect(lexicon.hasWord('DAGHAN', 'BISAYA')).toBe(true);
+    expect(lexicon.hasWord('GUGMA', 'BISAYA')).toBe(true);
+    expect(lexicon.hasWord('IGSOON', 'BISAYA')).toBe(true);
+
+    const history = new Set(['BALAY']);
+    const move = lexicon.validateMove('YUTA', 'Y', history, 'BISAYA');
+    expect(move.isValid).toBe(true);
+    expect(move.normalizedWord).toBe('YUTA');
+  });
+
   it('validateMove: should accept valid chain word', () => {
     const history = new Set(['PLANET']);
     const result = lexicon.validateMove('TIGER', 'T', history);
