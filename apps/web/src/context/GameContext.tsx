@@ -39,6 +39,7 @@ interface GameContextType {
   joinRoomByCode: (code: string) => void;
   leaveRoom: () => void;
   toggleReady: (isReady: boolean) => void;
+  addGuestPlayer: () => void;
   startMatch: () => void;
   submitWord: (word: string) => void;
   sendTypingUpdate: (suffix: string) => void;
@@ -279,6 +280,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socketService.toggleReady(isReady);
   };
 
+  const addGuestPlayer = () => {
+    socketService.addGuestPlayer();
+  };
+
   const startMatch = () => {
     socketService.startMatch();
   };
@@ -319,6 +324,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         joinRoomByCode,
         leaveRoom,
         toggleReady,
+        addGuestPlayer,
         startMatch,
         submitWord,
         sendTypingUpdate,

@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, LogOut, ShieldAlert, Sparkles, Trophy, User as UserIcon } from 'lucide-react';
+import { AlertCircle, CheckCircle2, LogOut, ShieldAlert, Sparkles, Trophy, User as UserIcon, Zap } from 'lucide-react';
 import React from 'react';
 import { useAuth } from '../context/AuthContext.js';
 import { RankEmblem } from './RankEmblem.js';
@@ -16,7 +16,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenProfile,
   onOpenAdmin,
 }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, loginAsGuest } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-surface/90 backdrop-blur-md">
@@ -114,6 +114,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           ) : (
             <div className="flex items-center gap-1.5 sm:gap-2">
+              <button
+                onClick={loginAsGuest}
+                className="px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5 transition-all shadow-sm"
+                title="Play instantly without signing up"
+              >
+                <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden xs:inline">Guest</span>
+              </button>
               <button
                 onClick={() => onOpenAuth('login')}
                 className="px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-200 hover:text-white hover:bg-slate-800/60 transition-colors"

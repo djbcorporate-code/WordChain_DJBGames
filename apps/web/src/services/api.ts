@@ -45,6 +45,10 @@ export const api = {
       });
     },
 
+    async guestLogin(): Promise<{ user: AuthenticatedUser; token?: string }> {
+      return request('/auth/guest', { method: 'POST' });
+    },
+
     async logout(): Promise<void> {
       return request('/auth/logout', { method: 'POST' });
     },

@@ -270,6 +270,46 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
     });
 
+    // ADD GUEST SCHOLAR (Host Only, Private Rooms)
+    socket.on('ROOM_ADD_GUEST', () => {
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+
+      const room = roomManager.getRoom(roomId);
+      if (!room || room.status !== 'WAITING') return;
+
+      if (room.hostUserId !== user.userId) {
+        socket.emit('SOCKET_ERROR', { code: 'FORBIDDEN', message: 'Only the host can add guest players.' });
+        return;
+      }
+
+      if (room.players.size >= 8) {
+        socket.emit('SOCKET_ERROR', { code: 'ROOM_FULL', message: 'Room has reached maximum capacity of 8 players.' });
+        return;
+      }
+
+      const guestNames = ['Guest_Hypatia', 'Guest_Aristotle', 'Guest_Curie', 'Guest_Newton', 'Guest_Tesla', 'Guest_Ada', 'Guest_Pascal'];
+      const guestIndex = room.players.size;
+      const guestUsername = `${guestNames[guestIndex % guestNames.length]}_${Math.floor(100 + Math.random() * 900)}`;
+
+      const guestPlayer: PlayerInGame = {
+        userId: `guest-bot-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        username: guestUsername,
+        avatarId: `avatar_0${(guestIndex % 4) + 1}`,
+        tier: 'NURSERY',
+        division: 3,
+        isAlive: true,
+        isReady: true,
+        wordsSubmitted: 0,
+        isDisconnected: false,
+      };
+
+      room.addPlayer(guestPlayer);
+      io.to(room.roomId).emit('ROOM_PLAYER_JOINED', { player: guestPlayer });
+      io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+      console.log(`[Socket] Host ${user.username} added guest player ${guestUsername} to room ${room.roomCode}`);
+    });
+
     // START MATCH (Host Only)
     socket.on('ROOM_START_MATCH', () => {
       const roomId = socket.data.roomId;

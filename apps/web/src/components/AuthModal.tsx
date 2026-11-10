@@ -1,4 +1,4 @@
-import { CheckCircle2, KeyRound, Lock, Mail, ShieldAlert, User, X } from 'lucide-react';
+import { CheckCircle2, KeyRound, Lock, Mail, ShieldAlert, User, X, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext.js';
 import { api } from '../services/api.js';
@@ -10,7 +10,7 @@ interface AuthModalProps {
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'login', onClose }) => {
-  const { login, register, verifyEmail } = useAuth();
+  const { login, register, verifyEmail, loginAsGuest } = useAuth();
   const [tab, setTab] = useState<'login' | 'register' | 'verify' | 'forgot'>(initialTab);
 
   // Form states
@@ -59,6 +59,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'logi
       onClose();
     } catch (err: any) {
       setError(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGuestLogin = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await loginAsGuest();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Guest login failed');
     } finally {
       setLoading(false);
     }
@@ -234,6 +247,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'logi
               >
                 {loading ? 'Authenticating...' : 'Sign In to Arena'}
               </button>
+
+              <div className="relative my-3 flex items-center justify-center">
+                <div className="border-t border-slate-700/80 w-full" />
+                <span className="bg-slate-900 px-3 text-[10px] font-mono text-slate-400 uppercase tracking-wider shrink-0">
+                  Or instant access
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGuestLogin}
+                disabled={loading}
+                className="w-full py-2.5 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.99] shadow-md disabled:opacity-50"
+              >
+                <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{loading ? 'Creating Guest...' : 'Play as Guest (No Sign Up)'}</span>
+              </button>
             </form>
           )}
 
@@ -293,6 +323,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'logi
                 className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-accent-primary to-indigo-600 hover:from-indigo-500 hover:to-indigo-600 text-white shadow-glow transition-all active:scale-[0.99] disabled:opacity-50"
               >
                 {loading ? 'Creating Scholar Account...' : 'Enroll in Season 1 (Start at Nursery III)'}
+              </button>
+
+              <div className="relative my-3 flex items-center justify-center">
+                <div className="border-t border-slate-700/80 w-full" />
+                <span className="bg-slate-900 px-3 text-[10px] font-mono text-slate-400 uppercase tracking-wider shrink-0">
+                  Or skip sign up
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGuestLogin}
+                disabled={loading}
+                className="w-full py-2.5 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 flex items-center justify-center gap-2 transition-all active:scale-[0.99] shadow-md disabled:opacity-50"
+              >
+                <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                <span>{loading ? 'Creating Guest...' : 'Play as Guest (Instant Play)'}</span>
               </button>
             </form>
           )}

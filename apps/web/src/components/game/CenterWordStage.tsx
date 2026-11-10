@@ -31,6 +31,7 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
   const [typedSuffix, setTypedSuffix] = useState('');
   const [isThrottled, setIsThrottled] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isComposingRef = useRef(false);
 
   // Normalize prefix to uppercase
   const prefixChars = (requiredPrefix || 'T').toUpperCase().split('');
@@ -46,36 +47,33 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
     });
   };
 
-  // Keep selection/caret at the end of the input so mobile virtual keyboards never get stuck at index 0
-  const syncCaretToEnd = () => {
+  // Focus and safely position caret at end without disrupting active typing
+  const focusInput = () => {
     if (inputRef.current) {
-      const len = inputRef.current.value.length;
-      try {
-        inputRef.current.setSelectionRange(len, len);
-      } catch (_) {
-        // Safe fallback
-      }
+      inputRef.current.focus();
+      requestAnimationFrame(() => {
+        try {
+          const len = inputRef.current?.value.length || 0;
+          inputRef.current?.setSelectionRange(len, len);
+        } catch (_) {
+          // Safe fallback
+        }
+      });
     }
   };
 
-  useEffect(() => {
-    syncCaretToEnd();
-  }, [typedSuffix]);
-
-  // Clear typed suffix when turn changes or required prefix updates
+  // Clear typed suffix and focus when turn changes or required prefix updates
   useEffect(() => {
     setTypedSuffix('');
     if (isMyTurn) {
-      inputRef.current?.focus();
-      syncCaretToEnd();
+      focusInput();
     }
   }, [requiredPrefix, isMyTurn]);
 
   // Autofocus when turn switches to user
   useEffect(() => {
     if (isMyTurn) {
-      inputRef.current?.focus();
-      syncCaretToEnd();
+      focusInput();
     }
   }, [isMyTurn]);
 
@@ -159,8 +157,7 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
     <div
       onClick={() => {
         if (isMyTurn) {
-          inputRef.current?.focus();
-          syncCaretToEnd();
+          focusInput();
         }
       }}
       className="w-full max-w-2xl mx-auto flex flex-col items-center gap-3 sm:gap-4 select-none cursor-pointer"
@@ -195,8 +192,7 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
         key={shakeTrigger}
         onClick={() => {
           if (isMyTurn) {
-            inputRef.current?.focus();
-            syncCaretToEnd();
+            focusInput();
           }
         }}
         className={`relative w-full bg-slate-900/70 border-2 rounded-2xl sm:rounded-3xl p-4 sm:p-6 backdrop-blur-md shadow-2xl flex flex-col items-center justify-center transition-all overflow-hidden cursor-text ${
@@ -211,12 +207,20 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
         <input
           ref={inputRef}
           type="text"
+          dir="ltr"
           value={typedSuffix}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onBeforeInput={handleBeforeInput}
+          onCompositionStart={() => {
+            isComposingRef.current = true;
+          }}
+          onCompositionEnd={(e) => {
+            isComposingRef.current = false;
+            handleInputChange(e as any);
+          }}
           disabled={!isMyTurn}
-          className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer caret-transparent text-base"
+          className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer caret-transparent text-base text-left font-mono"
           autoCapitalize="characters"
           autoComplete="off"
           autoCorrect="off"
@@ -307,8 +311,7 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
             onClick={(e) => {
               e.stopPropagation();
               handleBackspace();
-              inputRef.current?.focus();
-              syncCaretToEnd();
+              focusInput();
             }}
             disabled={typedSuffix.length === 0}
             className={`px-4 sm:px-6 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all border ${

@@ -99,6 +99,25 @@ export class AuthController {
     });
   }
 
+  static async loginAsGuest(_req: Request, res: Response): Promise<void> {
+    try {
+      const result = await AuthService.loginAsGuest();
+      setAuthCookie(res, result.token);
+
+      res.status(200).json({
+        success: true,
+        message: 'Guest login successful. Welcome to WordChain!',
+        user: result.user,
+        token: result.token,
+      });
+    } catch (err: any) {
+      res.status(500).json({
+        success: false,
+        message: err.message || 'Failed to create guest session',
+      });
+    }
+  }
+
   static async getMe(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {

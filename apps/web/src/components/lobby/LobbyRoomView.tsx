@@ -1,4 +1,4 @@
-import { Check, CheckCircle2, Clock, Copy, Crown, LogOut, Play, Shield, Users } from 'lucide-react';
+import { Check, CheckCircle2, Clock, Copy, Crown, LogOut, Play, Shield, UserPlus, Users } from 'lucide-react';
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext.js';
 import { useGame } from '../../context/GameContext.js';
@@ -6,7 +6,7 @@ import { RankEmblem } from '../RankEmblem.js';
 
 export const LobbyRoomView: React.FC = () => {
   const { user } = useAuth();
-  const { currentRoom, leaveRoom, toggleReady, startMatch, error } = useGame();
+  const { currentRoom, leaveRoom, toggleReady, startMatch, addGuestPlayer, error } = useGame();
   const [copied, setCopied] = useState(false);
 
   if (!currentRoom) return null;
@@ -158,18 +158,32 @@ export const LobbyRoomView: React.FC = () => {
           )}
 
           {isHost && (
-            <button
-              onClick={startMatch}
-              disabled={!allReady}
-              className={`flex-1 sm:flex-initial px-6 py-3 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
-                allReady
-                  ? 'bg-gradient-to-r from-accent-primary to-accent-secondary text-slate-950 shadow-glow hover:scale-105 active:scale-95'
-                  : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-              }`}
-            >
-              <Play className="w-4 h-4 fill-current" />
-              <span>Start Match</span>
-            </button>
+            <>
+              {currentRoom.players.length < 8 && (
+                <button
+                  type="button"
+                  onClick={addGuestPlayer}
+                  className="px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md"
+                  title="Add a guest player to test or play with"
+                >
+                  <UserPlus className="w-4 h-4 text-cyan-400" />
+                  <span>Add Guest Player</span>
+                </button>
+              )}
+
+              <button
+                onClick={startMatch}
+                disabled={!allReady}
+                className={`flex-1 sm:flex-initial px-6 py-3 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
+                  allReady
+                    ? 'bg-gradient-to-r from-accent-primary to-accent-secondary text-slate-950 shadow-glow hover:scale-105 active:scale-95'
+                    : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                }`}
+              >
+                <Play className="w-4 h-4 fill-current" />
+                <span>Start Match</span>
+              </button>
+            </>
           )}
         </div>
       </div>

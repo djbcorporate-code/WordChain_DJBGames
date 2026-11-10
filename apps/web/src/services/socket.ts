@@ -105,6 +105,10 @@ class SocketService {
     this.getSocket().emit('ROOM_READY_TOGGLE', { isReady });
   }
 
+  public addGuestPlayer(): void {
+    this.getSocket().emit('ROOM_ADD_GUEST');
+  }
+
   public startMatch(): void {
     this.getSocket().emit('ROOM_START_MATCH');
   }

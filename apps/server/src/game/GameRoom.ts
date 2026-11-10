@@ -7,6 +7,7 @@ import {
   RoomStatus,
   WordRejectionReason,
 } from '@wordchain/shared';
+import { LexiconService } from '@wordchain/lexicon';
 import crypto from 'crypto';
 import { TurnTimer } from './TurnTimer.js';
 import { WordValidator } from './WordValidator.js';
@@ -271,6 +272,22 @@ export class GameRoom {
     };
 
     this.callbacks.onTurnStart?.(turnState);
+
+    // If active player is an automated guest scholar, auto-play a valid suffix word
+    if (activeUserId.startsWith('guest-bot-')) {
+      const prefix = this.requiredLetter;
+      const candidates = LexiconService.getInstance().getTrie().getWordsWithPrefix(prefix, 30);
+      const valid = candidates.find((w) => !this.historyWords.has(w) && w.length >= 3);
+      const chosenWord = valid || `${prefix}EST`;
+      const suffix = chosenWord.slice(prefix.length);
+
+      const botDelay = Math.min(2500, Math.max(1200, durationSec * 300));
+      setTimeout(() => {
+        if (this.status === 'IN_PROGRESS' && this.getActivePlayerId() === activeUserId) {
+          this.submitWord(activeUserId, suffix, Date.now());
+        }
+      }, botDelay);
+    }
   }
 
   public submitWord(userId: string, rawWord: string, _clientTimestamp: number): { success: boolean; reason?: WordRejectionReason } {

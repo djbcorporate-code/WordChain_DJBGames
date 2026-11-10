@@ -122,6 +122,95 @@ export class AuthService {
     return { user: authenticatedUser, token, verificationToken };
   }
 
+  static async loginAsGuest(): Promise<{ user: AuthenticatedUser; token: string }> {
+    const db = await getDb();
+    const guestSuffix = Math.floor(1000 + Math.random() * 9000);
+    const guestUsername = `Guest_${guestSuffix}`;
+    const guestEmail = `guest_${guestSuffix}_${Date.now()}@wordchain.guest`;
+    const randomPassword = generateRandomToken(16);
+    const passwordHash = await hashPassword(randomPassword);
+
+    const [createdUser] = await db
+      .insert(users)
+      .values({
+        email: guestEmail,
+        username: guestUsername,
+        passwordHash,
+        emailVerified: true,
+        verificationToken: generateRandomToken(32),
+        role: 'USER',
+      })
+      .returning();
+
+    const [profile] = await db
+      .insert(playerProfiles)
+      .values({
+        userId: createdUser.id,
+        avatarId: `avatar_0${Math.floor(1 + Math.random() * 4)}`,
+        accountLevel: 1,
+        lifetimeXp: 0,
+        totalMatches: 0,
+        totalWins: 0,
+        totalWordsPlayed: 0,
+        longestWord: '',
+      })
+      .returning();
+
+    const activeSeasons = await db.select().from(seasons).where(eq(seasons.isActive, true)).limit(1);
+    const seasonId = activeSeasons.length > 0 ? activeSeasons[0].id : 1;
+
+    const [rankProfile] = await db
+      .insert(playerRankProfiles)
+      .values({
+        userId: createdUser.id,
+        seasonId,
+        tier: 'NURSERY',
+        division: 3,
+        rankExp: 0,
+        scientistPoints: 0,
+        highestTier: 'NURSERY',
+        highestScientistPoints: 0,
+        hiddenMmr: 1000,
+        seasonMatches: 0,
+        seasonWins: 0,
+      })
+      .returning();
+
+    const token = generateJwt({
+      userId: createdUser.id,
+      username: createdUser.username,
+      role: createdUser.role,
+      emailVerified: createdUser.emailVerified,
+    });
+
+    const authenticatedUser: AuthenticatedUser = {
+      id: createdUser.id,
+      email: createdUser.email,
+      username: createdUser.username,
+      role: createdUser.role as any,
+      emailVerified: createdUser.emailVerified,
+      profile: {
+        userId: profile.userId,
+        avatarId: profile.avatarId,
+        accountLevel: profile.accountLevel,
+        lifetimeXp: profile.lifetimeXp,
+        totalMatches: profile.totalMatches,
+        totalWins: profile.totalWins,
+        totalWordsPlayed: profile.totalWordsPlayed,
+        longestWord: profile.longestWord,
+      },
+      currentRank: {
+        tier: rankProfile.tier as any,
+        division: rankProfile.division,
+        rankExp: rankProfile.rankExp,
+        scientistPoints: rankProfile.scientistPoints,
+        hiddenMmr: rankProfile.hiddenMmr,
+      },
+    };
+
+    return { user: authenticatedUser, token };
+  }
+
   static async login(input: LoginInput): Promise<{ user: AuthenticatedUser; token: string }> {
     const db = await getDb();
     const query = input.emailOrUsername.trim();

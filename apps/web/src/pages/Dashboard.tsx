@@ -12,7 +12,7 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractice, onOpenPrivateRoom }) => {
-  const { user } = useAuth();
+  const { user, loginAsGuest } = useAuth();
   const { joinQueue } = useGame();
 
   const rankTierConfig = user ? RANK_TIER_CONFIGS[user.currentRank.tier] : null;
@@ -105,12 +105,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
               )}
             </div>
           ) : (
-            <button
-              onClick={() => onOpenAuth('register')}
-              className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-accent-primary to-accent-secondary font-bold text-white shadow-glow hover:scale-105 active:scale-95 transition-all text-sm shrink-0"
-            >
-              Sign Up to Compete
-            </button>
+            <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
+              <button
+                onClick={loginAsGuest}
+                className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 font-bold text-cyan-300 border border-cyan-500/40 shadow-md hover:scale-105 active:scale-95 transition-all text-sm flex items-center justify-center gap-2"
+              >
+                <Zap className="w-4 h-4 text-cyan-400" />
+                <span>Play as Guest</span>
+              </button>
+
+              <button
+                onClick={() => onOpenAuth('register')}
+                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-accent-primary to-accent-secondary font-bold text-white shadow-glow hover:scale-105 active:scale-95 transition-all text-sm"
+              >
+                Sign Up to Compete
+              </button>
+            </div>
           )}
         </div>
       </div>

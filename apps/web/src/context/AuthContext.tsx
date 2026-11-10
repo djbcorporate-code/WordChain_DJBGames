@@ -6,6 +6,7 @@ interface AuthContextType {
   user: AuthenticatedUser | null;
   loading: boolean;
   login: (input: LoginInput) => Promise<void>;
+  loginAsGuest: () => Promise<void>;
   register: (input: RegisterInput) => Promise<{ verificationToken?: string }>;
   logout: () => Promise<void>;
   verifyEmail: (input: VerifyEmailInput) => Promise<void>;
@@ -38,6 +39,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(res.user);
   };
 
+  const loginAsGuest = async () => {
+    const res = await api.auth.guestLogin();
+    setUser(res.user);
+  };
+
   const register = async (input: RegisterInput) => {
     const res = await api.auth.register(input);
     setUser(res.user);
@@ -60,6 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         loading,
         login,
+        loginAsGuest,
         register,
         logout,
         verifyEmail,

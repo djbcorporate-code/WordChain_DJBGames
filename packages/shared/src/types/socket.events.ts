@@ -9,6 +9,7 @@ export interface ClientToServerEvents {
   ROOM_JOIN: (payload: { roomCode: string }) => void;
   ROOM_LEAVE: () => void;
   ROOM_READY_TOGGLE: (payload: { isReady: boolean }) => void;
+  ROOM_ADD_GUEST: () => void;
   ROOM_START_MATCH: () => void;
 
   // Active Gameplay
