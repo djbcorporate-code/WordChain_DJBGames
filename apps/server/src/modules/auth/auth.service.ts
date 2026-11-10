@@ -14,23 +14,27 @@ import { generateJwt, generateRandomToken, hashPassword, verifyPassword } from '
 export class AuthService {
   static async register(input: RegisterInput): Promise<{ user: AuthenticatedUser; token: string; verificationToken: string }> {
     const db = await getDb();
-    const normalizedEmail = input.email.trim().toLowerCase();
     const normalizedUsername = input.username.trim();
+    const normalizedDisplayName = (input.displayName || input.username).trim();
+    const normalizedEmail = input.email ? input.email.trim().toLowerCase() : `${normalizedUsername.toLowerCase()}@wordchain.local`;
 
-    // Check if email or username is already taken
+    // Check if username is already taken (or email if provided)
     const existing = await db
       .select()
       .from(users)
-      .where(or(eq(users.email, normalizedEmail), eq(users.username, normalizedUsername)))
+      .where(or(
+        eq(users.username, normalizedUsername),
+        input.email ? eq(users.email, normalizedEmail) : eq(users.username, normalizedUsername)
+      ))
       .limit(1);
 
     if (existing.length > 0) {
       const match = existing[0];
-      if (match.email === normalizedEmail) {
-        throw new Error('An account with this email already exists.');
-      }
       if (match.username.toLowerCase() === normalizedUsername.toLowerCase()) {
         throw new Error('Username is already taken. Please choose another.');
+      }
+      if (input.email && match.email?.toLowerCase() === normalizedEmail) {
+        throw new Error('An account with this email already exists.');
       }
     }
 
@@ -43,6 +47,7 @@ export class AuthService {
       .values({
         email: normalizedEmail,
         username: normalizedUsername,
+        displayName: normalizedDisplayName,
         passwordHash,
         emailVerified: true,
         verificationToken,
@@ -90,14 +95,16 @@ export class AuthService {
     const token = generateJwt({
       userId: createdUser.id,
       username: createdUser.username,
+      displayName: createdUser.displayName || createdUser.username,
       role: createdUser.role,
       emailVerified: createdUser.emailVerified,
     });
 
     const authenticatedUser: AuthenticatedUser = {
       id: createdUser.id,
-      email: createdUser.email,
+      email: createdUser.email || undefined,
       username: createdUser.username,
+      displayName: createdUser.displayName || createdUser.username,
       role: createdUser.role as any,
       emailVerified: createdUser.emailVerified,
       profile: {
@@ -126,6 +133,7 @@ export class AuthService {
     const db = await getDb();
     const guestSuffix = Math.floor(1000 + Math.random() * 9000);
     const guestUsername = `Guest_${guestSuffix}`;
+    const guestDisplayName = `Guest ${guestSuffix}`;
     const guestEmail = `guest_${guestSuffix}_${Date.now()}@wordchain.guest`;
     const randomPassword = generateRandomToken(16);
     const passwordHash = await hashPassword(randomPassword);
@@ -135,6 +143,7 @@ export class AuthService {
       .values({
         email: guestEmail,
         username: guestUsername,
+        displayName: guestDisplayName,
         passwordHash,
         emailVerified: true,
         verificationToken: generateRandomToken(32),
@@ -179,14 +188,16 @@ export class AuthService {
     const token = generateJwt({
       userId: createdUser.id,
       username: createdUser.username,
+      displayName: createdUser.displayName || createdUser.username,
       role: createdUser.role,
       emailVerified: createdUser.emailVerified,
     });
 
     const authenticatedUser: AuthenticatedUser = {
       id: createdUser.id,
-      email: createdUser.email,
+      email: createdUser.email || undefined,
       username: createdUser.username,
+      displayName: createdUser.displayName || createdUser.username,
       role: createdUser.role as any,
       emailVerified: createdUser.emailVerified,
       profile: {
@@ -213,17 +224,17 @@ export class AuthService {
 
   static async login(input: LoginInput): Promise<{ user: AuthenticatedUser; token: string }> {
     const db = await getDb();
-    const query = input.emailOrUsername.trim();
-    const queryLower = query.toLowerCase();
+    const identifier = (input.username || input.emailOrUsername || '').trim();
+    const queryLower = identifier.toLowerCase();
 
     const foundUsers = await db
       .select()
       .from(users)
-      .where(or(eq(users.email, queryLower), eq(users.username, query)))
+      .where(or(eq(users.email, queryLower), eq(users.username, identifier)))
       .limit(1);
 
     if (foundUsers.length === 0) {
-      throw new Error('Invalid email/username or password.');
+      throw new Error('Invalid username or password.');
     }
 
     const user = foundUsers[0];
@@ -235,7 +246,7 @@ export class AuthService {
     const passwordValid = await verifyPassword(input.password, user.passwordHash);
 
     if (!passwordValid) {
-      throw new Error('Invalid email/username or password.');
+      throw new Error('Invalid username or password.');
     }
 
     const authenticatedUser = await this.getFullUserProfile(user.id);
@@ -243,6 +254,7 @@ export class AuthService {
     const token = generateJwt({
       userId: user.id,
       username: user.username,
+      displayName: user.displayName || user.username,
       role: user.role,
       emailVerified: user.emailVerified,
     });
@@ -372,8 +384,9 @@ export class AuthService {
 
     return {
       id: user.id,
-      email: user.email,
+      email: user.email || undefined,
       username: user.username,
+      displayName: user.displayName || user.username,
       role: user.role as any,
       emailVerified: user.emailVerified,
       profile: {

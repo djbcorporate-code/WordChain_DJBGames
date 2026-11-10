@@ -13,9 +13,10 @@ describe('Auth Module Integration Tests', () => {
   });
 
   const testUser = {
-    email: 'scholar@wordchain.gg',
+    displayName: 'Word Scholar',
     username: 'WordScholar',
     password: 'ValidPassword123!',
+    email: 'scholar@wordchain.gg',
   };
 
   let verificationToken: string;
@@ -58,6 +59,7 @@ describe('Auth Module Integration Tests', () => {
     const res = await request(app)
       .post('/api/v1/auth/register')
       .send({
+        displayName: 'Different Name',
         email: testUser.email,
         username: 'DifferentName',
         password: 'ValidPassword123!',
@@ -72,6 +74,7 @@ describe('Auth Module Integration Tests', () => {
     const res = await request(app)
       .post('/api/v1/auth/register')
       .send({
+        displayName: 'Other Name',
         email: 'other@wordchain.gg',
         username: testUser.username,
         password: 'ValidPassword123!',
@@ -82,13 +85,13 @@ describe('Auth Module Integration Tests', () => {
     expect(res.body.message).toContain('Username is already taken');
   });
 
-  it('POST /api/v1/auth/register should reject invalid password (< 8 chars)', async () => {
+  it('POST /api/v1/auth/register should reject invalid password (< 6 chars)', async () => {
     const res = await request(app)
       .post('/api/v1/auth/register')
       .send({
-        email: 'short@wordchain.gg',
+        displayName: 'Short Pass',
         username: 'ShortPass',
-        password: 'short',
+        password: '12345',
       })
       .expect(400);
 
@@ -100,7 +103,7 @@ describe('Auth Module Integration Tests', () => {
     const res = await request(app)
       .post('/api/v1/auth/login')
       .send({
-        emailOrUsername: testUser.username,
+        username: testUser.username,
         password: testUser.password,
       })
       .expect(200);

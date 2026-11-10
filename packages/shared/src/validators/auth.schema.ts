@@ -1,27 +1,40 @@
 import { z } from 'zod';
 
+export const displayNameSchema = z
+  .string()
+  .trim()
+  .min(1, 'Display name must be at least 1 character')
+  .max(32, 'Display name cannot exceed 32 characters');
+
 export const usernameSchema = z
   .string()
+  .trim()
   .min(3, 'Username must be at least 3 characters')
   .max(20, 'Username cannot exceed 20 characters')
   .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores');
 
 export const passwordSchema = z
   .string()
-  .min(8, 'Password must be at least 8 characters')
-  .max(100, 'Password is too long')
-  .regex(/[0-9!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/, 'Password must contain at least one number or special character');
+  .min(6, 'Password must be at least 6 characters')
+  .max(100, 'Password is too long');
 
 export const registerSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
+  displayName: displayNameSchema,
   username: usernameSchema,
   password: passwordSchema,
+  email: z.string().email('Please enter a valid email address').optional(),
 });
 
-export const loginSchema = z.object({
-  emailOrUsername: z.string().min(1, 'Please enter your email or username'),
-  password: z.string().min(1, 'Please enter your password'),
-});
+export const loginSchema = z
+  .object({
+    username: z.string().trim().min(1, 'Please enter your username').optional(),
+    emailOrUsername: z.string().trim().min(1, 'Please enter your username').optional(),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+  })
+  .refine((data) => Boolean(data.username || data.emailOrUsername), {
+    message: 'Username is required',
+    path: ['username'],
+  });
 
 export const forgotPasswordSchema = z.object({
   email: z.string().email('Please enter a valid email address'),

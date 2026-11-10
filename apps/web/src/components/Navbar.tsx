@@ -101,7 +101,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-200 hover:text-white transition-colors"
                 >
                   <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
-                  <span className="hidden md:inline">{user.username}</span>
+                  <span className="hidden md:inline">{user.displayName || user.username}</span>
                 </button>
                 <button
                   onClick={logout}

@@ -13,8 +13,9 @@ import {
 
 export const users = pgTable('users', {
   id: uuid('id').defaultRandom().primaryKey(),
-  email: varchar('email', { length: 255 }).notNull().unique(),
+  email: varchar('email', { length: 255 }).unique(),
   username: varchar('username', { length: 32 }).notNull().unique(),
+  displayName: varchar('display_name', { length: 64 }),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   emailVerified: boolean('email_verified').default(true).notNull(),
   verificationToken: varchar('verification_token', { length: 128 }),

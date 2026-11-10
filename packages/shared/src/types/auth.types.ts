@@ -4,8 +4,9 @@ export type UserRole = 'USER' | 'MODERATOR' | 'ADMIN' | 'BANNED';
 
 export interface User {
   id: string;
-  email: string;
+  email?: string;
   username: string;
+  displayName?: string;
   role: UserRole;
   emailVerified: boolean;
   createdAt: string;
@@ -25,8 +26,9 @@ export interface PlayerProfile {
 
 export interface AuthenticatedUser {
   id: string;
-  email: string;
+  email?: string;
   username: string;
+  displayName: string;
   role: UserRole;
   emailVerified: boolean;
   profile: PlayerProfile;
@@ -42,6 +44,7 @@ export interface AuthenticatedUser {
 export interface AuthSession {
   userId: string;
   username: string;
+  displayName?: string;
   role: UserRole;
   emailVerified: boolean;
 }

@@ -36,7 +36,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
             <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
               {user ? (
                 <>
-                  Welcome back, <span className="text-accent-secondary">{user.username}</span>
+                  Welcome back, <span className="text-accent-secondary">{user.displayName || user.username}</span>
                 </>
               ) : (
                 <>Master the Word Chain Arena</>

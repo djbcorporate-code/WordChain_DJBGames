@@ -14,10 +14,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'logi
   const [tab, setTab] = useState<'login' | 'register' | 'verify' | 'forgot'>(initialTab);
 
   // Form states
-  const [emailOrUsername, setEmailOrUsername] = useState('');
-  const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [verificationToken, setVerificationToken] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -31,12 +31,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'logi
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccessMessage(null);
 
     try {
-      await register({ email, username, password });
+      await register({
+        displayName: displayName.trim() || username.trim(),
+        username: username.trim(),
+        password,
+      });
       setSuccessMessage('Registration successful! Welcome to WordChain.');
       setTimeout(() => {
         onClose();
@@ -50,12 +59,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'logi
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSuccessMessage(null);
 
     try {
-      await login({ emailOrUsername, password });
+      await login({ username: username.trim(), password });
       onClose();
     } catch (err: any) {
       setError(err.message || 'Login failed');
@@ -202,15 +216,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'logi
           {tab === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Email or Username</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Username</label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
                   <input
                     type="text"
                     required
-                    value={emailOrUsername}
-                    onChange={(e) => setEmailOrUsername(e.target.value)}
-                    placeholder="scholar@wordchain.gg or ScholarName"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter your username"
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary"
                   />
                 </div>
@@ -234,7 +248,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'logi
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
+                    placeholder="Minimum 6 characters"
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary"
                   />
                 </div>
@@ -271,22 +285,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'logi
           {tab === 'register' && (
             <form onSubmit={handleRegister} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Display Name</label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
+                  <User className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
                   <input
-                    type="email"
+                    type="text"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="student@university.edu"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="e.g. Master Scholar"
                     className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-accent-primary"
                   />
                 </div>
+                <p className="text-[11px] text-slate-500 mt-1">Name visible to other players in the game</p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Scholar Username</label>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Username</label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-3 w-4 h-4 text-slate-500" />
                   <input
@@ -294,11 +309,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'logi
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="LexiconMaster"
+                    placeholder="e.g. scholar123"
                     className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-accent-primary"
                   />
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">3-20 characters (letters, numbers, underscore)</p>
+                <p className="text-[11px] text-slate-500 mt-1">3-20 characters (letters, numbers, underscores)</p>
               </div>
 
               <div>
@@ -310,11 +325,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'logi
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Minimum 8 characters"
+                    placeholder="Minimum 6 characters"
                     className="w-full pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-accent-primary"
                   />
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1">Must include a number or special character</p>
+                <p className="text-[11px] text-slate-500 mt-1">Minimum 6 characters</p>
               </div>
 
               <button
@@ -322,7 +337,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, initialTab = 'logi
                 disabled={loading}
                 className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-accent-primary to-indigo-600 hover:from-indigo-500 hover:to-indigo-600 text-white shadow-glow transition-all active:scale-[0.99] disabled:opacity-50"
               >
-                {loading ? 'Creating Scholar Account...' : 'Enroll in Season 1 (Start at Nursery III)'}
+                {loading ? 'Creating Scholar Account...' : 'Create Account (Start at Nursery III)'}
               </button>
 
               <div className="relative my-3 flex items-center justify-center">

@@ -67,8 +67,9 @@ async function ensureTablesCreated(): Promise<void> {
   const ddlStatements = `
     CREATE TABLE IF NOT EXISTS users (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      email VARCHAR(255) UNIQUE NOT NULL,
+      email VARCHAR(255) UNIQUE,
       username VARCHAR(32) UNIQUE NOT NULL,
+      display_name VARCHAR(64),
       password_hash VARCHAR(255) NOT NULL,
       email_verified BOOLEAN DEFAULT TRUE NOT NULL,
       verification_token VARCHAR(128),
@@ -163,8 +164,16 @@ async function ensureTablesCreated(): Promise<void> {
 
   if (pgPool) {
     await pgPool.query(ddlStatements);
+    await pgPool.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(64);
+      ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+    `);
   } else if (pgliteClient) {
     await pgliteClient.exec(ddlStatements);
+    await pgliteClient.exec(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(64);
+      ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+    `);
   }
 }
 
