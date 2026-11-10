@@ -40,11 +40,37 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     ...((options.headers as Record<string, string>) || {}),
   };
 
-  const res = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-    credentials: 'include', // Automatically passes and receives cookies
-  });
+  const targetUrl = `${BASE_URL}${endpoint}`;
+  let res: Response;
+
+  try {
+    res = await fetch(targetUrl, {
+      ...options,
+      headers,
+      credentials: 'include', // Automatically passes and receives cookies
+    });
+  } catch (err: any) {
+    console.error(`[WordChain API] Network error connecting to ${targetUrl}:`, err);
+    if (!SERVER_URL && typeof window !== 'undefined' && window.location.hostname.endsWith('vercel.app')) {
+      throw new Error(
+        'VITE_SERVER_URL is missing in Vercel settings! Please set VITE_SERVER_URL to your Render backend URL in Vercel Project Settings > Environment Variables, then redeploy.'
+      );
+    }
+    throw new Error(
+      `Cannot reach backend server. If the Render instance is waking from sleep, please wait 20-30 seconds and retry. (Target: ${targetUrl})`
+    );
+  }
+
+  // Handle accidental HTML response if an SPA rewrite caught the API route
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await res.text();
+    if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+      throw new Error(
+        `Backend returned HTML instead of API data. Verify VITE_SERVER_URL points directly to your Render backend. (Target: ${targetUrl})`
+      );
+    }
+  }
 
   const data = await res.json().catch(() => ({ message: 'Invalid response from server' }));
 
