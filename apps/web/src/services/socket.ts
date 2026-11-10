@@ -9,6 +9,7 @@ import {
   WordRejectionReason,
 } from '@wordchain/shared';
 import { io, Socket } from 'socket.io-client';
+import { getStoredToken } from './api.js';
 
 export type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -35,14 +36,18 @@ class SocketService {
     this.isConnecting = true;
 
     // Connect to server origin or configured remote backend with credentials
-    const targetUrl = import.meta.env.VITE_SERVER_URL
+    const rawUrl = import.meta.env.VITE_SERVER_URL
       ? import.meta.env.VITE_SERVER_URL
       : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
           ? 'http://localhost:4000'
           : window.location.origin);
+    const targetUrl = rawUrl.replace(/\/+$/, '');
 
     this.socket = io(targetUrl, {
       withCredentials: true,
+      auth: (cb) => {
+        cb({ token: getStoredToken() });
+      },
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 10,

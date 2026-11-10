@@ -25,6 +25,10 @@ export function socketAuthMiddleware(socket: Socket, next: (err?: Error) => void
       }
     }
 
+    if (token && typeof token === 'string' && token.startsWith('Bearer ')) {
+      token = token.slice(7).trim();
+    }
+
     if (!token) {
       // Allow testing bypass only when explicitly provided in test environment
       if (process.env.NODE_ENV === 'test' && socket.handshake.auth?.testUser) {

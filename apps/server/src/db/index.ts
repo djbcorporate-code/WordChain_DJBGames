@@ -30,14 +30,31 @@ export async function getDb(): Promise<DatabaseInstance> {
     dbInstance = drizzlePg(pgPool, { schema });
   } else {
     const isTest = process.env.NODE_ENV === 'test';
-    const dataDir = process.env.PGLITE_DATA_DIR || (isTest ? undefined : path.resolve(process.cwd(), '.data/pglite'));
+    const preferredDataDir = process.env.PGLITE_DATA_DIR || (isTest ? undefined : path.resolve(process.cwd(), '.data/pglite'));
 
-    if (dataDir) {
-      fs.mkdirSync(dataDir, { recursive: true });
-      console.log(`[Database] No DATABASE_URL specified. Initializing embedded persistent PostgreSQL (PGlite at ${dataDir})...`);
-      pgliteClient = new PGlite(dataDir);
-    } else {
-      console.log('[Database] No DATABASE_URL specified. Initializing embedded in-memory PostgreSQL (PGlite)...');
+    let initialized = false;
+    if (preferredDataDir) {
+      try {
+        fs.mkdirSync(preferredDataDir, { recursive: true });
+        console.log(`[Database] No DATABASE_URL specified. Initializing embedded persistent PostgreSQL (PGlite at ${preferredDataDir})...`);
+        pgliteClient = new PGlite(preferredDataDir);
+        initialized = true;
+      } catch (err: any) {
+        console.warn(`[Database] Warning: Cannot write to preferred dir ${preferredDataDir}: ${err.message}. Attempting /tmp/pglite...`);
+        try {
+          const fallbackTmpDir = '/tmp/pglite';
+          fs.mkdirSync(fallbackTmpDir, { recursive: true });
+          pgliteClient = new PGlite(fallbackTmpDir);
+          initialized = true;
+          console.log(`[Database] Initialized PGlite fallback at ${fallbackTmpDir}`);
+        } catch (tmpErr: any) {
+          console.warn(`[Database] Warning: /tmp/pglite also failed: ${tmpErr.message}. Falling back to in-memory PGlite.`);
+        }
+      }
+    }
+
+    if (!initialized || !pgliteClient) {
+      console.log('[Database] Initializing embedded in-memory PostgreSQL (PGlite)...');
       pgliteClient = new PGlite();
     }
     dbInstance = drizzlePglite(pgliteClient, { schema });

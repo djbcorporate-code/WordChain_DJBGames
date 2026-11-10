@@ -12,6 +12,8 @@
     "dev:backend": "npm run dev --workspace=@wordchain/server",
     "dev:frontend": "npm run dev --workspace=@wordchain/web",
     "build": "npm run build --workspaces --if-present",
+    "build:web": "npm run build --workspace=@wordchain/shared && npm run build --workspace=@wordchain/web",
+    "build:server": "npm run build --workspace=@wordchain/shared && npm run build --workspace=@wordchain/lexicon && npm run build --workspace=@wordchain/server",
     "start": "node apps/server/dist/index.js",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present"

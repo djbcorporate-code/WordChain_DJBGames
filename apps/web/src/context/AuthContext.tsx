@@ -1,6 +1,7 @@
 import { AuthenticatedUser, LoginInput, RegisterInput, VerifyEmailInput } from '@wordchain/shared';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { api } from '../services/api.js';
+import { socketService } from '../services/socket.js';
 
 interface AuthContextType {
   user: AuthenticatedUser | null;
@@ -35,22 +36,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (input: LoginInput) => {
+    socketService.disconnect();
     const res = await api.auth.login(input);
     setUser(res.user);
   };
 
   const loginAsGuest = async () => {
+    socketService.disconnect();
     const res = await api.auth.guestLogin();
     setUser(res.user);
   };
 
   const register = async (input: RegisterInput) => {
+    socketService.disconnect();
     const res = await api.auth.register(input);
     setUser(res.user);
     return { verificationToken: res.verificationToken };
   };
 
   const logout = async () => {
+    socketService.disconnect();
     await api.auth.logout();
     setUser(null);
   };

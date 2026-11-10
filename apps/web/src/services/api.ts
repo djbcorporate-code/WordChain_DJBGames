@@ -7,22 +7,51 @@ import {
   VerifyEmailInput,
 } from '@wordchain/shared';
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || '';
+const SERVER_URL = (import.meta.env.VITE_SERVER_URL || '').replace(/\/+$/, '');
 const BASE_URL = `${SERVER_URL}/api/v1`;
 
+const TOKEN_STORAGE_KEY = 'wordchain_auth_token';
+
+export function getStoredToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredToken(token: string | null): void {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore localStorage access issues
+  }
+}
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const token = getStoredToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...((options.headers as Record<string, string>) || {}),
+  };
+
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
     credentials: 'include', // Automatically passes and receives cookies
   });
 
-  const data = await res.json();
+  const data = await res.json().catch(() => ({ message: 'Invalid response from server' }));
 
   if (!res.ok) {
+    if (res.status === 401 && endpoint === '/auth/me') {
+      setStoredToken(null);
+    }
     throw new Error(data.message || 'An unexpected request error occurred');
   }
 
@@ -32,25 +61,41 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 export const api = {
   auth: {
     async register(input: RegisterInput): Promise<{ user: AuthenticatedUser; token?: string; verificationToken?: string }> {
-      return request('/auth/register', {
+      const res = await request<{ user: AuthenticatedUser; token?: string; verificationToken?: string }>('/auth/register', {
         method: 'POST',
         body: JSON.stringify(input),
       });
+      if (res.token) {
+        setStoredToken(res.token);
+      }
+      return res;
     },
 
     async login(input: LoginInput): Promise<{ user: AuthenticatedUser; token?: string }> {
-      return request('/auth/login', {
+      const res = await request<{ user: AuthenticatedUser; token?: string }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify(input),
       });
+      if (res.token) {
+        setStoredToken(res.token);
+      }
+      return res;
     },
 
     async guestLogin(): Promise<{ user: AuthenticatedUser; token?: string }> {
-      return request('/auth/guest', { method: 'POST' });
+      const res = await request<{ user: AuthenticatedUser; token?: string }>('/auth/guest', { method: 'POST' });
+      if (res.token) {
+        setStoredToken(res.token);
+      }
+      return res;
     },
 
     async logout(): Promise<void> {
-      return request('/auth/logout', { method: 'POST' });
+      try {
+        await request('/auth/logout', { method: 'POST' });
+      } finally {
+        setStoredToken(null);
+      }
     },
 
     async getMe(): Promise<{ user: AuthenticatedUser }> {

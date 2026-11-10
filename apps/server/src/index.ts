@@ -5,15 +5,21 @@ import { app } from './app.js';
 import { closeDb, getDb } from './db/index.js';
 import { socketAuthMiddleware } from './sockets/socketAuth.js';
 import { setupSocketRouter } from './sockets/socketRouter.js';
+import { isAllowedOrigin } from './utils/cors.js';
 
 const PORT = Number(process.env.PORT) || 4000;
-const clientOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
 
 const server = http.createServer(app);
 
 export const io = new SocketIOServer(server, {
   cors: {
-    origin: [clientOrigin, 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'],
+    origin: (origin, callback) => {
+      if (isAllowedOrigin(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Socket.IO CORS blocked for origin: ${origin}`));
+      }
+    },
     credentials: true,
   },
   pingInterval: 10000,

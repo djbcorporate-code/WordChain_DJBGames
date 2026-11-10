@@ -49,6 +49,9 @@ ENV SERVE_STATIC=true
 # Install wget for lightweight healthcheck execution
 RUN apk add --no-cache wget
 
+# Ensure non-root node user owns /app and persistent local database directory
+RUN mkdir -p /app/.data && chown -R node:node /app
+
 # Switch to standard non-root user
 USER node
 
