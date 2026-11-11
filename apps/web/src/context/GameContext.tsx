@@ -7,10 +7,17 @@ import {
   RankProgressionDelta,
   WordRejectionReason,
 } from '@wordchain/shared';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { socketService } from '../services/socket.js';
 import { soundManager } from '../utils/sound.js';
 import { useAuth } from './AuthContext.js';
+
+export interface TimeAttackAlert {
+  word: string;
+  attackerUserId: string;
+  penalizedUserId: string;
+  penaltySec: number;
+}
 
 export interface QueueState {
   inQueue: boolean;
@@ -23,6 +30,7 @@ export interface QueueState {
 interface GameContextType {
   currentRoom: GameRoomSummary | null;
   turnState: GameTurnState | null;
+  timeAttackAlert: TimeAttackAlert | null;
   queueStatus: QueueState | null;
   matchFoundNotice: { roomId: string; countdownSec: number } | null;
   lastRejectionReason: string | null;
@@ -65,6 +73,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     standings: PlayerInGame[];
     deltas?: Record<string, RankProgressionDelta>;
   } | null>(null);
+  const [timeAttackAlert, setTimeAttackAlert] = useState<TimeAttackAlert | null>(null);
+  const timeAttackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
@@ -183,10 +193,31 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setPeerTyping(payload);
     };
 
-    const handleWordAccepted = () => {
+    const handleWordAccepted = (payload?: {
+      word?: string;
+      acceptedByUserId?: string;
+      penalizedUserId?: string;
+      timePenaltySec?: number;
+    }) => {
       soundManager.playWordAccepted();
       setLastRejectionReason(null);
       setPeerTyping(null);
+
+      if (payload?.timePenaltySec && payload?.penalizedUserId && payload?.acceptedByUserId && payload?.word) {
+        soundManager.playTimeAttack();
+        if (timeAttackTimerRef.current) {
+          clearTimeout(timeAttackTimerRef.current);
+        }
+        setTimeAttackAlert({
+          word: payload.word,
+          attackerUserId: payload.acceptedByUserId,
+          penalizedUserId: payload.penalizedUserId,
+          penaltySec: payload.timePenaltySec,
+        });
+        timeAttackTimerRef.current = setTimeout(() => {
+          setTimeAttackAlert(null);
+        }, 2800);
+      }
     };
 
     const handleWordRejected = (payload: { word: string; reason: WordRejectionReason; message: string }) => {
@@ -218,7 +249,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       deltas?: Record<string, RankProgressionDelta>;
     }) => {
       soundManager.playVictory();
+      soundManager.stopRoundBgm();
       soundManager.stopIntenseMusic();
+      setTimeAttackAlert(null);
       setPeerTyping(null);
       setMatchWinner({
         winnerId: payload.winnerId,
@@ -268,19 +301,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [user]);
 
-  // Intense tension music controller for Round 20+
+  // Procedural BGM controller:
+  // - Rounds 1-19: Chill lo-fi ambient game rhythm
+  // - Rounds 20+: Intense Sudden Death tension pulse
   useEffect(() => {
-    const isRound20 =
-      currentRoom?.status === 'IN_PROGRESS' &&
-      (turnState?.roundNumber || currentRoom?.turnState?.roundNumber || 0) >= 20;
+    const isInProgress = currentRoom?.status === 'IN_PROGRESS';
+    const round = turnState?.roundNumber || currentRoom?.turnState?.roundNumber || 0;
 
-    if (isRound20) {
-      soundManager.startIntenseMusic();
+    if (isInProgress) {
+      if (round >= 20) {
+        soundManager.stopRoundBgm();
+        soundManager.startIntenseMusic();
+      } else if (round >= 1) {
+        soundManager.stopIntenseMusic();
+        soundManager.startRoundBgm();
+      }
     } else {
+      soundManager.stopRoundBgm();
       soundManager.stopIntenseMusic();
     }
 
     return () => {
+      soundManager.stopRoundBgm();
       soundManager.stopIntenseMusic();
     };
   }, [currentRoom?.status, turnState?.roundNumber, currentRoom?.turnState?.roundNumber]);
@@ -297,7 +339,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMatchFoundNotice(null);
   };
 
-  const createPrivateRoom = (timerSec: number = 15, language: GameLanguage = 'ENGLISH') => {
+  const createPrivateRoom = (timerSec: number = 15, language: GameLanguage = 'MIXED') => {
     setError(null);
     setMatchWinner(null);
     socketService.createPrivateRoom(timerSec, language);
@@ -316,6 +358,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setMatchWinner(null);
     setPeerTyping(null);
     setLastRejectionReason(null);
+    setTimeAttackAlert(null);
+    soundManager.stopRoundBgm();
     soundManager.stopIntenseMusic();
     try {
       localStorage.removeItem('wordchain_active_room');
@@ -358,6 +402,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         currentRoom,
         turnState,
+        timeAttackAlert,
         queueStatus,
         matchFoundNotice,
         lastRejectionReason,

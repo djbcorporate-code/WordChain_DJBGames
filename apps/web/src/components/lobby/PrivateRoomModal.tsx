@@ -13,7 +13,7 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({ isOpen, onCl
   const [activeTab, setActiveTab] = useState<'create' | 'join'>('create');
   const [roomCode, setRoomCode] = useState('');
   const [selectedTimer, setSelectedTimer] = useState<number>(15);
-  const [selectedLanguage, setSelectedLanguage] = useState<GameLanguage>('ENGLISH');
+  const [selectedLanguage, setSelectedLanguage] = useState<GameLanguage>('MIXED');
 
   if (!isOpen) return null;
 

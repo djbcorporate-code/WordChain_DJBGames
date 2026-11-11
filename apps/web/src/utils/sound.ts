@@ -5,6 +5,10 @@ class SoundSynthesizer {
   private isPlayingMusic: boolean = false;
   private musicStep: number = 0;
 
+  private roundBgmInterval: NodeJS.Timeout | null = null;
+  private isPlayingRoundBgm: boolean = false;
+  private roundBgmStep: number = 0;
+
   constructor() {
     // Read mute preference from localStorage if available
     try {
@@ -35,6 +39,7 @@ class SoundSynthesizer {
     this.isMuted = !this.isMuted;
     if (this.isMuted) {
       this.stopIntenseMusic();
+      this.stopRoundBgm();
     }
     try {
       localStorage.setItem('wordchain_sound_muted', JSON.stringify(this.isMuted));
@@ -129,6 +134,156 @@ class SoundSynthesizer {
       this.musicInterval = null;
     }
     this.isPlayingMusic = false;
+  }
+
+  /**
+   * Smooth, rhythmic lo-fi procedural soundtrack for early match rounds (Rounds 1-19).
+   * Features warm electric piano chords, soft low-frequency bass and gentle shaker cadence.
+   */
+  public startRoundBgm(): void {
+    if (this.isPlayingRoundBgm || this.isMuted) return;
+    this.isPlayingRoundBgm = true;
+    this.roundBgmStep = 0;
+
+    // ~105 BPM (16th note step = ~142ms)
+    const stepDurationMs = 142;
+
+    this.roundBgmInterval = setInterval(() => {
+      const ctx = this.getContext();
+      if (!ctx || this.isMuted) {
+        this.stopRoundBgm();
+        return;
+      }
+
+      const now = ctx.currentTime;
+      const step = this.roundBgmStep % 32;
+      this.roundBgmStep++;
+
+      // 1. Mellow lo-fi sub-kick on beat 0 and 16
+      if (step === 0 || step === 16) {
+        const kickOsc = ctx.createOscillator();
+        const kickGain = ctx.createGain();
+        kickOsc.type = 'sine';
+        kickOsc.frequency.setValueAtTime(80, now);
+        kickOsc.frequency.exponentialRampToValueAtTime(38, now + 0.15);
+
+        kickGain.gain.setValueAtTime(0.09, now);
+        kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+        kickOsc.connect(kickGain);
+        kickGain.connect(ctx.destination);
+        kickOsc.start(now);
+        kickOsc.stop(now + 0.18);
+      }
+
+      // 2. Soft acoustic shaker on 8th notes (0, 2, 4, 6...)
+      if (step % 2 === 0) {
+        const shakerOsc = ctx.createOscillator();
+        const shakerGain = ctx.createGain();
+        shakerOsc.type = 'triangle';
+        shakerOsc.frequency.setValueAtTime(1400 + (step % 4) * 80, now);
+
+        shakerGain.gain.setValueAtTime(0.015, now);
+        shakerGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
+
+        shakerOsc.connect(shakerGain);
+        shakerGain.connect(ctx.destination);
+        shakerOsc.start(now);
+        shakerOsc.stop(now + 0.035);
+      }
+
+      // 3. Warm Rhodes/electric piano chords on steps 0, 8, 16, 24
+      if (step % 8 === 0) {
+        const chordIndex = Math.floor(step / 8);
+        const chords = [
+          [261.63, 329.63, 392.0, 493.88], // Cmaj7
+          [220.0, 261.63, 329.63, 392.0], // Am7
+          [174.61, 220.0, 261.63, 329.63], // Fmaj7
+          [196.0, 246.94, 293.66, 349.23], // G7
+        ];
+        const chordNotes = chords[chordIndex] || chords[0];
+
+        chordNotes.forEach((freq) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+
+          gain.gain.setValueAtTime(0.025, now);
+          gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.8);
+
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.8);
+        });
+      }
+
+      // 4. Subtle smooth bassline on steps 0, 6, 12, 16, 22, 28
+      if (step === 0 || step === 6 || step === 12 || step === 16 || step === 22 || step === 28) {
+        const bassFreqs = [130.81, 164.81, 196.0, 110.0, 146.83, 174.61];
+        const bassFreq = bassFreqs[Math.floor(step / 5) % bassFreqs.length];
+
+        const bassOsc = ctx.createOscillator();
+        const bassGain = ctx.createGain();
+        bassOsc.type = 'triangle';
+        bassOsc.frequency.setValueAtTime(bassFreq / 2, now);
+
+        bassGain.gain.setValueAtTime(0.05, now);
+        bassGain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+
+        bassOsc.connect(bassGain);
+        bassGain.connect(ctx.destination);
+        bassOsc.start(now);
+        bassOsc.stop(now + 0.28);
+      }
+    }, stepDurationMs);
+  }
+
+  public stopRoundBgm(): void {
+    if (this.roundBgmInterval) {
+      clearInterval(this.roundBgmInterval);
+      this.roundBgmInterval = null;
+    }
+    this.isPlayingRoundBgm = false;
+  }
+
+  /**
+   * Sound effect played when a 7+ letter word is accepted, delivering a -2s time attack to opponent!
+   */
+  public playTimeAttack(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const chime = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const chimeGain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.exponentialRampToValueAtTime(220, now + 0.25);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+    chime.type = 'sine';
+    chime.frequency.setValueAtTime(1318.5, now); // E6
+    chime.frequency.exponentialRampToValueAtTime(1760, now + 0.2); // A6
+
+    chimeGain.gain.setValueAtTime(0.14, now);
+    chimeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    chime.connect(chimeGain);
+    chimeGain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.25);
+    chime.start(now);
+    chime.stop(now + 0.3);
   }
 
   public playWordAccepted(): void {

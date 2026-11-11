@@ -9,6 +9,7 @@ export const LiveMultiplayerArena: React.FC = () => {
   const {
     currentRoom,
     turnState,
+    timeAttackAlert,
     lastRejectionReason,
     shakeTrigger,
     peerTyping,
@@ -68,6 +69,7 @@ export const LiveMultiplayerArena: React.FC = () => {
         onTypingUpdate={sendTypingUpdate}
         lastRejectionReason={lastRejectionReason}
         shakeTrigger={shakeTrigger}
+        timeAttackAlert={timeAttackAlert}
         onLeaveMatch={leaveRoom}
       />
 

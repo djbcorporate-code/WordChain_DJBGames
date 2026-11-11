@@ -23,6 +23,8 @@ export interface GameRoomCallbacks {
     nextUserId: string;
     turnDurationMs: number;
     roundNumber: number;
+    timePenaltySec?: number;
+    penalizedUserId?: string;
   }) => void;
   onWordRejected?: (payload: {
     userId: string;
@@ -87,6 +89,7 @@ export class GameRoom {
   private activeTimer: TurnTimer | null = null;
   private countdownTimer: NodeJS.Timeout | null = null;
   private turnStartTimestamp: number = 0;
+  private pendingTimePenaltySec: number = 0;
   private validator: WordValidator;
   private callbacks: GameRoomCallbacks;
 
@@ -259,6 +262,13 @@ export class GameRoom {
     } else {
       durationSec = this.startTimerSec;
     }
+
+    // Apply pending -2s time attack penalty if previous turn word was 7+ letters
+    if (this.pendingTimePenaltySec > 0) {
+      durationSec = Math.max(3, durationSec - this.pendingTimePenaltySec);
+      this.pendingTimePenaltySec = 0;
+    }
+
     const durationMs = durationSec * 1000;
 
     this.turnStartTimestamp = Date.now();
@@ -368,6 +378,12 @@ export class GameRoom {
 
     const nextUserId = this.getActivePlayerId()!;
 
+    // 7+ letter words penalize the next player with -2 seconds on their timer
+    const timePenaltySec = acceptedWord.length >= 7 ? 2 : 0;
+    if (timePenaltySec > 0) {
+      this.pendingTimePenaltySec = timePenaltySec;
+    }
+
     this.callbacks.onWordAccepted?.({
       word: acceptedWord,
       acceptedByUserId: userId,
@@ -375,6 +391,8 @@ export class GameRoom {
       nextUserId,
       turnDurationMs,
       roundNumber: this.roundNumber,
+      timePenaltySec: timePenaltySec > 0 ? timePenaltySec : undefined,
+      penalizedUserId: timePenaltySec > 0 ? nextUserId : undefined,
     });
 
     this.notifyStateChange();

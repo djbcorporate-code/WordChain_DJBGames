@@ -174,7 +174,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
         const room = roomManager.createRoom({
           mode: 'PRIVATE',
-          language: payload?.language || 'ENGLISH',
+          language: payload?.language || 'MIXED',
           hostUserId: user.userId,
           startTimerSec: payload?.customTimerSec || 15,
         });

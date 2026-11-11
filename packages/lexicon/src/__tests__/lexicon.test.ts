@@ -102,6 +102,50 @@ describe('LexiconService & Trie Tests', () => {
     expect(moveEnglish.isValid).toBe(true);
   });
 
+  it('should accept modern and digital-era English vocabulary', () => {
+    expect(lexicon.hasWord('SELFIE')).toBe(true);
+    expect(lexicon.hasWord('PODCAST')).toBe(true);
+    expect(lexicon.hasWord('EMOJI')).toBe(true);
+    expect(lexicon.hasWord('DEEPFAKE')).toBe(true);
+    expect(lexicon.hasWord('DOOMSCROLL')).toBe(true);
+    expect(lexicon.hasWord('BITCOIN')).toBe(true);
+    expect(lexicon.hasWord('MEME')).toBe(true);
+    expect(lexicon.hasWord('RIZZ')).toBe(true);
+    expect(lexicon.hasWord('VLOG')).toBe(true);
+    expect(lexicon.hasWord('HASHTAG')).toBe(true);
+
+    const history = new Set(['START']);
+    const move = lexicon.validateMove('SELFIE', 'S', history, 'ENGLISH');
+    expect(move.isValid).toBe(true);
+  });
+
+  it('should accept popular brand names in all language modes', () => {
+    // English
+    expect(lexicon.hasWord('JOLLIBEE', 'ENGLISH')).toBe(true);
+    expect(lexicon.hasWord('NIKE', 'ENGLISH')).toBe(true);
+    expect(lexicon.hasWord('ADIDAS', 'ENGLISH')).toBe(true);
+    expect(lexicon.hasWord('TOYOTA', 'ENGLISH')).toBe(true);
+    expect(lexicon.hasWord('APPLE', 'ENGLISH')).toBe(true);
+    expect(lexicon.hasWord('SAMSUNG', 'ENGLISH')).toBe(true);
+
+    // Tagalog
+    expect(lexicon.hasWord('JOLLIBEE', 'TAGALOG')).toBe(true);
+    expect(lexicon.hasWord('TOYOTA', 'TAGALOG')).toBe(true);
+
+    // Bisaya
+    expect(lexicon.hasWord('JOLLIBEE', 'BISAYA')).toBe(true);
+    expect(lexicon.hasWord('ADIDAS', 'BISAYA')).toBe(true);
+
+    // Mixed
+    expect(lexicon.hasWord('JOLLIBEE', 'MIXED')).toBe(true);
+    expect(lexicon.hasWord('NIKE', 'MIXED')).toBe(true);
+
+    const history = new Set(['START']);
+    const move = lexicon.validateMove('JOLLIBEE', 'J', history, 'MIXED');
+    expect(move.isValid).toBe(true);
+    expect(move.normalizedWord).toBe('JOLLIBEE');
+  });
+
   it('validateMove: should accept valid chain word', () => {
     const history = new Set(['PLANET']);
     const result = lexicon.validateMove('TIGER', 'T', history);

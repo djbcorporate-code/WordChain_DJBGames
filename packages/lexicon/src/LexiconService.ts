@@ -98,23 +98,40 @@ export class LexiconService {
       });
     }
 
-    // 1. Read English words dataset
-    if (fs.existsSync(wordsFile)) {
-      this.loadWordsFromFile(wordsFile, blacklist, 'ENGLISH');
-    } else {
-      console.warn(`[LexiconService] Dictionary file not found at ${wordsFile}. Using default seeds.`);
+    // 1. Read English words datasets:
+    // - Classic ENABLE1
+    // - CSW19 (Collins Official Scrabble Words tournament dictionary)
+    // - Comprehensive English wordlist (dwyl)
+    // - Modern English 2020-2026 neologisms, tech terms & internet slang
+    const englishFiles = [
+      wordsFile,
+      path.join(dataDir, 'csw19.txt'),
+      path.join(dataDir, 'words_dwyl.txt'),
+      path.join(dataDir, 'modern_english.txt'),
+    ];
+
+    let loadedEnglish = 0;
+    for (const file of englishFiles) {
+      if (fs.existsSync(file)) {
+        loadedEnglish += this.loadWordsFromFile(file, blacklist, 'ENGLISH');
+      }
+    }
+    if (loadedEnglish === 0) {
+      console.warn(`[LexiconService] Dictionary files not found. Using default seeds.`);
       for (const word of INITIAL_SEED_WORDS) {
         this.wordSets.get('ENGLISH')!.add(word);
         this.tries.get('ENGLISH')!.insert(word);
       }
     }
 
-    // Supplemental country names and personal names
+    // Supplemental country names, personal names, and popular brand names
     const countriesFile = path.join(dataDir, 'countries.txt');
     const namesFile = path.join(dataDir, 'names.txt');
+    const brandsFile = path.join(dataDir, 'brands.txt');
 
     this.loadWordsFromFile(countriesFile, blacklist, 'ENGLISH');
     this.loadWordsFromFile(namesFile, blacklist, 'ENGLISH');
+    this.loadWordsFromFile(brandsFile, blacklist, 'ENGLISH');
 
     // 2. Read Tagalog words dataset
     const tagalogFile = path.join(dataDir, 'words_tagalog.txt');
@@ -126,9 +143,10 @@ export class LexiconService {
         this.tries.get('TAGALOG')!.insert(word);
       }
     }
-    // Also include countries and names in Tagalog
+    // Also include countries, names, and brands in Tagalog
     this.loadWordsFromFile(countriesFile, blacklist, 'TAGALOG');
     this.loadWordsFromFile(namesFile, blacklist, 'TAGALOG');
+    this.loadWordsFromFile(brandsFile, blacklist, 'TAGALOG');
 
     // 3. Read Bisaya words dataset
     const bisayaFile = path.join(dataDir, 'words_bisaya.txt');
@@ -140,9 +158,10 @@ export class LexiconService {
         this.tries.get('BISAYA')!.insert(word);
       }
     }
-    // Also include countries and names in Bisaya
+    // Also include countries, names, and brands in Bisaya
     this.loadWordsFromFile(countriesFile, blacklist, 'BISAYA');
     this.loadWordsFromFile(namesFile, blacklist, 'BISAYA');
+    this.loadWordsFromFile(brandsFile, blacklist, 'BISAYA');
 
     // 4. Build MIXED dictionary (union of English, Tagalog, and Bisaya)
     const mixedSet = this.wordSets.get('MIXED')!;

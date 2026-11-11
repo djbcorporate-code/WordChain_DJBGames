@@ -61,6 +61,8 @@ export interface ServerToClientEvents {
     nextUserId: string;
     turnDurationMs: number;
     roundNumber: number;
+    timePenaltySec?: number;
+    penalizedUserId?: string;
   }) => void;
   GAME_WORD_REJECTED: (payload: {
     word: string;

@@ -1,6 +1,7 @@
 import { GameLanguage, GameMode, PlayerInGame } from '@wordchain/shared';
-import { Flame, History, Volume2, VolumeX, X } from 'lucide-react';
+import { Flame, History, Volume2, VolumeX, X, Zap } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { TimeAttackAlert } from '../../context/GameContext.js';
 import { soundManager } from '../../utils/sound.js';
 import { OpenMicControlBar } from '../voice/OpenMicControlBar.js';
 import { CenterWordStage } from './CenterWordStage.js';
@@ -25,6 +26,7 @@ interface ArenaHUDProps {
   peerTypingSuffix?: string;
   lastRejectionReason?: string | null;
   shakeTrigger?: number;
+  timeAttackAlert?: TimeAttackAlert | null;
   onSubmitWord: (word: string) => void;
   onTypingUpdate?: (suffix: string) => void;
   onLeaveMatch: () => void;
@@ -45,6 +47,7 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
   peerTypingSuffix = '',
   lastRejectionReason,
   shakeTrigger = 0,
+  timeAttackAlert = null,
   onSubmitWord,
   onTypingUpdate = () => {},
   onLeaveMatch,
@@ -72,6 +75,62 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
 
   return (
     <div className="w-full max-w-6xl xl:max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-4 flex flex-col justify-between min-h-[100dvh] gap-2.5 sm:gap-3.5 animate-fadeIn relative">
+      {/* ⚡ High-Impact On-Screen Time Attack Alert Modal Banner */}
+      {timeAttackAlert && (
+        <div className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-timeAttack w-[92%] sm:w-auto max-w-lg">
+          <div
+            className={`px-4 sm:px-6 py-3 sm:py-3.5 rounded-2xl shadow-2xl border backdrop-blur-xl flex items-center gap-3 sm:gap-4 ${
+              timeAttackAlert.penalizedUserId === myUserId
+                ? 'bg-rose-950/95 border-rose-500/80 text-rose-100 shadow-rose-900/60 ring-2 ring-rose-500/40'
+                : timeAttackAlert.attackerUserId === myUserId
+                ? 'bg-emerald-950/95 border-emerald-500/80 text-emerald-100 shadow-emerald-900/60 ring-2 ring-emerald-500/40'
+                : 'bg-amber-950/95 border-amber-500/80 text-amber-100 shadow-amber-900/60 ring-2 ring-amber-500/40'
+            }`}
+          >
+            <div
+              className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                timeAttackAlert.penalizedUserId === myUserId
+                  ? 'bg-rose-500/30 text-rose-300 border border-rose-400/40'
+                  : timeAttackAlert.attackerUserId === myUserId
+                  ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-400/40'
+                  : 'bg-amber-500/30 text-amber-300 border border-amber-400/40'
+              }`}
+            >
+              <Zap className="w-5 h-5 sm:w-6 sm:h-6 fill-current animate-pulse" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-black text-xs sm:text-sm tracking-wide uppercase">
+                  {timeAttackAlert.penalizedUserId === myUserId
+                    ? '⚡ TIME ATTACK HIT! -2s PENALTY!'
+                    : timeAttackAlert.attackerUserId === myUserId
+                    ? '⚡ TIME ATTACK DELIVERED! -2s OPPONENT!'
+                    : `⚡ TIME ATTACK! -${timeAttackAlert.penaltySec}s!`}
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 font-bold border border-white/15">
+                  {timeAttackAlert.word.length}+ Letters
+                </span>
+              </div>
+              <div className="text-[11px] sm:text-xs opacity-90 font-mono mt-0.5 truncate">
+                {timeAttackAlert.penalizedUserId === myUserId ? (
+                  <>
+                    Opponent played <span className="font-bold underline text-white">{timeAttackAlert.word}</span> (-{timeAttackAlert.penaltySec}s timer!)
+                  </>
+                ) : timeAttackAlert.attackerUserId === myUserId ? (
+                  <>
+                    You played <span className="font-bold underline text-white">{timeAttackAlert.word}</span> (-{timeAttackAlert.penaltySec}s to opponent!)
+                  </>
+                ) : (
+                  <>
+                    Word played: <span className="font-bold underline text-white">{timeAttackAlert.word}</span> (-{timeAttackAlert.penaltySec}s penalty)
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Header: Clean, Uncluttered Arena Navigation */}
       <div className="flex items-center justify-between bg-slate-900/60 border border-slate-800/80 rounded-2xl px-3.5 py-2 sm:px-4 sm:py-2.5 backdrop-blur-md">
         <div className="flex items-center gap-2">
@@ -168,7 +227,22 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
       {/* Main Arena Area: 12-column Grid on PC (Stage 8 cols, History Sidebar 4 cols) */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-center my-auto py-1 sm:py-2 w-full">
         {/* Left/Center Area: Radial Timer + CenterWordStage */}
-        <div className="lg:col-span-8 flex flex-col items-center justify-center gap-4 w-full">
+        <div className="lg:col-span-8 flex flex-col items-center justify-center gap-4 w-full relative">
+          {/* Floating Time Attack Alert Over Radial Timer */}
+          {timeAttackAlert && (
+            <div className="absolute -top-3 z-30 animate-timeAttackFloat pointer-events-none">
+              <span
+                className={`px-3 py-1 rounded-full text-xs font-black tracking-wider flex items-center gap-1 shadow-lg border ${
+                  timeAttackAlert.penalizedUserId === myUserId
+                    ? 'bg-rose-600/95 text-white border-rose-400 shadow-rose-950/80 animate-pulse'
+                    : 'bg-amber-500/95 text-slate-950 border-amber-300 shadow-amber-950/80'
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5 fill-current" /> -{timeAttackAlert.penaltySec}s TIME ATTACK!
+              </span>
+            </div>
+          )}
+
           <RadialTimer
             remainingMs={remainingMs}
             totalDurationMs={totalDurationMs}
