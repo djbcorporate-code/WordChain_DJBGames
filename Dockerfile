@@ -79,9 +79,11 @@ COPY --chown=node:node --from=builder /app/apps/server/dist ./apps/server/dist
 # Expose web & real-time WebSocket listening port
 EXPOSE 4000
 
+ENV NODE_OPTIONS="--max-old-space-size=450"
+
 # Authoritative health probe (monitors express API status)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:4000/api/health || exit 1
 
 # Launch authoritative game engine and web application
-CMD ["node", "apps/server/dist/index.js"]
+CMD ["node", "--max-old-space-size=450", "apps/server/dist/index.js"]

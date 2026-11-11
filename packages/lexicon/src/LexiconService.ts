@@ -163,29 +163,6 @@ export class LexiconService {
     this.loadWordsFromFile(namesFile, blacklist, 'BISAYA');
     this.loadWordsFromFile(brandsFile, blacklist, 'BISAYA');
 
-    // 4. Build MIXED dictionary (union of English, Tagalog, and Bisaya)
-    const mixedSet = this.wordSets.get('MIXED')!;
-    const mixedBuckets = this.letterBuckets.get('MIXED')!;
-    const mixedTrie = this.tries.get('MIXED')!;
-
-    for (const lang of ['ENGLISH', 'TAGALOG', 'BISAYA'] as GameLanguage[]) {
-      const set = this.wordSets.get(lang);
-      if (!set) continue;
-      for (const word of set) {
-        if (!mixedSet.has(word)) {
-          mixedSet.add(word);
-          mixedTrie.insert(word);
-          const firstLetter = word[0];
-          let bucket = mixedBuckets.get(firstLetter);
-          if (!bucket) {
-            bucket = [];
-            mixedBuckets.set(firstLetter, bucket);
-          }
-          bucket.push(word);
-        }
-      }
-    }
-
     this.isLoaded = true;
     console.log(
       `[LexiconService] Indexed dictionaries into memory: English (${this.size('ENGLISH').toLocaleString()}), Tagalog (${this.size('TAGALOG').toLocaleString()}), Bisaya (${this.size('BISAYA').toLocaleString()}), Mixed (${this.size('MIXED').toLocaleString()}) words.`
@@ -231,35 +208,23 @@ export class LexiconService {
   }
 
   public size(language: GameLanguage = 'ENGLISH'): number {
+    if (language === 'MIXED') {
+      const eng = this.wordSets.get('ENGLISH')?.size || 0;
+      const tag = this.wordSets.get('TAGALOG')?.size || 0;
+      const bis = this.wordSets.get('BISAYA')?.size || 0;
+      return eng + tag + bis;
+    }
     return this.wordSets.get(language)?.size || 0;
   }
 
   public hasWord(word: string, language: GameLanguage = 'ENGLISH'): boolean {
     const normalized = word.trim().toUpperCase();
     if (language === 'MIXED') {
-      const mixedSet = this.wordSets.get('MIXED');
-      if (mixedSet && mixedSet.has(normalized)) return true;
-
-      // Absolute safety: check all three language sets explicitly
-      const inEng = this.wordSets.get('ENGLISH')?.has(normalized) ?? false;
-      const inTag = this.wordSets.get('TAGALOG')?.has(normalized) ?? false;
-      const inBis = this.wordSets.get('BISAYA')?.has(normalized) ?? false;
-
-      if (inEng || inTag || inBis) {
-        if (mixedSet) {
-          mixedSet.add(normalized);
-          this.tries.get('MIXED')?.insert(normalized);
-          const firstLetter = normalized[0];
-          let bucket = this.letterBuckets.get('MIXED')?.get(firstLetter);
-          if (!bucket) {
-            bucket = [];
-            this.letterBuckets.get('MIXED')?.set(firstLetter, bucket);
-          }
-          bucket.push(normalized);
-        }
-        return true;
-      }
-      return false;
+      return (
+        (this.wordSets.get('ENGLISH')?.has(normalized) ?? false) ||
+        (this.wordSets.get('TAGALOG')?.has(normalized) ?? false) ||
+        (this.wordSets.get('BISAYA')?.has(normalized) ?? false)
+      );
     }
     return this.wordSets.get(language)?.has(normalized) ?? false;
   }
@@ -309,6 +274,14 @@ export class LexiconService {
     historyWords: Set<string>,
     language: GameLanguage = 'ENGLISH'
   ): number {
+    if (language === 'MIXED') {
+      return (
+        this.getRemainingWordsCount(startingPrefix, historyWords, 'ENGLISH') +
+        this.getRemainingWordsCount(startingPrefix, historyWords, 'TAGALOG') +
+        this.getRemainingWordsCount(startingPrefix, historyWords, 'BISAYA')
+      );
+    }
+
     const prefix = startingPrefix.toUpperCase();
     const buckets = this.letterBuckets.get(language);
     if (!buckets) return 0;
@@ -390,6 +363,35 @@ export class LexiconService {
   }
 
   public getTrie(language: GameLanguage = 'ENGLISH'): LexiconTrie {
+    if (language === 'MIXED') {
+      return {
+        insert: (w: string) => {
+          this.addWord(w, 'ENGLISH');
+        },
+        hasWord: (w: string) => this.hasWord(w, 'MIXED'),
+        hasPrefix: (p: string) =>
+          this.tries.get('ENGLISH')!.hasPrefix(p) ||
+          this.tries.get('TAGALOG')!.hasPrefix(p) ||
+          this.tries.get('BISAYA')!.hasPrefix(p),
+        countWordsWithPrefix: (p: string) =>
+          this.tries.get('ENGLISH')!.countWordsWithPrefix(p) +
+          this.tries.get('TAGALOG')!.countWordsWithPrefix(p) +
+          this.tries.get('BISAYA')!.countWordsWithPrefix(p),
+        getWordsWithPrefix: (p: string, maxResults: number = 50) => {
+          const res = new Set<string>();
+          for (const lang of ['ENGLISH', 'TAGALOG', 'BISAYA'] as GameLanguage[]) {
+            const words = this.tries.get(lang)?.getWordsWithPrefix(p, maxResults) || [];
+            for (const w of words) {
+              res.add(w);
+              if (res.size >= maxResults) break;
+            }
+            if (res.size >= maxResults) break;
+          }
+          return Array.from(res);
+        },
+        size: () => this.size('MIXED'),
+      } as LexiconTrie;
+    }
     return this.tries.get(language) || this.tries.get('ENGLISH')!;
   }
 
