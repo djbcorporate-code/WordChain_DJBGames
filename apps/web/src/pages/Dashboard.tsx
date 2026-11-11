@@ -1,5 +1,5 @@
 import { GameLanguage, RANK_TIER_CONFIGS } from '@wordchain/shared';
-import { ArrowRight, Flame, Gamepad2, Globe, Lock, Shield, Sparkles, Swords, Trophy, Users, Zap } from 'lucide-react';
+import { ArrowRight, Flame, Gamepad2, Globe, Lock, Shield, Swords, Trophy, Users, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 import { RankEmblem } from '../components/RankEmblem.js';
 import { useAuth } from '../context/AuthContext.js';
@@ -156,7 +156,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
 
               <div className="space-y-1.5 text-xs text-slate-400 font-mono">
                 <div className="flex items-center gap-1.5 text-emerald-400">
-                  <Sparkles className="w-3.5 h-3.5" /> Awards Account XP
+                  <Zap className="w-3.5 h-3.5" /> Awards Account XP
                 </div>
                 <div>Timer: 15s → 8s Dynamic</div>
               </div>

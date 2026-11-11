@@ -1,4 +1,4 @@
-import { Delete, Flame, Send, ShieldAlert, Skull, Sparkles, Zap } from 'lucide-react';
+import { Delete, Flame, Send, ShieldAlert, Skull, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 interface CenterWordStageProps {
@@ -295,7 +295,6 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
                 <Zap className="w-4 h-4 sm:w-6 sm:h-6 fill-slate-950 animate-bounce" />
               </div>
               <span className="text-[11px] sm:text-xs font-bold text-cyan-300 drop-shadow flex items-center gap-1 mt-0.5">
-                <Sparkles className="w-3 h-3 text-cyan-300" />
                 Must start with <span className="font-mono font-black text-white text-sm sm:text-base px-1.5 py-0.2 rounded bg-white/10 border border-white/20">&quot;{requiredPrefix}&quot;</span>
               </span>
             </div>

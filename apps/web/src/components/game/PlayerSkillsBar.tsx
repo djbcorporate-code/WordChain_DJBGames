@@ -1,5 +1,5 @@
 import { PlayerSkillState, SkillType } from '@wordchain/shared';
-import { Lock, RefreshCw, Skull, Sparkles, Zap, ZapOff } from 'lucide-react';
+import { Lock, RefreshCw, Skull, Zap, ZapOff } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 interface PlayerSkillsBarProps {
@@ -130,7 +130,7 @@ export const PlayerSkillsBar: React.FC<PlayerSkillsBarProps> = ({
             <div className="text-[9px] sm:text-[10px] font-mono font-semibold mt-0.5 truncate">
               {isRound20Plus ? (
                 <span className="text-emerald-400 font-bold flex items-center gap-0.5">
-                  <Sparkles className="w-2 h-2 inline" /> Simplify to 1!
+                  Simplify to 1!
                 </span>
               ) : (
                 <span className="text-slate-400">Reroll Letter</span>

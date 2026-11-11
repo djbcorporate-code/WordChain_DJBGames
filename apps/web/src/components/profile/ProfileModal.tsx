@@ -13,9 +13,9 @@ import {
   GraduationCap,
   History,
   Lock,
+  Palette,
   Scroll,
   Shield,
-  Sparkles,
   Trophy,
   User,
   X,
@@ -147,7 +147,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Sparkles className="w-4 h-4" />
+              <Palette className="w-4 h-4" />
               <span>Cosmetics Locker</span>
             </button>
           )}

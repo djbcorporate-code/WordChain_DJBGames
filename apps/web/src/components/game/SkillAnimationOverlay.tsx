@@ -1,5 +1,5 @@
 import { SkillActivationPayload } from '@wordchain/shared';
-import { RefreshCw, Skull, Sparkles, ZapOff } from 'lucide-react';
+import { RefreshCw, Skull, ZapOff } from 'lucide-react';
 import React from 'react';
 
 interface SkillAnimationOverlayProps {

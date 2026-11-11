@@ -1,4 +1,4 @@
-import { CheckCircle2, Loader2, Sparkles, Swords, Trophy, Users, X } from 'lucide-react';
+import { CheckCircle2, Loader2, Swords, Trophy, Users, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useGame } from '../../context/GameContext.js';
 

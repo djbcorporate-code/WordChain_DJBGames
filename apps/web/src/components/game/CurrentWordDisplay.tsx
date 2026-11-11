@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import React from 'react';
 
 interface CurrentWordDisplayProps {
@@ -67,7 +67,6 @@ export const CurrentWordDisplay: React.FC<CurrentWordDisplayProps> = ({
       {/* Chain breadcrumbs (last 3 words) */}
       {wordHistory.length > 1 && (
         <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-500 font-mono overflow-x-auto no-scrollbar max-w-full px-2 py-0.5">
-          <Sparkles className="w-3 h-3 text-slate-600 shrink-0" />
           <span className="text-slate-600 shrink-0">Recent:</span>
           {wordHistory.slice(-4, -1).map((w, idx) => (
             <span key={idx} className="flex items-center gap-1 bg-slate-900/50 px-1.5 py-0.5 rounded border border-slate-800 shrink-0">

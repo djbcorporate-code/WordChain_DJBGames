@@ -1,5 +1,5 @@
 import { AcademicRankTier, RANK_TIER_CONFIGS, getScientistDistinction } from '@wordchain/shared';
-import { Award, BookOpen, Crown, GraduationCap, Medal, Microscope, School, ScrollText, Sparkles, Trophy } from 'lucide-react';
+import { Award, Baby, BookOpen, Crown, GraduationCap, Medal, Microscope, School, ScrollText, Trophy } from 'lucide-react';
 import React from 'react';
 
 interface RankEmblemProps {
@@ -11,7 +11,7 @@ interface RankEmblemProps {
 }
 
 const tierIcons: Record<AcademicRankTier, React.ReactNode> = {
-  NURSERY: <Sparkles className="w-full h-full text-sky-400" />,
+  NURSERY: <Baby className="w-full h-full text-sky-400" />,
   KINDER: <School className="w-full h-full text-emerald-400" />,
   GRADER: <BookOpen className="w-full h-full text-amber-400" />,
   HIGH_SCHOOL: <ScrollText className="w-full h-full text-orange-400" />,

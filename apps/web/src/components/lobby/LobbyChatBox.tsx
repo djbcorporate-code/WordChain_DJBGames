@@ -1,4 +1,4 @@
-import { MessageSquare, Send, Sparkles } from 'lucide-react';
+import { MessageSquare, Send } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.js';
 import { useGame } from '../../context/GameContext.js';
@@ -77,9 +77,8 @@ export const LobbyChatBox: React.FC<LobbyChatBoxProps> = ({
             if (msg.isSystem) {
               return (
                 <div key={msg.id} className="w-full flex justify-center py-1">
-                  <span className="text-[10px] font-mono text-cyan-300/90 bg-cyan-950/40 border border-cyan-800/40 px-2.5 py-0.5 rounded-full text-center max-w-[95%] truncate shadow-sm flex items-center gap-1">
-                    <Sparkles className="w-2.5 h-2.5 text-cyan-400 shrink-0" />
-                    <span>{msg.text}</span>
+                  <span className="text-[10px] font-mono text-cyan-300/90 bg-cyan-950/40 border border-cyan-800/40 px-2.5 py-0.5 rounded-full text-center max-w-[95%] truncate shadow-sm">
+                    {msg.text}
                   </span>
                 </div>
               );

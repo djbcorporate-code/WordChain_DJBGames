@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, LogOut, ShieldAlert, Sparkles, Trophy, User as UserIcon, Zap } from 'lucide-react';
+import { AlertCircle, CheckCircle2, LogOut, ShieldAlert, Trophy, User as UserIcon, Zap } from 'lucide-react';
 import React from 'react';
 import { useAuth } from '../context/AuthContext.js';
 import { RankEmblem } from './RankEmblem.js';
@@ -73,10 +73,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               {/* Account Level & Profile trigger */}
               <button
                 onClick={onOpenProfile}
-                className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 hover:border-accent-primary/60 text-xs font-mono font-bold text-slate-200 transition-all"
+                className="hidden sm:flex items-center px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 hover:border-accent-primary/60 text-xs font-mono font-bold text-slate-200 transition-all"
                 title="View Career Dossier & Cosmetics"
               >
-                <Sparkles className="w-3.5 h-3.5 text-accent-secondary" />
                 <span>Lv. {user.profile.accountLevel}</span>
               </button>
 

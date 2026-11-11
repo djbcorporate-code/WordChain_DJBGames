@@ -9,7 +9,6 @@ import {
   Crown,
   Medal,
   Shield,
-  Sparkles,
   Trophy,
   X,
   Zap,
@@ -145,7 +144,7 @@ export const PostMatchModal: React.FC<PostMatchModalProps> = ({
             {myDelta.accountXpEarned !== undefined && (
               <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-800/80 font-mono">
                 <span className="text-slate-400 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-accent-secondary" /> Account XP Earned
+                  <Zap className="w-3.5 h-3.5 text-accent-secondary" /> Account XP Earned
                 </span>
                 <span className="font-bold text-slate-200">
                   +{myDelta.accountXpEarned} XP

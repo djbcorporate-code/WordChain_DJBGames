@@ -6,7 +6,6 @@ import {
   Flame,
   Loader2,
   Medal,
-  Sparkles,
   Trophy,
   Users,
   X,
@@ -125,7 +124,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
                 : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <Sparkles className="w-4 h-4" />
+            <Medal className="w-4 h-4" />
             <span>Seasonal Standing</span>
           </button>
 
