@@ -19,23 +19,23 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { user, logout, loginAsGuest } = useAuth();
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-surface/90 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-surface/90 backdrop-blur-md shrink-0">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2">
         {/* Brand */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-tr from-accent-primary to-accent-secondary flex items-center justify-center font-black text-base sm:text-xl text-white shadow-glow shrink-0">
             W
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="font-extrabold text-lg sm:text-xl tracking-tight text-white">
+              <span className="font-extrabold text-base sm:text-xl tracking-tight text-white whitespace-nowrap">
                 Word<span className="text-accent-secondary">Chain</span>
               </span>
-              <span className="hidden sm:inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent-primary/20 text-indigo-300 border border-accent-primary/30 uppercase tracking-wider">
+              <span className="hidden sm:inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent-primary/20 text-indigo-300 border border-accent-primary/30 uppercase tracking-wider shrink-0">
                 S1 Academic
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 font-medium hidden sm:block">Multiplayer Word Arena</p>
+            <p className="text-[11px] text-slate-400 font-medium hidden sm:block whitespace-nowrap">Multiplayer Word Arena</p>
           </div>
         </div>
 

@@ -39,7 +39,8 @@ export const AppContent: React.FC = () => {
   const isWaitingInLobby = currentRoom && currentRoom.status === 'WAITING';
   const isInLiveMatch = currentRoom && (currentRoom.status === 'IN_PROGRESS' || currentRoom.status === 'COUNTDOWN' || currentRoom.status === 'FINISHED');
   const isInMatchMode = inPracticeArena || isInLiveMatch;
-  const hideNavbarAndFooter = isInMatchMode;
+  const hideNavbar = isInMatchMode;
+  const showFooter = !isInMatchMode && !isWaitingInLobby;
 
   return (
     <div
@@ -47,7 +48,7 @@ export const AppContent: React.FC = () => {
         isInMatchMode ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'
       }`}
     >
-      {!hideNavbarAndFooter && (
+      {!hideNavbar && (
         <Navbar
           onOpenAuth={handleOpenAuth}
           onOpenLeaderboard={() => setLeaderboardModalOpen(true)}
@@ -72,8 +73,8 @@ export const AppContent: React.FC = () => {
         )}
       </main>
 
-      {!hideNavbarAndFooter && (
-        <footer className="border-t border-slate-900 bg-surface/50 py-6 text-center text-xs text-slate-500">
+      {showFooter && (
+        <footer className="border-t border-slate-900 bg-surface/50 py-5 text-center text-xs text-slate-500 shrink-0">
           <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span>WordChain &copy; 2026. Authoritative Multiplayer English Lexicon Arena.</span>
             <span className="font-mono text-[11px] text-slate-400">Quarterly Seasons • Academic Rank Hierarchy</span>
