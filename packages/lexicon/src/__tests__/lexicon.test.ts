@@ -100,6 +100,14 @@ describe('LexiconService & Trie Tests', () => {
 
     const moveEnglish = lexicon.validateMove('APPLE', 'A', history, 'MIXED');
     expect(moveEnglish.isValid).toBe(true);
+
+    // Verify comprehensive English vocabulary works in MIXED
+    const sampleEnglishWords = ['COMPUTER', 'WATER', 'TIGER', 'PLANET', 'SCIENCE', 'SYSTEM', 'PROGRAM', 'TELEPHONE', 'BEAUTIFUL'];
+    for (const w of sampleEnglishWords) {
+      expect(lexicon.hasWord(w, 'MIXED')).toBe(true);
+      const move = lexicon.validateMove(w, w[0], new Set(), 'MIXED');
+      expect(move.isValid).toBe(true);
+    }
   });
 
   it('should accept modern and digital-era English vocabulary', () => {

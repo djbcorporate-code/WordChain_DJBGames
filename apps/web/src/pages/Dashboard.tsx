@@ -14,6 +14,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractice, onOpenPrivateRoom }) => {
   const { user, loginAsGuest } = useAuth();
   const { joinQueue } = useGame();
+  const [casualLanguage, setCasualLanguage] = useState<GameLanguage>('MIXED');
   const [rankedLanguage, setRankedLanguage] = useState<GameLanguage>('ENGLISH');
 
   const rankTierConfig = user ? RANK_TIER_CONFIGS[user.currentRank.tier] : null;
@@ -159,12 +160,95 @@ export const Dashboard: React.FC<DashboardProps> = ({ onOpenAuth, onStartPractic
                 </div>
                 <div>Timer: 15s → 8s Dynamic</div>
               </div>
+
+              {/* Language Selector for Casual Arena */}
+              <div className="space-y-1.5 pt-2">
+                <div className="flex items-center justify-between text-[11px] font-medium">
+                  <span className="flex items-center gap-1 text-slate-300 font-bold">
+                    <Globe className="w-3.5 h-3.5 text-accent-secondary" /> Language
+                  </span>
+                  <span className="text-[10px] text-indigo-300 font-mono font-bold">
+                    {casualLanguage === 'ENGLISH'
+                      ? 'English (Global)'
+                      : casualLanguage === 'TAGALOG'
+                      ? 'Tagalog (Filipino)'
+                      : casualLanguage === 'BISAYA'
+                      ? 'Bisaya (Cebuano)'
+                      : 'Mixed (3 Languages)'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-xl bg-slate-900/90 border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCasualLanguage('ENGLISH');
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      casualLanguage === 'ENGLISH'
+                        ? 'bg-accent-primary text-white shadow-sm ring-1 ring-accent-primary/50'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <span>🇬🇧</span>
+                    <span>English</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCasualLanguage('TAGALOG');
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      casualLanguage === 'TAGALOG'
+                        ? 'bg-accent-primary text-white shadow-sm ring-1 ring-accent-primary/50'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <span>🇵🇭</span>
+                    <span>Tagalog</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCasualLanguage('BISAYA');
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      casualLanguage === 'BISAYA'
+                        ? 'bg-accent-primary text-white shadow-sm ring-1 ring-accent-primary/50'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <span>🇵🇭</span>
+                    <span>Bisaya</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCasualLanguage('MIXED');
+                    }}
+                    className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                      casualLanguage === 'MIXED'
+                        ? 'bg-accent-primary text-white shadow-sm ring-1 ring-accent-primary/50'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <span>🌐</span>
+                    <span>Mixed</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <button
               onClick={() => {
                 if (!user) onOpenAuth('login');
-                else joinQueue('CASUAL');
+                else joinQueue('CASUAL', casualLanguage);
               }}
               className="mt-6 w-full py-3 rounded-xl font-bold text-sm bg-slate-800 group-hover:bg-accent-primary text-slate-100 group-hover:text-white transition-all flex items-center justify-center gap-2"
             >

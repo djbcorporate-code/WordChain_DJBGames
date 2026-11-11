@@ -152,7 +152,14 @@ export class MatchmakingService {
   }
 
   private processCasualQueue(): void {
-    const casualQueue = this.queue.filter((p) => p.mode === 'CASUAL');
+    const languages: GameLanguage[] = ['ENGLISH', 'TAGALOG', 'BISAYA', 'MIXED'];
+    for (const lang of languages) {
+      this.processCasualQueueForLanguage(lang);
+    }
+  }
+
+  private processCasualQueueForLanguage(lang: GameLanguage): void {
+    const casualQueue = this.queue.filter((p) => p.mode === 'CASUAL' && p.language === lang);
     if (casualQueue.length === 0) return;
 
     // Rule 1: Instant match if 4 players are in queue
@@ -171,7 +178,7 @@ export class MatchmakingService {
         if (idx !== -1) this.queue.splice(idx, 1);
       }
 
-      this.createCasualMatch(matchedBatch);
+      this.createCasualMatch(matchedBatch, lang);
       return;
     }
 
@@ -182,7 +189,7 @@ export class MatchmakingService {
       if (idx !== -1) this.queue.splice(idx, 1);
 
       const bot = this.generateBotScholar('NURSERY', 3);
-      this.createCasualMatch([solo], [bot]);
+      this.createCasualMatch([solo], lang, [bot]);
       return;
     }
 
@@ -191,6 +198,7 @@ export class MatchmakingService {
       p.socket.emit('QUEUE_STATUS', {
         inQueue: true,
         mode: 'CASUAL',
+        language: lang,
         position: idx + 1,
         estimatedWaitSec: Math.max(1, 3 - Math.floor((Date.now() - p.enqueuedAt) / 1000)),
       });
@@ -292,13 +300,18 @@ export class MatchmakingService {
     });
   }
 
-  private createCasualMatch(players: QueuedPlayer[], botOpponents: PlayerInGame[] = []): void {
+  private createCasualMatch(
+    players: QueuedPlayer[],
+    language: GameLanguage = 'ENGLISH',
+    botOpponents: PlayerInGame[] = []
+  ): void {
     const roomManager = RoomManager.getInstance();
     const host = players[0];
     const totalCount = players.length + botOpponents.length;
 
     const room = roomManager.createRoom({
       mode: 'CASUAL',
+      language,
       hostUserId: host.user.userId,
       startTimerSec: 15,
       minTimerSec: 8,
@@ -320,6 +333,7 @@ export class MatchmakingService {
       p.socket.emit('MATCH_FOUND', {
         roomId: room.roomId,
         mode: 'CASUAL',
+        language,
         countdownSec: 3,
       });
     }
@@ -333,7 +347,9 @@ export class MatchmakingService {
 
     this.io!.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
     room.startCountdown();
-    console.log(`[Matchmaking] Casual match created: ${room.roomCode} with ${totalCount} scholars`);
+    console.log(
+      `[Matchmaking] Casual match (${language}) created: ${room.roomCode} with ${totalCount} scholars`
+    );
   }
 
   private createRankedMatch(

@@ -235,7 +235,33 @@ export class LexiconService {
   }
 
   public hasWord(word: string, language: GameLanguage = 'ENGLISH'): boolean {
-    return this.wordSets.get(language)?.has(word.trim().toUpperCase()) ?? false;
+    const normalized = word.trim().toUpperCase();
+    if (language === 'MIXED') {
+      const mixedSet = this.wordSets.get('MIXED');
+      if (mixedSet && mixedSet.has(normalized)) return true;
+
+      // Absolute safety: check all three language sets explicitly
+      const inEng = this.wordSets.get('ENGLISH')?.has(normalized) ?? false;
+      const inTag = this.wordSets.get('TAGALOG')?.has(normalized) ?? false;
+      const inBis = this.wordSets.get('BISAYA')?.has(normalized) ?? false;
+
+      if (inEng || inTag || inBis) {
+        if (mixedSet) {
+          mixedSet.add(normalized);
+          this.tries.get('MIXED')?.insert(normalized);
+          const firstLetter = normalized[0];
+          let bucket = this.letterBuckets.get('MIXED')?.get(firstLetter);
+          if (!bucket) {
+            bucket = [];
+            this.letterBuckets.get('MIXED')?.set(firstLetter, bucket);
+          }
+          bucket.push(normalized);
+        }
+        return true;
+      }
+      return false;
+    }
+    return this.wordSets.get(language)?.has(normalized) ?? false;
   }
 
   public validateMove(

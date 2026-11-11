@@ -27,8 +27,19 @@ export class WordValidator {
     const trimmed = rawWord.trim().toUpperCase();
     const expectedPrefix = requiredLetter.trim().toUpperCase();
 
-    // Suffix-only candidate assembly: candidate word is strictly expectedPrefix + typed suffix.
-    const candidateWord = `${expectedPrefix}${trimmed}`;
+    // Suffix-only candidate assembly: candidate word defaults to expectedPrefix + typed suffix.
+    let candidateWord = `${expectedPrefix}${trimmed}`;
+
+    // If the submission already starts with the expectedPrefix and is itself a valid playable word
+    // (e.g. user typed or keyboard autocompleted the whole word instead of suffix), prefer the full word!
+    if (
+      trimmed.startsWith(expectedPrefix) &&
+      trimmed.length >= 3 &&
+      this.lexicon.hasWord(trimmed, language) &&
+      !this.lexicon.hasWord(candidateWord, language)
+    ) {
+      candidateWord = trimmed;
+    }
 
     // Perform Lexicon and Rule Validation for the active language
     const moveValidation = this.lexicon.validateMove(candidateWord, expectedPrefix, historyWords, language);
