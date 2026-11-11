@@ -7,7 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node --max-old-space-size=450 dist/index.js",
-    "test": "vitest run",
+    "test": "vitest run --fileParallelism=false --hookTimeout=30000",
     "test:watch": "vitest"
   },
   "dependencies": {

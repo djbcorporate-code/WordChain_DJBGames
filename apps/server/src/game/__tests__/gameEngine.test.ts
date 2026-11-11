@@ -64,13 +64,14 @@ describe('Authoritative Word Game Engine', () => {
       expect(res.nextLetter).toBe('R');
     });
 
-    it('should strictly reject retyping the prefix (e.g. typing TIME when prefix is T becomes TTIME and is rejected)', () => {
+    it('should accept full-word submission starting with prefix without double-prefixing (e.g. typing TIME when prefix is T)', () => {
       const history = new Set(['PLANET']);
-      // Typing 'TIME' when prefix is 'T' assembles 'TTIME' which is not in dictionary
+      // Typing 'TIME' when prefix is 'T' recognizes full word 'TIME' rather than invalid 'TTIME'
       const res = validator.validateSubmission('TIME', 'T', history);
 
-      expect(res.isValid).toBe(false);
-      expect(res.reason).toBe('NOT_IN_DICTIONARY');
+      expect(res.isValid).toBe(true);
+      expect(res.normalizedWord).toBe('TIME');
+      expect(res.nextLetter).toBe('E');
     });
 
     it('should reject already chained words', () => {
