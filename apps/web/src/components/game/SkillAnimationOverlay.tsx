@@ -1,5 +1,5 @@
 import { SkillActivationPayload } from '@wordchain/shared';
-import { RefreshCw, Skull, ZapOff } from 'lucide-react';
+import { FastForward, RefreshCw, Skull, ZapOff } from 'lucide-react';
 import React from 'react';
 
 interface SkillAnimationOverlayProps {
@@ -96,6 +96,46 @@ export const SkillAnimationOverlay: React.FC<SkillAnimationOverlayProps> = ({ an
               ) : (
                 <span>
                   <strong>{animation.targetUsername || 'Next player'}</strong> must chain a <strong className="text-rose-300 font-mono">3-LETTER</strong> prefix!
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. PASS TURN ANIMATION */}
+      {animation.skillId === 'PASS_TURN' && (
+        <div
+          className={`w-full max-w-lg bg-gradient-to-r from-blue-950/95 via-indigo-950/95 to-slate-900/95 border-2 rounded-2xl shadow-2xl p-4 sm:p-5 flex items-center gap-3 sm:gap-4 backdrop-blur-xl animate-bounce-subtle ${
+            isMeTarget
+              ? 'border-indigo-400 ring-4 ring-indigo-500/40 shadow-indigo-900/60'
+              : 'border-blue-400/80 ring-2 ring-blue-500/30 shadow-blue-900/50'
+          }`}
+        >
+          <div className="w-12 h-12 rounded-xl bg-blue-500/30 text-blue-300 border border-blue-400/50 flex items-center justify-center shrink-0 shadow-glow">
+            <FastForward className="w-6 h-6 animate-pulse text-blue-300" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-mono font-black text-xs sm:text-sm tracking-wider uppercase text-blue-200">
+                {isMeTarget ? '⏩ TURN PASSED TO YOU!' : '⏩ TURN PASSED!'}
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold border border-blue-500/30">
+                {isMeCaster ? 'YOU' : animation.casterUsername} → {isMeTarget ? 'YOU' : animation.targetUsername || 'Next Player'}
+              </span>
+            </div>
+            <div className="text-xs sm:text-sm text-slate-200 mt-0.5">
+              {isMeTarget ? (
+                <span className="text-blue-200 font-bold">
+                  {animation.casterUsername} passed their turn to you! You&apos;re on the clock!
+                </span>
+              ) : isMeCaster ? (
+                <span>
+                  You passed your turn to <strong className="text-blue-300 font-mono">{animation.targetUsername || 'next player'}</strong>!
+                </span>
+              ) : (
+                <span>
+                  <strong>{animation.casterUsername}</strong> passed the turn over to <strong className="text-blue-300 font-mono">{animation.targetUsername || 'next player'}</strong>!
                 </span>
               )}
             </div>

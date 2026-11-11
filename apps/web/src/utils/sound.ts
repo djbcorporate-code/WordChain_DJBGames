@@ -544,6 +544,46 @@ class SoundSynthesizer {
     });
   }
 
+  public playSkillPass(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    // Swift passing whoosh: sine with quick pitch upward swoop
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(320, now);
+    osc.frequency.exponentialRampToValueAtTime(780, now + 0.22);
+
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.25);
+
+    // Resonant harmonic chime for baton pass
+    const chimeOsc = ctx.createOscillator();
+    const chimeGain = ctx.createGain();
+    chimeOsc.type = 'triangle';
+    chimeOsc.frequency.setValueAtTime(880, now + 0.08);
+    chimeOsc.frequency.exponentialRampToValueAtTime(1174.66, now + 0.28);
+
+    chimeGain.gain.setValueAtTime(0.15, now + 0.08);
+    chimeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+
+    chimeOsc.connect(chimeGain);
+    chimeGain.connect(ctx.destination);
+
+    chimeOsc.start(now + 0.08);
+    chimeOsc.stop(now + 0.32);
+  }
+
   public playVictory(): void {
     const ctx = this.getContext();
     if (!ctx) return;

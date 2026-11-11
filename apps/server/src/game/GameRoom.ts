@@ -99,6 +99,7 @@ export class GameRoom {
   private playerSkills: Map<string, {
     changeLetterLastUsedUtc: number;
     disableSkillsUsesLeft: number;
+    passTurnLastUsedUtc: number;
     burden3LetterLastUsedUtc: number;
   }> = new Map();
 
@@ -280,6 +281,7 @@ export class GameRoom {
       this.playerSkills.set(player.userId, {
         changeLetterLastUsedUtc: 0,
         disableSkillsUsesLeft: 2,
+        passTurnLastUsedUtc: 0,
         burden3LetterLastUsedUtc: 0,
       });
     }
@@ -713,11 +715,14 @@ export class GameRoom {
         changeLetterCooldownSec: 0,
         disableSkillsUsesLeft: 2,
         disableSkillsMaxUses: 2,
+        passTurnLastUsedUtc: 0,
+        passTurnCooldownSec: 0,
         burden3LetterLastUsedUtc: 0,
         burden3LetterCooldownSec: 0,
       };
     }
     const changeCooldownLeft = Math.max(0, Math.ceil((10_000 - (now - raw.changeLetterLastUsedUtc)) / 1000));
+    const passCooldownLeft = Math.max(0, Math.ceil((10_000 - (now - raw.passTurnLastUsedUtc)) / 1000));
     const burdenCooldownLeft = Math.max(0, Math.ceil((20_000 - (now - raw.burden3LetterLastUsedUtc)) / 1000));
 
     return {
@@ -725,6 +730,8 @@ export class GameRoom {
       changeLetterCooldownSec: changeCooldownLeft,
       disableSkillsUsesLeft: raw.disableSkillsUsesLeft,
       disableSkillsMaxUses: 2,
+      passTurnLastUsedUtc: raw.passTurnLastUsedUtc,
+      passTurnCooldownSec: passCooldownLeft,
       burden3LetterLastUsedUtc: raw.burden3LetterLastUsedUtc,
       burden3LetterCooldownSec: burdenCooldownLeft,
     };
@@ -755,6 +762,7 @@ export class GameRoom {
       skills = {
         changeLetterLastUsedUtc: 0,
         disableSkillsUsesLeft: 2,
+        passTurnLastUsedUtc: 0,
         burden3LetterLastUsedUtc: 0,
       };
       this.playerSkills.set(userId, skills);
@@ -839,6 +847,42 @@ export class GameRoom {
       });
 
       this.notifyStateChange();
+      return { success: true };
+    }
+
+    if (skillId === 'PASS_TURN') {
+      if (userId !== activeUserId) {
+        this.callbacks.onSkillRejected?.({ userId, skillId, reason: 'NOT_YOUR_TURN' });
+        return { success: false, reason: 'NOT_YOUR_TURN' };
+      }
+
+      if (now - skills.passTurnLastUsedUtc < 10_000) {
+        this.callbacks.onSkillRejected?.({ userId, skillId, reason: 'COOLDOWN_ACTIVE' });
+        return { success: false, reason: 'COOLDOWN_ACTIVE' };
+      }
+
+      const nextUserId = this.getNextAlivePlayerId(userId);
+      if (!nextUserId) {
+        this.callbacks.onSkillRejected?.({ userId, skillId, reason: 'NO_NEXT_PLAYER' });
+        return { success: false, reason: 'NO_NEXT_PLAYER' };
+      }
+
+      const targetPlayer = this.players.get(nextUserId);
+      skills.passTurnLastUsedUtc = now;
+      this.activeTimer?.stop();
+
+      this.callbacks.onSkillActivated?.({
+        skillId: 'PASS_TURN',
+        casterUserId: userId,
+        casterUsername: player.username,
+        targetUserId: nextUserId,
+        targetUsername: targetPlayer?.username,
+      });
+
+      this.advanceTurnIndex();
+      this.roundNumber += 1;
+      this.notifyStateChange();
+      this.beginTurn();
       return { success: true };
     }
 

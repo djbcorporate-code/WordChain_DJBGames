@@ -16,13 +16,15 @@ export type WordRejectionReason =
   | 'RATE_LIMITED'
   | 'GAME_NOT_ACTIVE';
 
-export type SkillType = 'CHANGE_LETTER' | 'DISABLE_SKILLS' | 'BURDEN_3_LETTER';
+export type SkillType = 'CHANGE_LETTER' | 'DISABLE_SKILLS' | 'PASS_TURN' | 'BURDEN_3_LETTER';
 
 export interface PlayerSkillState {
   changeLetterLastUsedUtc: number;
   changeLetterCooldownSec: number;
   disableSkillsUsesLeft: number;
   disableSkillsMaxUses: number;
+  passTurnLastUsedUtc: number;
+  passTurnCooldownSec: number;
   burden3LetterLastUsedUtc: number;
   burden3LetterCooldownSec: number;
 }

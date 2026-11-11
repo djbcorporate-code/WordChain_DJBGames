@@ -150,4 +150,34 @@ describe('Player Skills & Tiered Time Attack Engine', () => {
     const activeTurn3 = room.getSummary().turnState!;
     expect(activeTurn3.turnDurationSec).toBe(11); // 15s base - 4s = 11s
   });
+
+  it('should allow active player to use PASS_TURN, advance turn to next player without losing a life, and apply 10s cooldown', () => {
+    const room = createTestMatch();
+    const activeId = room.getActivePlayerId()!;
+    const nextPlayerId = room.turnOrder.find((id) => id !== activeId)!;
+    const initialLetter = room.requiredLetter;
+    const initialLives = room.players.get(activeId)?.lives ?? 3;
+
+    // Inactive player cannot pass
+    const invalidRes = room.useSkill(nextPlayerId, 'PASS_TURN');
+    expect(invalidRes.success).toBe(false);
+    expect(invalidRes.reason).toBe('NOT_YOUR_TURN');
+
+    // Active player uses PASS_TURN
+    const res = room.useSkill(activeId, 'PASS_TURN');
+    expect(res.success).toBe(true);
+
+    // Active player should not lose a life
+    expect(room.players.get(activeId)?.lives).toBe(initialLives);
+
+    // Turn should have advanced to next player
+    expect(room.getActivePlayerId()).toBe(nextPlayerId);
+
+    // Letter should be preserved for next player
+    expect(room.requiredLetter).toBe(initialLetter);
+
+    // Caster should be on 10s cooldown
+    const skills = room.getPlayerSkills(activeId);
+    expect(skills.passTurnCooldownSec).toBeGreaterThanOrEqual(9);
+  });
 });

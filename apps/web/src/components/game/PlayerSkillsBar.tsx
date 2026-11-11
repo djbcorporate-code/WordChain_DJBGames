@@ -1,5 +1,5 @@
 import { PlayerSkillState, SkillType } from '@wordchain/shared';
-import { Lock, RefreshCw, Skull, Zap, ZapOff } from 'lucide-react';
+import { FastForward, Lock, RefreshCw, Skull, Zap, ZapOff } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 interface PlayerSkillsBarProps {
@@ -23,6 +23,7 @@ export const PlayerSkillsBar: React.FC<PlayerSkillsBarProps> = ({
 }) => {
   const [silenceRemainingSec, setSilenceRemainingSec] = useState<number>(0);
   const [changeCooldownSec, setChangeCooldownSec] = useState<number>(0);
+  const [passCooldownSec, setPassCooldownSec] = useState<number>(0);
   const [curseCooldownSec, setCurseCooldownSec] = useState<number>(0);
 
   // Live countdown ticker for cooldowns and silence duration
@@ -46,6 +47,15 @@ export const PlayerSkillsBar: React.FC<PlayerSkillsBarProps> = ({
         setChangeCooldownSec(0);
       }
 
+      // Pass turn cooldown (10s)
+      if (skills?.passTurnLastUsedUtc) {
+        const elapsed = now - skills.passTurnLastUsedUtc;
+        const left = Math.max(0, Math.ceil((10000 - elapsed) / 1000));
+        setPassCooldownSec(left);
+      } else {
+        setPassCooldownSec(0);
+      }
+
       // 3-Letter curse cooldown (20s)
       if (skills?.burden3LetterLastUsedUtc) {
         const elapsed = now - skills.burden3LetterLastUsedUtc;
@@ -67,10 +77,11 @@ export const PlayerSkillsBar: React.FC<PlayerSkillsBarProps> = ({
 
   const canUseChange = isMyTurn && !isGlobalSilenced && changeCooldownSec === 0;
   const canUseSilence = !isGlobalSilenced && usesLeft > 0;
+  const canUsePass = isMyTurn && !isGlobalSilenced && passCooldownSec === 0;
   const canUseCurse = isMyTurn && !isGlobalSilenced && curseCooldownSec === 0;
 
   return (
-    <div className="w-full max-w-2xl mx-auto flex flex-col gap-1.5 select-none pt-1">
+    <div className="w-full max-w-3xl mx-auto flex flex-col gap-1.5 select-none pt-1">
       {/* Silence Global Alert Banner */}
       {isGlobalSilenced && (
         <div className="flex items-center justify-center gap-2 py-1 px-3 rounded-xl bg-amber-950/80 border border-amber-500/50 text-amber-200 text-xs font-mono font-bold animate-pulse shadow-glowAmber">
@@ -79,8 +90,8 @@ export const PlayerSkillsBar: React.FC<PlayerSkillsBarProps> = ({
         </div>
       )}
 
-      {/* 3 Skill Cards Grid */}
-      <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5">
+      {/* 4 Skill Cards Grid (3 Normal Skills + 1 Special Skill) */}
+      <div className="grid grid-cols-4 gap-1 sm:gap-2">
         {/* Skill 1: Change Letter / Simplify */}
         <button
           type="button"
@@ -220,6 +231,71 @@ export const PlayerSkillsBar: React.FC<PlayerSkillsBarProps> = ({
             <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-xl z-10 font-mono font-bold text-slate-500 text-[10px]">
               <span>EXHAUSTED</span>
               <span className="text-[8px] text-slate-600">0 uses left</span>
+            </div>
+          )}
+        </button>
+
+        {/* Skill 3: Pass Turn (10s CD) */}
+        <button
+          type="button"
+          onClick={() => {
+            if (canUsePass) onUseSkill('PASS_TURN');
+          }}
+          disabled={!canUsePass}
+          className={`relative group flex flex-col items-center justify-center p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl border transition-all text-left overflow-hidden ${
+            canUsePass
+              ? 'bg-gradient-to-b from-slate-800 to-slate-900 hover:from-slate-700 hover:to-slate-800 text-white border-blue-500/50 hover:border-blue-400 shadow-md hover:shadow-blue-500/20 active:scale-95 cursor-pointer ring-1 ring-blue-500/20'
+              : 'bg-slate-900/60 text-slate-500 border-slate-800/80 cursor-not-allowed opacity-75'
+          }`}
+          title={
+            !isMyTurn
+              ? 'Usable only on your turn'
+              : isGlobalSilenced
+              ? 'Skills are currently silenced'
+              : passCooldownSec > 0
+              ? `Cooldown: ${passCooldownSec}s`
+              : 'Pass turn to next player without losing a life'
+          }
+        >
+          {/* Top Row: Icon + Cooldown Badge */}
+          <div className="w-full flex items-center justify-between gap-1 mb-0.5 sm:mb-1">
+            <div
+              className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg sm:rounded-xl flex items-center justify-center ${
+                canUsePass
+                  ? 'bg-blue-500/20 text-blue-300 border border-blue-400/30'
+                  : 'bg-slate-800 text-slate-500'
+              }`}
+            >
+              <FastForward className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${canUsePass ? 'group-hover:translate-x-0.5 transition-transform' : ''}`} />
+            </div>
+
+            <span className="text-[9px] sm:text-[10px] font-mono font-bold px-1 py-0.2 sm:px-1.5 sm:py-0.5 rounded bg-slate-800/80 text-blue-300/80 border border-slate-700">
+              10s CD
+            </span>
+          </div>
+
+          {/* Skill Title & Subtitle */}
+          <div className="w-full">
+            <div className="font-black text-[11px] sm:text-xs tracking-wide text-slate-200 group-hover:text-blue-300 truncate">
+              Pass Turn
+            </div>
+            <div className="text-[9px] sm:text-[10px] font-mono font-semibold text-slate-400 mt-0.5 truncate">
+              Skip to Next
+            </div>
+          </div>
+
+          {/* Cooldown Overlay */}
+          {passCooldownSec > 0 && (
+            <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-xl z-10 font-mono font-black text-blue-300 text-xs sm:text-sm">
+              <span className="text-xs sm:text-sm">{passCooldownSec}s</span>
+              <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-slate-400">Cooldown</span>
+            </div>
+          )}
+
+          {/* Silence Lock Overlay */}
+          {isGlobalSilenced && passCooldownSec === 0 && (
+            <div className="absolute inset-0 bg-amber-950/70 backdrop-blur-[2px] flex items-center justify-center rounded-xl z-10 text-amber-300">
+              <Lock className="w-3.5 h-3.5" />
             </div>
           )}
         </button>

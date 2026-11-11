@@ -220,6 +220,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         soundManager.playSkillSilence();
       } else if (payload.skillId === 'BURDEN_3_LETTER') {
         soundManager.playSkillCurse();
+      } else if (payload.skillId === 'PASS_TURN') {
+        soundManager.playSkillPass();
       }
 
       setActiveSkillAnimation(payload);
