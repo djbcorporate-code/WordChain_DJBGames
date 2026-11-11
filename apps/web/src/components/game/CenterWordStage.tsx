@@ -30,6 +30,7 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
 }) => {
   const [typedSuffix, setTypedSuffix] = useState('');
   const [isThrottled, setIsThrottled] = useState(false);
+  const [isShaking, setIsShaking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const isComposingRef = useRef(false);
 
@@ -75,6 +76,50 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
     if (isMyTurn) {
       focusInput();
     }
+  }, [isMyTurn]);
+
+  // On error/rejection (wrong word or used word):
+  // Automatically clear invalid letters, animate shake, and keep input focused so player never has to click text area!
+  useEffect(() => {
+    if (shakeTrigger > 0 && isMyTurn) {
+      setTypedSuffix('');
+      onTypingUpdate('');
+      setIsShaking(true);
+      const timer = setTimeout(() => setIsShaking(false), 500);
+      focusInput();
+      return () => clearTimeout(timer);
+    }
+  }, [shakeTrigger]);
+
+  // Window-level key interceptor: when it's the user's turn, any typing automatically targets the text area
+  useEffect(() => {
+    if (!isMyTurn) return;
+
+    const handleWindowKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      const target = e.target as HTMLElement;
+      if (target && target !== inputRef.current && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+        return;
+      }
+
+      if (e.key === 'Backspace') {
+        if (document.activeElement !== inputRef.current) {
+          e.preventDefault();
+          handleBackspace();
+          focusInput();
+        }
+        return;
+      }
+
+      if (/^[a-zA-Z]$/.test(e.key)) {
+        if (document.activeElement !== inputRef.current) {
+          focusInput();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleWindowKeyDown);
+    return () => window.removeEventListener('keydown', handleWindowKeyDown);
   }, [isMyTurn]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -202,14 +247,13 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
 
       {/* Primary Animated Word Stage */}
       <div
-        key={shakeTrigger}
         onClick={() => {
           if (isMyTurn) {
             focusInput();
           }
         }}
         className={`relative w-full bg-slate-900/70 border-2 rounded-2xl sm:rounded-3xl p-4 sm:p-6 backdrop-blur-md shadow-2xl flex flex-col items-center justify-center transition-all overflow-hidden cursor-text ${
-          shakeTrigger > 0 ? 'animate-shake border-rose-500/80 ring-2 ring-rose-500/30' : ''
+          isShaking ? 'animate-shake border-rose-500/80 ring-2 ring-rose-500/30' : ''
         } ${
           isMyTurn
             ? 'border-emerald-400 ring-4 sm:ring-8 ring-emerald-500/25 bg-slate-900/95 shadow-glowEmerald'

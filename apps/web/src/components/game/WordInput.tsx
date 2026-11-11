@@ -21,6 +21,7 @@ export const WordInput: React.FC<WordInputProps> = ({
 }) => {
   const [inputVal, setInputVal] = useState('');
   const [isThrottled, setIsThrottled] = useState(false);
+  const [isShaking, setIsShaking] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Autofocus when turn switches to user
@@ -34,6 +35,17 @@ export const WordInput: React.FC<WordInputProps> = ({
   useEffect(() => {
     setInputVal('');
   }, [requiredLetter]);
+
+  // Automatically clear wrong/used word and keep focused so user never has to click text area
+  useEffect(() => {
+    if (shakeTrigger > 0 && isMyTurn) {
+      setInputVal('');
+      setIsShaking(true);
+      const timer = setTimeout(() => setIsShaking(false), 500);
+      inputRef.current?.focus();
+      return () => clearTimeout(timer);
+    }
+  }, [shakeTrigger]);
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -71,9 +83,8 @@ export const WordInput: React.FC<WordInputProps> = ({
       {/* Input container */}
       <form
         onSubmit={handleSubmit}
-        key={shakeTrigger}
         className={`relative flex items-center bg-slate-900 border-2 rounded-2xl shadow-xl transition-all ${
-          shakeTrigger > 0 ? 'animate-shake border-rose-500 ring-2 ring-rose-500/40' : ''
+          isShaking ? 'animate-shake border-rose-500 ring-2 ring-rose-500/40' : ''
         } ${
           isMyTurn
             ? 'border-accent-primary ring-2 ring-accent-primary/30'
