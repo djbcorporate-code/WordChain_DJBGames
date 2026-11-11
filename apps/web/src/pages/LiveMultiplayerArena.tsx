@@ -10,12 +10,14 @@ export const LiveMultiplayerArena: React.FC = () => {
     currentRoom,
     turnState,
     timeAttackAlert,
+    activeSkillAnimation,
     lastRejectionReason,
     shakeTrigger,
     peerTyping,
     matchWinner,
     leaveRoom,
     submitWord,
+    useSkill,
     sendTypingUpdate,
     resetRematch,
   } = useGame();
@@ -70,6 +72,9 @@ export const LiveMultiplayerArena: React.FC = () => {
         lastRejectionReason={lastRejectionReason}
         shakeTrigger={shakeTrigger}
         timeAttackAlert={timeAttackAlert}
+        activeSkillAnimation={activeSkillAnimation}
+        skillsDisabledUntilUtc={currentRoom.skillsDisabledUntilUtc}
+        onUseSkill={useSkill}
         onLeaveMatch={leaveRoom}
       />
 

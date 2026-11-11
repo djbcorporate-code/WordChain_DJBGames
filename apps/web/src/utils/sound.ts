@@ -428,6 +428,122 @@ class SoundSynthesizer {
     osc.stop(now + 0.5);
   }
 
+  public playYourTurn(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    // High-visibility energetic two-tone chime (D5 -> A5 -> D6)
+    const tones = [587.33, 880.0, 1174.66];
+    tones.forEach((freq, idx) => {
+      const start = ctx.currentTime + idx * 0.08;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+
+      gain.gain.setValueAtTime(0.24, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(start);
+      osc.stop(start + 0.35);
+    });
+  }
+
+  public playSkillReroll(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    // Rising celestial dice roll arpeggio
+    const arpeggio = [523.25, 659.25, 783.99, 1046.5, 1318.51];
+    arpeggio.forEach((freq, idx) => {
+      const start = ctx.currentTime + idx * 0.05;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, start);
+
+      gain.gain.setValueAtTime(0.18, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(start);
+      osc.stop(start + 0.18);
+    });
+  }
+
+  public playSkillSilence(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    // Sub-bass EMP shockwave pulse
+    const subOsc = ctx.createOscillator();
+    const subGain = ctx.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(220, now);
+    subOsc.frequency.exponentialRampToValueAtTime(35, now + 0.4);
+
+    subGain.gain.setValueAtTime(0.3, now);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+
+    subOsc.connect(subGain);
+    subGain.connect(ctx.destination);
+
+    subOsc.start(now);
+    subOsc.stop(now + 0.45);
+
+    // Electric fizz crackle discharge
+    const noiseOsc = ctx.createOscillator();
+    const noiseGain = ctx.createGain();
+    noiseOsc.type = 'sawtooth';
+    noiseOsc.frequency.setValueAtTime(1400, now + 0.05);
+    noiseOsc.frequency.linearRampToValueAtTime(300, now + 0.35);
+
+    noiseGain.gain.setValueAtTime(0.08, now + 0.05);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    noiseOsc.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+
+    noiseOsc.start(now + 0.05);
+    noiseOsc.stop(now + 0.35);
+  }
+
+  public playSkillCurse(): void {
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+
+    // Dark descending tritone curse chord (Eb -> A tritone dissonant tension)
+    const freqs = [311.13, 220.0, 155.56];
+    freqs.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.75, now + 0.6);
+
+      gain.gain.setValueAtTime(0.2, now + idx * 0.06);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now + idx * 0.06);
+      osc.stop(now + 0.65);
+    });
+  }
+
   public playVictory(): void {
     const ctx = this.getContext();
     if (!ctx) return;

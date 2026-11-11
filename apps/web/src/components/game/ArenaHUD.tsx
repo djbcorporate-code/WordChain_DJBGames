@@ -1,4 +1,4 @@
-import { GameLanguage, GameMode, PlayerInGame } from '@wordchain/shared';
+import { GameLanguage, GameMode, PlayerInGame, SkillActivationPayload, SkillType } from '@wordchain/shared';
 import { Flame, History, Volume2, VolumeX, X, Zap } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { TimeAttackAlert } from '../../context/GameContext.js';
@@ -6,7 +6,9 @@ import { soundManager } from '../../utils/sound.js';
 import { OpenMicControlBar } from '../voice/OpenMicControlBar.js';
 import { CenterWordStage } from './CenterWordStage.js';
 import { PlayerPodium } from './PlayerPodium.js';
+import { PlayerSkillsBar } from './PlayerSkillsBar.js';
 import { RadialTimer } from './RadialTimer.js';
+import { SkillAnimationOverlay } from './SkillAnimationOverlay.js';
 import { SpectatorOverlay } from './SpectatorOverlay.js';
 import { WordHistoryPanel } from './WordHistoryPanel.js';
 
@@ -27,6 +29,9 @@ interface ArenaHUDProps {
   lastRejectionReason?: string | null;
   shakeTrigger?: number;
   timeAttackAlert?: TimeAttackAlert | null;
+  activeSkillAnimation?: SkillActivationPayload | null;
+  skillsDisabledUntilUtc?: number;
+  onUseSkill?: (skillId: SkillType) => void;
   onSubmitWord: (word: string) => void;
   onTypingUpdate?: (suffix: string) => void;
   onLeaveMatch: () => void;
@@ -48,6 +53,9 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
   lastRejectionReason,
   shakeTrigger = 0,
   timeAttackAlert = null,
+  activeSkillAnimation = null,
+  skillsDisabledUntilUtc = 0,
+  onUseSkill = () => {},
   onSubmitWord,
   onTypingUpdate = () => {},
   onLeaveMatch,
@@ -75,6 +83,9 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
 
   return (
     <div className="w-full max-w-6xl xl:max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-4 flex flex-col justify-between min-h-[100dvh] gap-2.5 sm:gap-3.5 animate-fadeIn relative">
+      {/* Skill Activation Cinematic Animation Overlay */}
+      <SkillAnimationOverlay animation={activeSkillAnimation} myUserId={myUserId} />
+
       {/* ⚡ High-Impact On-Screen Time Attack Alert Modal Banner */}
       {timeAttackAlert && (
         <div className="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-timeAttack w-[92%] sm:w-auto max-w-lg">
@@ -101,11 +112,19 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-black text-xs sm:text-sm tracking-wide uppercase">
-                  {timeAttackAlert.penalizedUserId === myUserId
-                    ? '⚡ TIME ATTACK HIT! -2s PENALTY!'
-                    : timeAttackAlert.attackerUserId === myUserId
-                    ? '⚡ TIME ATTACK DELIVERED! -2s OPPONENT!'
-                    : `⚡ TIME ATTACK! -${timeAttackAlert.penaltySec}s!`}
+                  {timeAttackAlert.penaltySec >= 4 ? (
+                    timeAttackAlert.penalizedUserId === myUserId
+                      ? '⚡ MEGA TIME ATTACK HIT! -4s PENALTY!'
+                      : timeAttackAlert.attackerUserId === myUserId
+                      ? '⚡ MEGA TIME ATTACK DELIVERED! -4s OPPONENT!'
+                      : '⚡ MEGA TIME ATTACK! -4s!'
+                  ) : (
+                    timeAttackAlert.penalizedUserId === myUserId
+                      ? '⚡ TIME ATTACK HIT! -2s PENALTY!'
+                      : timeAttackAlert.attackerUserId === myUserId
+                      ? '⚡ TIME ATTACK DELIVERED! -2s OPPONENT!'
+                      : `⚡ TIME ATTACK! -${timeAttackAlert.penaltySec}s!`
+                  )}
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/10 font-bold border border-white/15">
                   {timeAttackAlert.word.length}+ Letters
@@ -263,6 +282,19 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
             onSubmitSuffix={(suffix) => onSubmitWord(suffix)}
             onTypingUpdate={onTypingUpdate}
           />
+
+          {/* Interactive Player Skills Bar (Change Letter, EMP Silence, 3-Letter Curse) */}
+          {!isSpectating && myPlayer && (
+            <PlayerSkillsBar
+              skills={myPlayer.skills}
+              isMyTurn={isMyTurn}
+              roundNumber={roundNumber}
+              currentPrefix={requiredLetter}
+              isSilenced={skillsDisabledUntilUtc ? Date.now() < skillsDisabledUntilUtc : false}
+              silenceEndsAtUtc={skillsDisabledUntilUtc}
+              onUseSkill={onUseSkill}
+            />
+          )}
         </div>
 
         {/* Right Side Area: Word Chain History sidebar for PC users */}

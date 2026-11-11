@@ -16,6 +16,29 @@ export type WordRejectionReason =
   | 'RATE_LIMITED'
   | 'GAME_NOT_ACTIVE';
 
+export type SkillType = 'CHANGE_LETTER' | 'DISABLE_SKILLS' | 'BURDEN_3_LETTER';
+
+export interface PlayerSkillState {
+  changeLetterLastUsedUtc: number;
+  changeLetterCooldownSec: number;
+  disableSkillsUsesLeft: number;
+  disableSkillsMaxUses: number;
+  burden3LetterLastUsedUtc: number;
+  burden3LetterCooldownSec: number;
+}
+
+export interface SkillActivationPayload {
+  skillId: SkillType;
+  casterUserId: string;
+  casterUsername: string;
+  targetUserId?: string;
+  targetUsername?: string;
+  newRequiredLetter?: string;
+  simplified?: boolean;
+  silenceEndsAtUtc?: number;
+  silenceDurationSec?: number;
+}
+
 export interface PlayerInGame {
   userId: string;
   username: string;
@@ -29,6 +52,7 @@ export interface PlayerInGame {
   wordsSubmitted: number;
   isDisconnected: boolean;
   disconnectedAt?: number;
+  skills?: PlayerSkillState;
 }
 
 export interface GameTurnState {
@@ -53,4 +77,6 @@ export interface GameRoomSummary {
   turnState?: GameTurnState;
   spectatorsCount: number;
   historyWords: string[];
+  skillsDisabledUntilUtc?: number;
+  pendingCurseUserId?: string;
 }

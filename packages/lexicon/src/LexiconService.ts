@@ -333,7 +333,25 @@ export class LexiconService {
     prefixLength: number = 1,
     language: GameLanguage = 'ENGLISH'
   ): string {
-    if (prefixLength >= 2) {
+    if (prefixLength >= 3) {
+      const common3LetterPrefixes = [
+        'STR', 'CON', 'TRA', 'PRO', 'INT', 'DIS', 'GRA', 'STA', 'PRE', 'PLA',
+        'BRA', 'CHA', 'SHA', 'BAL', 'PAN', 'MAG', 'PAR', 'MAN', 'PIN', 'TAL',
+        'SAN', 'PAS', 'MIN', 'KAL', 'BAT'
+      ];
+      let bestPrefix = common3LetterPrefixes[0];
+      let maxRemaining = 0;
+      for (const prefix of common3LetterPrefixes) {
+        const remaining = this.getRemainingWordsCount(prefix, historyWords, language);
+        if (remaining > maxRemaining) {
+          maxRemaining = remaining;
+          bestPrefix = prefix;
+        }
+      }
+      return bestPrefix;
+    }
+
+    if (prefixLength === 2) {
       const common2LetterPrefixes = ['TH', 'ST', 'CH', 'SH', 'PR', 'RE', 'IN', 'DE', 'TR', 'PL', 'MA', 'PA', 'KA'];
       let bestPrefix = common2LetterPrefixes[0];
       let maxRemaining = 0;

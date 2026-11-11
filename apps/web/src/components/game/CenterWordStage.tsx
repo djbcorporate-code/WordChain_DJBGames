@@ -1,4 +1,4 @@
-import { Delete, Flame, Send, ShieldAlert, Sparkles } from 'lucide-react';
+import { Delete, Flame, Send, ShieldAlert, Skull, Sparkles, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 
 interface CenterWordStageProps {
@@ -170,7 +170,7 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
       className="w-full max-w-2xl mx-auto flex flex-col items-center gap-3 sm:gap-4 select-none cursor-pointer"
     >
       {/* Round & Mode Badge */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap justify-center">
         <span
           className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-mono font-bold tracking-wider uppercase transition-all ${
             isRound20Plus
@@ -186,6 +186,12 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
             </span>
           )}
         </span>
+
+        {prefixChars.length === 3 && (
+          <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-xs font-mono font-black bg-rose-950/90 text-rose-300 border border-rose-500/60 shadow-glowRose animate-pulse">
+            <Skull className="w-3.5 h-3.5 text-rose-400" /> 3-LETTER CHAIN
+          </span>
+        )}
 
         {lastAcceptedByUsername && (
           <span className="text-xs text-slate-400 font-mono hidden sm:inline">
@@ -206,7 +212,7 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
           shakeTrigger > 0 ? 'animate-shake border-rose-500/80 ring-2 ring-rose-500/30' : ''
         } ${
           isMyTurn
-            ? 'border-accent-primary/80 ring-4 ring-accent-primary/20 bg-slate-900/90'
+            ? 'border-emerald-400 ring-4 sm:ring-8 ring-emerald-500/25 bg-slate-900/95 shadow-glowEmerald'
             : 'border-slate-800'
         }`}
       >
@@ -235,18 +241,25 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
           enterKeyHint="send"
         />
 
-        {/* Turn prompt message */}
-        <div className="text-xs sm:text-sm font-semibold tracking-wide mb-3 sm:mb-4 flex items-center gap-1.5 pointer-events-none">
+        {/* BIG Prominent Turn Indicator in Front of Player */}
+        <div className="w-full flex flex-col items-center justify-center mb-3 sm:mb-4 pointer-events-none">
           {isMyTurn ? (
-            <span className="text-accent-secondary flex items-center gap-1.5 animate-pulse">
-              <Sparkles className="w-4 h-4" />
-              Your Turn! Type lacking letters (e.g. for &apos;TIME&apos;, type &apos;IME&apos;)
-            </span>
+            <div className="flex flex-col items-center gap-1 animate-bounce-subtle">
+              <div className="px-5 sm:px-8 py-2 sm:py-2.5 rounded-2xl bg-gradient-to-r from-emerald-400 via-cyan-300 to-indigo-400 text-slate-950 font-black text-xl sm:text-2xl md:text-3xl tracking-widest uppercase shadow-glowEmerald flex items-center gap-2.5 sm:gap-3 border-2 border-white/80 animate-pulse">
+                <Zap className="w-5 h-5 sm:w-7 sm:h-7 fill-slate-950 animate-bounce" />
+                <span>⚡ YOUR TURN! ⚡</span>
+                <Zap className="w-5 h-5 sm:w-7 sm:h-7 fill-slate-950 animate-bounce" />
+              </div>
+              <span className="text-xs sm:text-sm font-bold text-cyan-300 drop-shadow flex items-center gap-1.5 mt-0.5">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
+                Must start with <span className="font-mono font-black text-white text-base sm:text-lg px-2 py-0.5 rounded-lg bg-white/10 border border-white/20">&quot;{requiredPrefix}&quot;</span>
+              </span>
+            </div>
           ) : (
-            <span className="text-slate-400 flex items-center gap-1.5 font-mono">
-              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
-              <strong>{activePlayerUsername}</strong> is typing...
-            </span>
+            <div className="flex items-center gap-2 text-slate-400 text-xs sm:text-sm font-mono font-semibold py-1">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping" />
+              <span><strong>{activePlayerUsername}</strong> is currently typing...</span>
+            </div>
           )}
         </div>
 

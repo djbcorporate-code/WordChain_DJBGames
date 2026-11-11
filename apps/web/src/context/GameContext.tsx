@@ -5,6 +5,8 @@ import {
   GameTurnState,
   PlayerInGame,
   RankProgressionDelta,
+  SkillActivationPayload,
+  SkillType,
   WordRejectionReason,
 } from '@wordchain/shared';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
@@ -31,6 +33,8 @@ interface GameContextType {
   currentRoom: GameRoomSummary | null;
   turnState: GameTurnState | null;
   timeAttackAlert: TimeAttackAlert | null;
+  activeSkillAnimation: SkillActivationPayload | null;
+  skillError: string | null;
   queueStatus: QueueState | null;
   matchFoundNotice: { roomId: string; countdownSec: number } | null;
   lastRejectionReason: string | null;
@@ -52,6 +56,8 @@ interface GameContextType {
   addGuestPlayer: () => void;
   startMatch: () => void;
   submitWord: (word: string) => void;
+  useSkill: (skillId: SkillType) => void;
+  clearSkillAnimation: () => void;
   sendTypingUpdate: (suffix: string) => void;
   resetRematch: () => void;
   clearError: () => void;
@@ -75,6 +81,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   } | null>(null);
   const [timeAttackAlert, setTimeAttackAlert] = useState<TimeAttackAlert | null>(null);
   const timeAttackTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [activeSkillAnimation, setActiveSkillAnimation] = useState<SkillActivationPayload | null>(null);
+  const skillAnimationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [skillError, setSkillError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
@@ -185,7 +194,40 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLastRejectionReason(null);
       setPeerTyping(null);
       if (newTurnState.activeUserId === user.id) {
-        soundManager.playTurnStart();
+        soundManager.playYourTurn();
+        try {
+          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate([60, 40, 80]);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    const handleSkillActivated = (payload: SkillActivationPayload) => {
+      if (payload.skillId === 'CHANGE_LETTER') {
+        soundManager.playSkillReroll();
+      } else if (payload.skillId === 'DISABLE_SKILLS') {
+        soundManager.playSkillSilence();
+      } else if (payload.skillId === 'BURDEN_3_LETTER') {
+        soundManager.playSkillCurse();
+      }
+
+      setActiveSkillAnimation(payload);
+      if (skillAnimationTimerRef.current) {
+        clearTimeout(skillAnimationTimerRef.current);
+      }
+      skillAnimationTimerRef.current = setTimeout(() => {
+        setActiveSkillAnimation(null);
+      }, 3500);
+    };
+
+    const handleSkillRejected = (payload: { skillId: SkillType; reason: string; userId?: string }) => {
+      if (!payload.userId || payload.userId === user.id) {
+        soundManager.playWordRejected();
+        setSkillError(payload.reason);
+        setTimeout(() => setSkillError(null), 3000);
       }
     };
 
@@ -279,6 +321,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socket.on('GAME_PLAYER_TYPING', handlePlayerTyping);
     socket.on('GAME_WORD_ACCEPTED', handleWordAccepted);
     socket.on('GAME_WORD_REJECTED', handleWordRejected);
+    socket.on('GAME_SKILL_ACTIVATED', handleSkillActivated);
+    socket.on('GAME_SKILL_REJECTED', handleSkillRejected);
     socket.on('GAME_LIFE_LOST', handleLifeLost);
     socket.on('GAME_PLAYER_ELIMINATED', handlePlayerEliminated);
     socket.on('GAME_MATCH_ENDED', handleMatchEnded);
@@ -294,6 +338,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socket.off('GAME_PLAYER_TYPING', handlePlayerTyping);
       socket.off('GAME_WORD_ACCEPTED', handleWordAccepted);
       socket.off('GAME_WORD_REJECTED', handleWordRejected);
+      socket.off('GAME_SKILL_ACTIVATED', handleSkillActivated);
+      socket.off('GAME_SKILL_REJECTED', handleSkillRejected);
       socket.off('GAME_LIFE_LOST', handleLifeLost);
       socket.off('GAME_PLAYER_ELIMINATED', handlePlayerEliminated);
       socket.off('GAME_MATCH_ENDED', handleMatchEnded);
@@ -384,6 +430,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socketService.submitWord(word);
   };
 
+  const useSkill = (skillId: SkillType) => {
+    socketService.useSkill(skillId);
+  };
+
+  const clearSkillAnimation = () => {
+    setActiveSkillAnimation(null);
+  };
+
   const sendTypingUpdate = (suffix: string) => {
     socketService.sendTypingUpdate(suffix);
   };
@@ -403,6 +457,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentRoom,
         turnState,
         timeAttackAlert,
+        activeSkillAnimation,
+        skillError,
         queueStatus,
         matchFoundNotice,
         lastRejectionReason,
@@ -420,6 +476,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addGuestPlayer,
         startMatch,
         submitWord,
+        useSkill,
+        clearSkillAnimation,
         sendTypingUpdate,
         resetRematch,
         clearError,

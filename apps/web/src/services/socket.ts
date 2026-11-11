@@ -7,6 +7,7 @@ import {
   PlayerInGame,
   RankProgressionDelta,
   ServerToClientEvents,
+  SkillType,
   WordRejectionReason,
 } from '@wordchain/shared';
 import { io, Socket } from 'socket.io-client';
@@ -124,6 +125,10 @@ class SocketService {
       word: word.trim().toUpperCase(),
       clientTimestamp: Date.now(),
     });
+  }
+
+  public useSkill(skillId: SkillType): void {
+    this.getSocket().emit('GAME_USE_SKILL', { skillId });
   }
 
   public sendTypingUpdate(inputSuffix: string): void {

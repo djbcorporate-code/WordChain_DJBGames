@@ -22,7 +22,8 @@ export class WordValidator {
     requiredLetter: string,
     historyWords: Set<string>,
     nextRoundNumber: number = 1,
-    language: GameLanguage = 'ENGLISH'
+    language: GameLanguage = 'ENGLISH',
+    forcedPrefixLength?: number
   ): ValidationResult {
     const trimmed = rawWord.trim().toUpperCase();
     const expectedPrefix = requiredLetter.trim().toUpperCase();
@@ -52,13 +53,16 @@ export class WordValidator {
     }
 
     const acceptedWord = moveValidation.normalizedWord;
-    const prefixLength = nextRoundNumber >= 20 ? 2 : 1;
-    const trailingPrefix = acceptedWord.slice(-prefixLength);
+    const prefixLength = forcedPrefixLength ?? (nextRoundNumber >= 20 ? 2 : 1);
+    let trailingPrefix = acceptedWord.slice(-prefixLength);
+    if (trailingPrefix.length < prefixLength) {
+      trailingPrefix = this.lexicon.getFallbackPrefix(historyWords, prefixLength, language);
+    }
 
     // Check if the trailing prefix has available moves left in the dictionary
     const remainingCount = this.lexicon.getRemainingWordsCount(trailingPrefix, historyWords, language);
     if (remainingCount === 0) {
-      // Prefix is exhausted! Pick an alternative fallback prefix
+      // Prefix is exhausted or has no moves! Pick an alternative fallback prefix
       const replacementPrefix = this.lexicon.getFallbackPrefix(historyWords, prefixLength, language);
       return {
         isValid: true,

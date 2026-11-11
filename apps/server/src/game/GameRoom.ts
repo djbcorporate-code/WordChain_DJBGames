@@ -5,7 +5,10 @@ import {
   GameRoomSummary,
   GameTurnState,
   PlayerInGame,
+  PlayerSkillState,
   RoomStatus,
+  SkillActivationPayload,
+  SkillType,
   WordRejectionReason,
 } from '@wordchain/shared';
 import { LexiconService } from '@wordchain/lexicon';
@@ -16,6 +19,8 @@ import { WordValidator } from './WordValidator.js';
 export interface GameRoomCallbacks {
   onStateChange?: (summary: GameRoomSummary) => void;
   onTurnStart?: (turnState: GameTurnState) => void;
+  onSkillActivated?: (payload: SkillActivationPayload) => void;
+  onSkillRejected?: (payload: { userId: string; skillId: SkillType; reason: string }) => void;
   onWordAccepted?: (payload: {
     word: string;
     acceptedByUserId: string;
@@ -85,6 +90,15 @@ export class GameRoom {
   public startTimerSec: number;
   public minTimerSec: number;
   public maxPlayers: number;
+
+  public skillsDisabledUntilUtc: number = 0;
+  public pendingForcedPrefixLength: number | null = null;
+  public pendingCurseTargetUserId: string | null = null;
+  private playerSkills: Map<string, {
+    changeLetterLastUsedUtc: number;
+    disableSkillsUsesLeft: number;
+    burden3LetterLastUsedUtc: number;
+  }> = new Map();
 
   private activeTimer: TurnTimer | null = null;
   private countdownTimer: NodeJS.Timeout | null = null;
@@ -221,11 +235,21 @@ export class GameRoom {
     this.turnIndex = 0;
 
     // Reset player states
+    this.skillsDisabledUntilUtc = 0;
+    this.pendingForcedPrefixLength = null;
+    this.pendingCurseTargetUserId = null;
+    this.playerSkills.clear();
+
     for (const player of this.players.values()) {
       player.isAlive = true;
       player.lives = 3;
       player.wordsSubmitted = 0;
       player.placement = undefined;
+      this.playerSkills.set(player.userId, {
+        changeLetterLastUsedUtc: 0,
+        disableSkillsUsesLeft: 2,
+        burden3LetterLastUsedUtc: 0,
+      });
     }
 
     this.notifyStateChange();
@@ -326,15 +350,21 @@ export class GameRoom {
       return { success: false, reason: 'NOT_YOUR_TURN' };
     }
 
-    // Verify word with authoritative validator (passes next round number for 2-letter prefix rule)
+    // Verify word with authoritative validator (passes next round number for 2-letter prefix rule and optional forced 3-letter curse)
     const nextRound = this.roundNumber + 1;
+    const forcedPrefixLen = this.pendingForcedPrefixLength ?? undefined;
     const validation = this.validator.validateSubmission(
       rawWord,
       this.requiredLetter,
       this.historyWords,
       nextRound,
-      this.language
+      this.language,
+      forcedPrefixLen
     );
+
+    // Clear pending curse for next player once applied
+    this.pendingForcedPrefixLength = null;
+    this.pendingCurseTargetUserId = null;
 
     if (!validation.isValid) {
       this.callbacks.onWordRejected?.({
@@ -378,8 +408,13 @@ export class GameRoom {
 
     const nextUserId = this.getActivePlayerId()!;
 
-    // 7+ letter words penalize the next player with -2 seconds on their timer
-    const timePenaltySec = acceptedWord.length >= 7 ? 2 : 0;
+    // Tiered Time Attack: 10+ letter words penalize next player with -4s; 7-9 letters penalize with -2s
+    let timePenaltySec = 0;
+    if (acceptedWord.length >= 10) {
+      timePenaltySec = 4;
+    } else if (acceptedWord.length >= 7) {
+      timePenaltySec = 2;
+    }
     if (timePenaltySec > 0) {
       this.pendingTimePenaltySec = timePenaltySec;
     }
@@ -423,7 +458,14 @@ export class GameRoom {
       // Reached 0 lives -> eliminate player
       this.eliminatePlayer(activeUserId, 'TIMEOUT');
     } else {
-      // Still has lives! Advance turn to next alive player and continue match
+      // Still has lives! If a 3-letter curse was armed, apply 3-letter fallback prefix to the next player
+      if (this.pendingForcedPrefixLength === 3) {
+        this.requiredLetter = LexiconService.getInstance().getFallbackPrefix(this.historyWords, 3, this.language);
+        this.pendingForcedPrefixLength = null;
+        this.pendingCurseTargetUserId = null;
+      }
+
+      // Advance turn to next alive player and continue match
       this.advanceTurnIndex();
       this.roundNumber += 1;
       this.notifyStateChange();
@@ -589,7 +631,10 @@ export class GameRoom {
       language: this.language,
       status: this.status,
       hostUserId: this.hostUserId,
-      players: Array.from(this.players.values()),
+      players: Array.from(this.players.values()).map((p) => ({
+        ...p,
+        skills: this.getPlayerSkills(p.userId),
+      })),
       currentWord: this.currentWord,
       requiredLetter: this.requiredLetter,
       turnState:
@@ -605,7 +650,196 @@ export class GameRoom {
           : undefined,
       spectatorsCount: Array.from(this.players.values()).filter((p) => !p.isAlive).length,
       historyWords: Array.from(this.historyWords),
+      skillsDisabledUntilUtc: this.skillsDisabledUntilUtc > 0 ? this.skillsDisabledUntilUtc : undefined,
+      pendingCurseUserId: this.pendingCurseTargetUserId || undefined,
     };
+  }
+
+  public getNextAlivePlayerId(currentUserId: string): string | null {
+    if (this.turnOrder.length <= 1) return null;
+    const currentIndex = this.turnOrder.indexOf(currentUserId);
+    if (currentIndex === -1) return null;
+
+    for (let offset = 1; offset < this.turnOrder.length; offset++) {
+      const idx = (currentIndex + offset) % this.turnOrder.length;
+      const pid = this.turnOrder[idx];
+      const player = this.players.get(pid);
+      if (player && player.isAlive) {
+        return pid;
+      }
+    }
+    return null;
+  }
+
+  public getPlayerSkills(userId: string): PlayerSkillState {
+    const raw = this.playerSkills.get(userId);
+    const now = Date.now();
+    if (!raw) {
+      return {
+        changeLetterLastUsedUtc: 0,
+        changeLetterCooldownSec: 0,
+        disableSkillsUsesLeft: 2,
+        disableSkillsMaxUses: 2,
+        burden3LetterLastUsedUtc: 0,
+        burden3LetterCooldownSec: 0,
+      };
+    }
+    const changeCooldownLeft = Math.max(0, Math.ceil((10_000 - (now - raw.changeLetterLastUsedUtc)) / 1000));
+    const burdenCooldownLeft = Math.max(0, Math.ceil((20_000 - (now - raw.burden3LetterLastUsedUtc)) / 1000));
+
+    return {
+      changeLetterLastUsedUtc: raw.changeLetterLastUsedUtc,
+      changeLetterCooldownSec: changeCooldownLeft,
+      disableSkillsUsesLeft: raw.disableSkillsUsesLeft,
+      disableSkillsMaxUses: 2,
+      burden3LetterLastUsedUtc: raw.burden3LetterLastUsedUtc,
+      burden3LetterCooldownSec: burdenCooldownLeft,
+    };
+  }
+
+  public useSkill(userId: string, skillId: SkillType): { success: boolean; reason?: string } {
+    if (this.status !== 'IN_PROGRESS') {
+      this.callbacks.onSkillRejected?.({ userId, skillId, reason: 'GAME_NOT_ACTIVE' });
+      return { success: false, reason: 'GAME_NOT_ACTIVE' };
+    }
+
+    const player = this.players.get(userId);
+    if (!player || !player.isAlive) {
+      this.callbacks.onSkillRejected?.({ userId, skillId, reason: 'PLAYER_NOT_ALIVE' });
+      return { success: false, reason: 'PLAYER_NOT_ALIVE' };
+    }
+
+    const now = Date.now();
+
+    // Check if skills are globally silenced
+    if (now < this.skillsDisabledUntilUtc) {
+      this.callbacks.onSkillRejected?.({ userId, skillId, reason: 'SKILLS_SILENCED' });
+      return { success: false, reason: 'SKILLS_SILENCED' };
+    }
+
+    let skills = this.playerSkills.get(userId);
+    if (!skills) {
+      skills = {
+        changeLetterLastUsedUtc: 0,
+        disableSkillsUsesLeft: 2,
+        burden3LetterLastUsedUtc: 0,
+      };
+      this.playerSkills.set(userId, skills);
+    }
+
+    const activeUserId = this.getActivePlayerId();
+
+    if (skillId === 'CHANGE_LETTER') {
+      if (userId !== activeUserId) {
+        this.callbacks.onSkillRejected?.({ userId, skillId, reason: 'NOT_YOUR_TURN' });
+        return { success: false, reason: 'NOT_YOUR_TURN' };
+      }
+
+      if (now - skills.changeLetterLastUsedUtc < 10_000) {
+        this.callbacks.onSkillRejected?.({ userId, skillId, reason: 'COOLDOWN_ACTIVE' });
+        return { success: false, reason: 'COOLDOWN_ACTIVE' };
+      }
+
+      let newLetter = '';
+      let simplified = false;
+
+      // In 2-letter rounds (round 20+) or if current required prefix has 2+ letters: simplify to only 1 letter!
+      if (this.roundNumber >= 20 || this.requiredLetter.length > 1) {
+        simplified = true;
+        const candidateLetter = this.requiredLetter.slice(-1);
+        const rem = LexiconService.getInstance().getRemainingWordsCount(candidateLetter, this.historyWords, this.language);
+        if (rem > 0) {
+          newLetter = candidateLetter;
+        } else {
+          newLetter = LexiconService.getInstance().getFallbackLetter(this.historyWords, this.language);
+        }
+      } else {
+        // 1-letter round: pick a different random valid letter with unchained words
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').filter((c) => c !== this.requiredLetter);
+        const shuffled = this.shuffleArray(alphabet);
+        for (const char of shuffled) {
+          if (LexiconService.getInstance().getRemainingWordsCount(char, this.historyWords, this.language) > 0) {
+            newLetter = char;
+            break;
+          }
+        }
+        if (!newLetter) {
+          newLetter = LexiconService.getInstance().getFallbackLetter(this.historyWords, this.language);
+        }
+      }
+
+      this.requiredLetter = newLetter;
+      skills.changeLetterLastUsedUtc = now;
+
+      this.callbacks.onSkillActivated?.({
+        skillId: 'CHANGE_LETTER',
+        casterUserId: userId,
+        casterUsername: player.username,
+        newRequiredLetter: newLetter,
+        simplified,
+      });
+
+      this.notifyStateChange();
+      return { success: true };
+    }
+
+    if (skillId === 'DISABLE_SKILLS') {
+      if (skills.disableSkillsUsesLeft <= 0) {
+        this.callbacks.onSkillRejected?.({ userId, skillId, reason: 'NO_USES_LEFT' });
+        return { success: false, reason: 'NO_USES_LEFT' };
+      }
+
+      if (now < this.skillsDisabledUntilUtc) {
+        this.callbacks.onSkillRejected?.({ userId, skillId, reason: 'ALREADY_SILENCED' });
+        return { success: false, reason: 'ALREADY_SILENCED' };
+      }
+
+      skills.disableSkillsUsesLeft -= 1;
+      this.skillsDisabledUntilUtc = now + 10_000;
+
+      this.callbacks.onSkillActivated?.({
+        skillId: 'DISABLE_SKILLS',
+        casterUserId: userId,
+        casterUsername: player.username,
+        silenceDurationSec: 10,
+        silenceEndsAtUtc: this.skillsDisabledUntilUtc,
+      });
+
+      this.notifyStateChange();
+      return { success: true };
+    }
+
+    if (skillId === 'BURDEN_3_LETTER') {
+      if (userId !== activeUserId) {
+        this.callbacks.onSkillRejected?.({ userId, skillId, reason: 'NOT_YOUR_TURN' });
+        return { success: false, reason: 'NOT_YOUR_TURN' };
+      }
+
+      if (now - skills.burden3LetterLastUsedUtc < 20_000) {
+        this.callbacks.onSkillRejected?.({ userId, skillId, reason: 'COOLDOWN_ACTIVE' });
+        return { success: false, reason: 'COOLDOWN_ACTIVE' };
+      }
+
+      const nextUserId = this.getNextAlivePlayerId(userId);
+      const targetPlayer = nextUserId ? this.players.get(nextUserId) : null;
+
+      this.pendingForcedPrefixLength = 3;
+      this.pendingCurseTargetUserId = nextUserId;
+      skills.burden3LetterLastUsedUtc = now;
+
+      this.callbacks.onSkillActivated?.({
+        skillId: 'BURDEN_3_LETTER',
+        casterUserId: userId,
+        casterUsername: player.username,
+        targetUserId: nextUserId || undefined,
+        targetUsername: targetPlayer?.username,
+      });
+
+      this.notifyStateChange();
+      return { success: true };
+    }
+
+    return { success: false, reason: 'UNKNOWN_SKILL' };
   }
 
   private notifyStateChange(): void {

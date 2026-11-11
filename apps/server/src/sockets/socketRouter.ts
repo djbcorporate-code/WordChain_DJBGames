@@ -41,6 +41,16 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       onLetterExhausted: (payload) => {
         io.to(room.roomId).emit('GAME_LETTER_EXHAUSTED', payload);
       },
+      onSkillActivated: (payload) => {
+        io.to(room.roomId).emit('GAME_SKILL_ACTIVATED', payload);
+      },
+      onSkillRejected: (payload) => {
+        io.to(room.roomId).emit('GAME_SKILL_REJECTED', {
+          skillId: payload.skillId,
+          reason: payload.reason,
+          userId: payload.userId,
+        });
+      },
       onPlayerEliminated: (payload) => {
         io.to(room.roomId).emit('GAME_PLAYER_ELIMINATED', payload);
       },
@@ -359,6 +369,17 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       if (!room) return;
 
       room.submitWord(user.userId, word, clientTimestamp);
+    });
+
+    // USE SKILL
+    socket.on('GAME_USE_SKILL', ({ skillId }) => {
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+
+      const room = roomManager.getRoom(roomId);
+      if (!room) return;
+
+      room.useSkill(user.userId, skillId);
     });
 
     // REAL-TIME TYPING BROADCAST (Roblox style peer typing sync)

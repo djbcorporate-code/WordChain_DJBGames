@@ -1,4 +1,4 @@
-import { GameLanguage, GameMode, GameRoomSummary, GameTurnState, PlayerInGame, WordRejectionReason } from './game.types.js';
+import { GameLanguage, GameMode, GameRoomSummary, GameTurnState, PlayerInGame, SkillActivationPayload, SkillType, WordRejectionReason } from './game.types.js';
 import { RankProgressionDelta } from './ranking.types.js';
 
 export interface ClientToServerEvents {
@@ -15,6 +15,7 @@ export interface ClientToServerEvents {
   // Active Gameplay
   GAME_SUBMIT_WORD: (payload: { word: string; clientTimestamp: number }) => void;
   GAME_TYPING_UPDATE: (payload: { inputSuffix: string }) => void;
+  GAME_USE_SKILL: (payload: { skillId: SkillType }) => void;
   ROOM_RESET_REMATCH: () => void;
   GAME_REQUEST_SYNC: () => void;
   CLOCK_SYNC_PING: (payload: { clientPing: number }) => void;
@@ -82,6 +83,12 @@ export interface ServerToClientEvents {
   GAME_LIFE_LOST: (payload: {
     userId: string;
     livesRemaining: number;
+  }) => void;
+  GAME_SKILL_ACTIVATED: (payload: SkillActivationPayload) => void;
+  GAME_SKILL_REJECTED: (payload: {
+    skillId: SkillType;
+    reason: string;
+    userId?: string;
   }) => void;
   GAME_MATCH_ENDED: (payload: {
     winnerId: string;
