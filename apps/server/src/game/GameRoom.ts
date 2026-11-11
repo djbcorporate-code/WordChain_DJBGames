@@ -6,6 +6,7 @@ import {
   GameTurnState,
   PlayerInGame,
   PlayerSkillState,
+  RoomChatMessage,
   RoomStatus,
   SkillActivationPayload,
   SkillType,
@@ -86,6 +87,7 @@ export class GameRoom {
   public requiredLetter: string = '';
   public historyWords: Set<string> = new Set();
   public roundNumber: number = 0;
+  private chatMessages: RoomChatMessage[] = [];
 
   public startTimerSec: number;
   public minTimerSec: number;
@@ -186,6 +188,36 @@ export class GameRoom {
     }
 
     return { wasHost, newHostId, shouldClose };
+  }
+
+  public kickPlayer(hostUserId: string, targetUserId: string): { success: boolean; error?: string; kickedPlayer?: PlayerInGame } {
+    if (this.hostUserId !== hostUserId) {
+      return { success: false, error: 'Only the host can kick players.' };
+    }
+    if (hostUserId === targetUserId) {
+      return { success: false, error: 'Host cannot kick themselves.' };
+    }
+    const player = this.players.get(targetUserId);
+    if (!player) {
+      return { success: false, error: 'Player not found in room.' };
+    }
+
+    this.players.delete(targetUserId);
+    this.playerSkills.delete(targetUserId);
+    this.notifyStateChange();
+
+    return { success: true, kickedPlayer: player };
+  }
+
+  public addChatMessage(msg: RoomChatMessage): void {
+    this.chatMessages.push(msg);
+    if (this.chatMessages.length > 50) {
+      this.chatMessages.shift();
+    }
+  }
+
+  public getChatHistory(): RoomChatMessage[] {
+    return [...this.chatMessages];
   }
 
   public setPlayerReady(userId: string, isReady: boolean): void {
@@ -652,6 +684,7 @@ export class GameRoom {
       historyWords: Array.from(this.historyWords),
       skillsDisabledUntilUtc: this.skillsDisabledUntilUtc > 0 ? this.skillsDisabledUntilUtc : undefined,
       pendingCurseUserId: this.pendingCurseTargetUserId || undefined,
+      chatHistory: this.getChatHistory(),
     };
   }
 

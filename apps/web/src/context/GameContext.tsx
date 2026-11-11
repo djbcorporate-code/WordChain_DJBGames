@@ -5,6 +5,7 @@ import {
   GameTurnState,
   PlayerInGame,
   RankProgressionDelta,
+  RoomChatMessage,
   SkillActivationPayload,
   SkillType,
   WordRejectionReason,
@@ -45,6 +46,7 @@ interface GameContextType {
     standings: PlayerInGame[];
     deltas?: Record<string, RankProgressionDelta>;
   } | null;
+  chatMessages: RoomChatMessage[];
   error: string | null;
   isConnected: boolean;
   joinQueue: (mode?: GameMode, language?: GameLanguage) => void;
@@ -54,6 +56,8 @@ interface GameContextType {
   leaveRoom: () => void;
   toggleReady: (isReady: boolean) => void;
   addGuestPlayer: () => void;
+  kickPlayer: (targetUserId: string) => void;
+  sendChatMessage: (text: string) => void;
   startMatch: () => void;
   submitWord: (word: string) => void;
   useSkill: (skillId: SkillType) => void;
@@ -69,6 +73,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { user, refreshUser } = useAuth();
   const [currentRoom, setCurrentRoom] = useState<GameRoomSummary | null>(null);
   const [turnState, setTurnState] = useState<GameTurnState | null>(null);
+  const [chatMessages, setChatMessages] = useState<RoomChatMessage[]>([]);
   const [queueStatus, setQueueStatus] = useState<QueueState | null>(null);
   const [matchFoundNotice, setMatchFoundNotice] = useState<{ roomId: string; countdownSec: number } | null>(null);
   const [lastRejectionReason, setLastRejectionReason] = useState<string | null>(null);
@@ -165,6 +170,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentRoom(summary);
       if (summary.turnState) {
         setTurnState(summary.turnState);
+      }
+      if (summary.chatHistory && summary.chatHistory.length > 0) {
+        setChatMessages(summary.chatHistory);
       }
 
       // Dismiss any lingering queue or match found modals when room transitions
@@ -308,6 +316,26 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
+    const handleRoomKicked = (payload: { reason?: string }) => {
+      soundManager.playWordRejected();
+      setError(payload.reason || 'You were kicked from the room by the host.');
+      setCurrentRoom(null);
+      setTurnState(null);
+      setChatMessages([]);
+      try {
+        localStorage.removeItem('wordchain_active_room');
+      } catch {
+        // ignore
+      }
+    };
+
+    const handleChatMessage = (msg: RoomChatMessage) => {
+      setChatMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+    };
+
     const handleSocketError = (payload: { code: string; message: string }) => {
       setError(payload.message);
     };
@@ -317,6 +345,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socket.on('QUEUE_STATUS', handleQueueStatus);
     socket.on('MATCH_FOUND', handleMatchFound);
     socket.on('ROOM_STATE_UPDATE', handleRoomUpdate);
+    socket.on('ROOM_KICKED', handleRoomKicked);
+    socket.on('ROOM_CHAT_MESSAGE', handleChatMessage);
     socket.on('GAME_TURN_START', handleTurnStart);
     socket.on('GAME_PLAYER_TYPING', handlePlayerTyping);
     socket.on('GAME_WORD_ACCEPTED', handleWordAccepted);
@@ -334,6 +364,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socket.off('QUEUE_STATUS', handleQueueStatus);
       socket.off('MATCH_FOUND', handleMatchFound);
       socket.off('ROOM_STATE_UPDATE', handleRoomUpdate);
+      socket.off('ROOM_KICKED', handleRoomKicked);
+      socket.off('ROOM_CHAT_MESSAGE', handleChatMessage);
       socket.off('GAME_TURN_START', handleTurnStart);
       socket.off('GAME_PLAYER_TYPING', handlePlayerTyping);
       socket.off('GAME_WORD_ACCEPTED', handleWordAccepted);
@@ -422,6 +454,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socketService.addGuestPlayer();
   };
 
+  const kickPlayer = (targetUserId: string) => {
+    socketService.kickPlayer(targetUserId);
+  };
+
+  const sendChatMessage = (text: string) => {
+    socketService.sendChatMessage(text);
+  };
+
   const startMatch = () => {
     socketService.startMatch();
   };
@@ -465,6 +505,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         shakeTrigger,
         peerTyping,
         matchWinner,
+        chatMessages,
         error,
         isConnected,
         joinQueue,
@@ -474,6 +515,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         leaveRoom,
         toggleReady,
         addGuestPlayer,
+        kickPlayer,
+        sendChatMessage,
         startMatch,
         submitWord,
         useSkill,

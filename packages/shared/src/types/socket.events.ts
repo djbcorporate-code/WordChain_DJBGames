@@ -1,4 +1,4 @@
-import { GameLanguage, GameMode, GameRoomSummary, GameTurnState, PlayerInGame, SkillActivationPayload, SkillType, WordRejectionReason } from './game.types.js';
+import { GameLanguage, GameMode, GameRoomSummary, GameTurnState, PlayerInGame, RoomChatMessage, SkillActivationPayload, SkillType, WordRejectionReason } from './game.types.js';
 import { RankProgressionDelta } from './ranking.types.js';
 
 export interface ClientToServerEvents {
@@ -11,6 +11,8 @@ export interface ClientToServerEvents {
   ROOM_READY_TOGGLE: (payload: { isReady: boolean }) => void;
   ROOM_ADD_GUEST: () => void;
   ROOM_START_MATCH: () => void;
+  ROOM_KICK_PLAYER: (payload: { targetUserId: string }) => void;
+  ROOM_SEND_CHAT: (payload: { text: string }) => void;
 
   // Active Gameplay
   GAME_SUBMIT_WORD: (payload: { word: string; clientTimestamp: number }) => void;
@@ -106,5 +108,7 @@ export interface ServerToClientEvents {
   VOICE_PEER_LEFT: (payload: { userId: string }) => void;
 
   // General Notification / Error
+  ROOM_KICKED: (payload: { reason?: string }) => void;
+  ROOM_CHAT_MESSAGE: (payload: RoomChatMessage) => void;
   SOCKET_ERROR: (payload: { code: string; message: string }) => void;
 }

@@ -1,16 +1,18 @@
-import { Check, CheckCircle2, Clock, Copy, Crown, LogOut, Mic, MicOff, Play, Shield, Users } from 'lucide-react';
+import { Check, CheckCircle2, Clock, Copy, Crown, LogOut, MessageSquare, Mic, MicOff, Play, Shield, UserX, Users } from 'lucide-react';
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext.js';
 import { useGame } from '../../context/GameContext.js';
 import { useVoiceChat } from '../../context/VoiceChatContext.js';
 import { OpenMicControlBar } from '../voice/OpenMicControlBar.js';
 import { RankEmblem } from '../RankEmblem.js';
+import { LobbyChatBox } from './LobbyChatBox.js';
 
 export const LobbyRoomView: React.FC = () => {
   const { user } = useAuth();
-  const { currentRoom, leaveRoom, toggleReady, startMatch, error } = useGame();
+  const { currentRoom, leaveRoom, toggleReady, startMatch, kickPlayer, chatMessages, error } = useGame();
   const { speakingUsers, mutedUsers, isOpenMicEnabled } = useVoiceChat();
   const [copied, setCopied] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'scholars' | 'chat'>('scholars');
 
   if (!currentRoom) return null;
 
@@ -74,86 +76,138 @@ export const LobbyRoomView: React.FC = () => {
         </div>
       )}
 
-      {/* Roster of Connected Scholars */}
-      <div className="bg-card border border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 space-y-2.5 sm:space-y-3 shadow-lg">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-          <h3 className="font-bold text-sm sm:text-base text-slate-100 flex items-center gap-2">
-            <Users className="w-4 h-4 text-accent-secondary" /> Connected Scholars ({currentRoom.players.length}/8)
-          </h3>
-          <span className="text-[11px] sm:text-xs text-slate-500 font-mono">At least 2 required to start</span>
-        </div>
+      {/* Mobile Roster / Chat Switcher Tabs */}
+      <div className="lg:hidden flex items-center bg-slate-900/90 border border-slate-800 rounded-xl p-1 gap-1">
+        <button
+          type="button"
+          onClick={() => setMobileTab('scholars')}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            mobileTab === 'scholars'
+              ? 'bg-accent-primary text-white shadow-sm'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Users className="w-3.5 h-3.5" />
+          <span>Scholars ({currentRoom.players.length}/8)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('chat')}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            mobileTab === 'chat'
+              ? 'bg-accent-primary text-white shadow-sm'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          <span>Chat ({chatMessages.length})</span>
+        </button>
+      </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-          {currentRoom.players.map((player) => {
-            const isPlayerHost = player.userId === currentRoom.hostUserId;
-            const isMe = player.userId === user?.id;
-            const isSpeaking = speakingUsers.has(player.userId);
-            const isUserMuted = mutedUsers.has(player.userId);
+      {/* Main Content Area: 12-Column Responsive Grid on Desktop (Scholars 7 cols, Chat 5 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-stretch">
+        {/* Left: Connected Scholars Roster */}
+        <div className={`lg:col-span-7 flex flex-col ${mobileTab === 'scholars' ? 'block' : 'hidden lg:flex'}`}>
+          <div className="bg-card border border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 space-y-2.5 sm:space-y-3 shadow-lg h-full flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-2.5 shrink-0">
+              <h3 className="font-bold text-sm sm:text-base text-slate-100 flex items-center gap-2">
+                <Users className="w-4 h-4 text-accent-secondary" /> Connected Scholars ({currentRoom.players.length}/8)
+              </h3>
+              <span className="text-[11px] sm:text-xs text-slate-500 font-mono">Min 2 required</span>
+            </div>
 
-            return (
-              <div
-                key={player.userId}
-                className={`flex items-center justify-between p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl bg-slate-900/80 border transition-all ${
-                  isSpeaking
-                    ? 'border-emerald-500/70 shadow-glowEmerald bg-emerald-950/20'
-                    : 'border-slate-800/80 hover:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="flex-1 min-h-[180px] max-h-[360px] overflow-y-auto space-y-2 sm:space-y-2.5 pr-1 no-scrollbar">
+              {currentRoom.players.map((player) => {
+                const isPlayerHost = player.userId === currentRoom.hostUserId;
+                const isMe = player.userId === user?.id;
+                const isSpeaking = speakingUsers.has(player.userId);
+                const isUserMuted = mutedUsers.has(player.userId);
+
+                return (
                   <div
-                    className={`relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-800 flex items-center justify-center font-bold text-xs sm:text-sm text-slate-200 transition-all shrink-0 ${
-                      isSpeaking ? 'ring-2 ring-emerald-400 shadow-glowEmerald animate-pulse' : ''
+                    key={player.userId}
+                    className={`flex items-center justify-between p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-slate-900/80 border transition-all ${
+                      isSpeaking
+                        ? 'border-emerald-500/70 shadow-glowEmerald bg-emerald-950/20'
+                        : 'border-slate-800/80 hover:border-slate-700'
                     }`}
                   >
-                    {player.username.substring(0, 2).toUpperCase()}
-                    {isPlayerHost && (
-                      <div className="absolute -top-1.5 -right-1.5 p-1 bg-amber-500 rounded-full shadow-md" title="Host">
-                        <Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-slate-950" />
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className={`relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-slate-800 flex items-center justify-center font-bold text-xs sm:text-sm text-slate-200 transition-all shrink-0 ${
+                          isSpeaking ? 'ring-2 ring-emerald-400 shadow-glowEmerald animate-pulse' : ''
+                        }`}
+                      >
+                        {player.username.substring(0, 2).toUpperCase()}
+                        {isPlayerHost && (
+                          <div className="absolute -top-1.5 -right-1.5 p-1 bg-amber-500 rounded-full shadow-md" title="Host">
+                            <Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-slate-950" />
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="font-bold text-xs sm:text-sm text-slate-100 truncate">{player.username}</span>
-                      {isMe && (
-                        <span className="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-bold uppercase shrink-0">
-                          YOU
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="font-bold text-xs sm:text-sm text-slate-100 truncate max-w-[100px] sm:max-w-[130px]">
+                            {player.username}
+                          </span>
+                          {isMe && (
+                            <span className="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-bold uppercase shrink-0">
+                              YOU
+                            </span>
+                          )}
+                          {/* Voice Activity Pill */}
+                          {isOpenMicEnabled && (
+                            isUserMuted ? (
+                              <span title="Muted" className="text-rose-400 p-0.5 rounded bg-rose-500/10 shrink-0">
+                                <MicOff className="w-3 h-3" />
+                              </span>
+                            ) : isSpeaking ? (
+                              <span title="Speaking" className="text-emerald-400 p-0.5 rounded bg-emerald-500/10 animate-bounce shrink-0">
+                                <Mic className="w-3 h-3" />
+                              </span>
+                            ) : null
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1 mt-0.5 min-w-0">
+                          <RankEmblem tier={player.tier} division={player.division} size="sm" showLabel={true} />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0 pl-1.5 flex items-center gap-1.5">
+                      {player.isReady ? (
+                        <span className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 sm:px-2.5 py-1 rounded-lg">
+                          <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Ready
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 sm:px-2.5 py-1 rounded-lg">
+                          <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Waiting
                         </span>
                       )}
-                      {/* Voice Activity Pill */}
-                      {isOpenMicEnabled && (
-                        isUserMuted ? (
-                          <span title="Muted" className="text-rose-400 p-0.5 rounded bg-rose-500/10 shrink-0">
-                            <MicOff className="w-3 h-3" />
-                          </span>
-                        ) : isSpeaking ? (
-                          <span title="Speaking" className="text-emerald-400 p-0.5 rounded bg-emerald-500/10 animate-bounce shrink-0">
-                            <Mic className="w-3 h-3" />
-                          </span>
-                        ) : null
+
+                      {/* Host Kick Button */}
+                      {isHost && !isMe && (
+                        <button
+                          type="button"
+                          onClick={() => kickPlayer(player.userId)}
+                          className="p-1 sm:p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 border border-transparent hover:border-rose-500/30 transition-all active:scale-95"
+                          title={`Kick ${player.username} from room`}
+                        >
+                          <UserX className="w-3.5 h-3.5" />
+                        </button>
                       )}
                     </div>
-                    <div className="flex items-center gap-1 mt-0.5 min-w-0">
-                      <RankEmblem tier={player.tier} division={player.division} size="sm" showLabel={true} />
-                    </div>
                   </div>
-                </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
-                <div className="shrink-0 pl-2">
-                  {player.isReady ? (
-                    <span className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 sm:px-2.5 py-1 rounded-lg">
-                      <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Ready
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 sm:px-2.5 py-1 rounded-lg">
-                      <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Waiting
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        {/* Right: Live Room Chat Box */}
+        <div className={`lg:col-span-5 flex flex-col ${mobileTab === 'chat' ? 'block' : 'hidden lg:flex'}`}>
+          <LobbyChatBox className="h-full flex-1" />
         </div>
       </div>
 

@@ -64,6 +64,17 @@ export interface GameTurnState {
   serverNowUtc: number;
 }
 
+export interface RoomChatMessage {
+  id: string;
+  roomId: string;
+  userId: string;
+  username: string;
+  avatarId?: string;
+  text: string;
+  timestamp: number;
+  isSystem?: boolean;
+}
+
 export interface GameRoomSummary {
   roomId: string;
   roomCode: string;
@@ -79,4 +90,5 @@ export interface GameRoomSummary {
   historyWords: string[];
   skillsDisabledUntilUtc?: number;
   pendingCurseUserId?: string;
+  chatHistory?: RoomChatMessage[];
 }

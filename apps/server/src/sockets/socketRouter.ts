@@ -3,6 +3,7 @@ import {
   GameLanguage,
   GameRoomSummary,
   PlayerInGame,
+  RoomChatMessage,
   ServerToClientEvents,
 } from '@wordchain/shared';
 import { Server, Socket } from 'socket.io';
@@ -270,6 +271,19 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
         socket.data.roomId = room.roomId;
 
         io.to(room.roomId).emit('ROOM_PLAYER_JOINED', { player: joiningPlayer });
+        
+        // System chat notification for joined player
+        const joinMsg: RoomChatMessage = {
+          id: `sys-join-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          roomId: room.roomId,
+          userId: 'system',
+          username: 'System',
+          text: `${user.username} joined the lobby.`,
+          timestamp: Date.now(),
+          isSystem: true,
+        };
+        room.addChatMessage(joinMsg);
+        io.to(room.roomId).emit('ROOM_CHAT_MESSAGE', joinMsg);
         io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
         console.log(`[Socket] ${user.username} joined room ${room.roomCode}`);
       } catch (err: any) {
@@ -286,6 +300,19 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       if (!room) return;
 
       room.setPlayerReady(user.userId, isReady);
+
+      // System chat notification for ready status
+      const readyMsg: RoomChatMessage = {
+        id: `sys-ready-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        roomId: room.roomId,
+        userId: 'system',
+        username: 'System',
+        text: `${user.username} is ${isReady ? 'Ready' : 'not ready'}.`,
+        timestamp: Date.now(),
+        isSystem: true,
+      };
+      room.addChatMessage(readyMsg);
+      io.to(room.roomId).emit('ROOM_CHAT_MESSAGE', readyMsg);
       io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
     });
 
@@ -355,6 +382,94 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       }
 
       room.startMatch();
+    });
+
+    // KICK SCHOLAR (Host Only, Private Rooms)
+    socket.on('ROOM_KICK_PLAYER', ({ targetUserId }) => {
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+
+      const room = roomManager.getRoom(roomId);
+      if (!room) return;
+
+      if (room.hostUserId !== user.userId) {
+        socket.emit('SOCKET_ERROR', { code: 'FORBIDDEN', message: 'Only the host can kick players.' });
+        return;
+      }
+
+      if (user.userId === targetUserId) {
+        socket.emit('SOCKET_ERROR', { code: 'INVALID_ACTION', message: 'You cannot kick yourself.' });
+        return;
+      }
+
+      const { success, error, kickedPlayer } = room.kickPlayer(user.userId, targetUserId);
+      if (!success || !kickedPlayer) {
+        socket.emit('SOCKET_ERROR', { code: 'KICK_FAILED', message: error || 'Failed to kick player.' });
+        return;
+      }
+
+      // Find the target socket and notify them they were kicked
+      for (const [, s] of io.sockets.sockets) {
+        const sUser = (s.data as any)?.user;
+        if (sUser?.userId === targetUserId) {
+          s.leave(room.roomId);
+          delete s.data.roomId;
+          s.emit('ROOM_KICKED', { reason: `You were kicked from room ${room.roomCode} by the host.` });
+          s.emit('ROOM_STATE_UPDATE', null);
+        }
+      }
+
+      // Notify voice peers
+      io.to(room.roomId).emit('VOICE_PEER_LEFT', { userId: targetUserId });
+
+      // Notify remaining players in the room
+      io.to(room.roomId).emit('ROOM_PLAYER_LEFT', { userId: targetUserId });
+      io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+
+      // Broadcast system chat message to the room
+      const systemMsg: RoomChatMessage = {
+        id: `sys-kick-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        roomId: room.roomId,
+        userId: 'system',
+        username: 'System',
+        text: `${kickedPlayer.username} was kicked from the room by the host.`,
+        timestamp: Date.now(),
+        isSystem: true,
+      };
+      room.addChatMessage(systemMsg);
+      io.to(room.roomId).emit('ROOM_CHAT_MESSAGE', systemMsg);
+
+      console.log(`[Socket] Host ${user.username} kicked ${kickedPlayer.username} from room ${room.roomCode}`);
+    });
+
+    // SEND IN-ROOM CHAT MESSAGE
+    socket.on('ROOM_SEND_CHAT', ({ text }) => {
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+
+      const room = roomManager.getRoom(roomId);
+      if (!room) return;
+
+      const player = room.players.get(user.userId);
+      if (!player) return;
+
+      if (!text || typeof text !== 'string') return;
+      const trimmed = text.trim().slice(0, 200);
+      if (!trimmed) return;
+
+      const chatMsg: RoomChatMessage = {
+        id: `chat-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        roomId: room.roomId,
+        userId: user.userId,
+        username: user.username,
+        avatarId: player.avatarId,
+        text: trimmed,
+        timestamp: Date.now(),
+        isSystem: false,
+      };
+
+      room.addChatMessage(chatMsg);
+      io.to(room.roomId).emit('ROOM_CHAT_MESSAGE', chatMsg);
     });
 
     // SUBMIT WORD

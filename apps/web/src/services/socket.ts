@@ -120,6 +120,14 @@ class SocketService {
     this.getSocket().emit('ROOM_START_MATCH');
   }
 
+  public kickPlayer(targetUserId: string): void {
+    this.getSocket().emit('ROOM_KICK_PLAYER', { targetUserId });
+  }
+
+  public sendChatMessage(text: string): void {
+    this.getSocket().emit('ROOM_SEND_CHAT', { text });
+  }
+
   public submitWord(word: string): void {
     this.getSocket().emit('GAME_SUBMIT_WORD', {
       word: word.trim().toUpperCase(),
