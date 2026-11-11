@@ -82,7 +82,7 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
   const isRound20Plus = roundNumber >= 20;
 
   return (
-    <div className="w-full max-w-6xl xl:max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-4 flex flex-col justify-between min-h-[100dvh] gap-2.5 sm:gap-3.5 animate-fadeIn relative">
+    <div className="w-full max-w-6xl xl:max-w-7xl mx-auto px-2.5 sm:px-4 py-1.5 sm:py-2.5 flex flex-col justify-between h-full max-h-[100dvh] overflow-hidden gap-1.5 sm:gap-2 animate-fadeIn relative">
       {/* Skill Activation Cinematic Animation Overlay */}
       <SkillAnimationOverlay animation={activeSkillAnimation} myUserId={myUserId} />
 
@@ -244,9 +244,9 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
       )}
 
       {/* Main Arena Area: 12-column Grid on PC (Stage 8 cols, History Sidebar 4 cols) */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-center my-auto py-1 sm:py-2 w-full">
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-2 sm:gap-4 lg:gap-6 items-center my-auto w-full overflow-hidden">
         {/* Left/Center Area: Radial Timer + CenterWordStage */}
-        <div className="lg:col-span-8 flex flex-col items-center justify-center gap-4 w-full relative">
+        <div className="lg:col-span-8 flex flex-col items-center justify-center gap-1.5 sm:gap-2.5 w-full relative min-h-0">
           {/* Floating Time Attack Alert Over Radial Timer */}
           {timeAttackAlert && (
             <div className="absolute -top-3 z-30 animate-timeAttackFloat pointer-events-none">
@@ -266,7 +266,7 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
             remainingMs={remainingMs}
             totalDurationMs={totalDurationMs}
             isActive={true}
-            size={90}
+            size={76}
           />
 
           <CenterWordStage
@@ -298,13 +298,13 @@ export const ArenaHUD: React.FC<ArenaHUDProps> = ({
         </div>
 
         {/* Right Side Area: Word Chain History sidebar for PC users */}
-        <div className="hidden lg:flex lg:col-span-4 h-full max-h-[480px] xl:max-h-[540px] flex-col">
+        <div className="hidden lg:flex lg:col-span-4 h-full max-h-[380px] xl:max-h-[440px] flex-col min-h-0 overflow-hidden">
           <WordHistoryPanel wordHistory={wordHistory} roundNumber={roundNumber} />
         </div>
       </div>
 
       {/* Bottom Area: Minimalist Scholar Podiums Grid or Spectator Banner */}
-      <div className="pt-1 pb-safe">
+      <div className="shrink-0 pt-0.5 pb-safe">
         {isSpectating ? (
           <SpectatorOverlay
             aliveCount={alivePlayers.length}

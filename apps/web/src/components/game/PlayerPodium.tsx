@@ -22,7 +22,7 @@ export const PlayerPodium: React.FC<PlayerPodiumProps> = ({
 
   return (
     <div
-      className={`relative flex items-center justify-between px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl sm:rounded-2xl border transition-all ${
+      className={`relative flex items-center justify-between px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl sm:rounded-2xl border transition-all ${
         isEliminated
           ? 'bg-slate-950/40 border-slate-900/60 opacity-40 grayscale'
           : isSpeaking
@@ -34,15 +34,15 @@ export const PlayerPodium: React.FC<PlayerPodiumProps> = ({
     >
       {/* Turn indicator glow pill */}
       {isCurrentTurn && !isEliminated && (
-        <span className="absolute -top-2 left-3 px-1.5 py-0.2 rounded-full bg-accent-primary text-[9px] font-black uppercase tracking-wider text-white shadow-glow animate-pulse">
+        <span className="absolute -top-2 left-3 px-1.5 py-0.2 rounded-full bg-accent-primary text-[8px] sm:text-[9px] font-black uppercase tracking-wider text-white shadow-glow animate-pulse">
           Active
         </span>
       )}
 
       {/* Avatar + Info */}
-      <div className="flex items-center gap-2 min-w-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
         <div
-          className={`relative w-8 h-8 rounded-lg shrink-0 flex items-center justify-center font-black text-xs select-none transition-all ${
+          className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-lg shrink-0 flex items-center justify-center font-black text-xs select-none transition-all ${
             isEliminated
               ? 'bg-slate-800 text-slate-500'
               : isSpeaking

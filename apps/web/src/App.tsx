@@ -38,10 +38,15 @@ export const AppContent: React.FC = () => {
   // Determine active view mode
   const isWaitingInLobby = currentRoom && currentRoom.status === 'WAITING';
   const isInLiveMatch = currentRoom && (currentRoom.status === 'IN_PROGRESS' || currentRoom.status === 'COUNTDOWN' || currentRoom.status === 'FINISHED');
-  const hideNavbarAndFooter = inPracticeArena || isInLiveMatch;
+  const isInMatchMode = inPracticeArena || isInLiveMatch;
+  const hideNavbarAndFooter = isInMatchMode;
 
   return (
-    <div className="min-h-screen bg-canvas text-slate-100 flex flex-col font-sans selection:bg-accent-primary selection:text-white">
+    <div
+      className={`bg-canvas text-slate-100 flex flex-col font-sans selection:bg-accent-primary selection:text-white ${
+        isInMatchMode ? 'h-[100dvh] max-h-[100dvh] overflow-hidden' : 'min-h-[100dvh]'
+      }`}
+    >
       {!hideNavbarAndFooter && (
         <Navbar
           onOpenAuth={handleOpenAuth}
@@ -51,7 +56,7 @@ export const AppContent: React.FC = () => {
         />
       )}
 
-      <main className="flex-1 flex flex-col">
+      <main className={`flex-1 flex flex-col min-h-0 ${isInMatchMode ? 'h-full overflow-hidden' : ''}`}>
         {inPracticeArena ? (
           <PracticeArena onExit={() => setInPracticeArena(false)} />
         ) : isInLiveMatch ? (

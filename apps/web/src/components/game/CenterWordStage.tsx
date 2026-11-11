@@ -252,7 +252,7 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
             focusInput();
           }
         }}
-        className={`relative w-full bg-slate-900/70 border-2 rounded-2xl sm:rounded-3xl p-4 sm:p-6 backdrop-blur-md shadow-2xl flex flex-col items-center justify-center transition-all overflow-hidden cursor-text ${
+        className={`relative w-full bg-slate-900/70 border-2 rounded-2xl sm:rounded-3xl p-2.5 sm:p-4 md:p-5 backdrop-blur-md shadow-2xl flex flex-col items-center justify-center transition-all overflow-hidden cursor-text ${
           isShaking ? 'animate-shake border-rose-500/80 ring-2 ring-rose-500/30' : ''
         } ${
           isMyTurn
@@ -286,36 +286,36 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
         />
 
         {/* BIG Prominent Turn Indicator in Front of Player */}
-        <div className="w-full flex flex-col items-center justify-center mb-3 sm:mb-4 pointer-events-none">
+        <div className="w-full flex flex-col items-center justify-center mb-2 sm:mb-2.5 pointer-events-none">
           {isMyTurn ? (
-            <div className="flex flex-col items-center gap-1 animate-bounce-subtle">
-              <div className="px-5 sm:px-8 py-2 sm:py-2.5 rounded-2xl bg-gradient-to-r from-emerald-400 via-cyan-300 to-indigo-400 text-slate-950 font-black text-xl sm:text-2xl md:text-3xl tracking-widest uppercase shadow-glowEmerald flex items-center gap-2.5 sm:gap-3 border-2 border-white/80 animate-pulse">
-                <Zap className="w-5 h-5 sm:w-7 sm:h-7 fill-slate-950 animate-bounce" />
+            <div className="flex flex-col items-center gap-0.5 sm:gap-1 animate-bounce-subtle">
+              <div className="px-4 sm:px-6 py-1 sm:py-1.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-emerald-400 via-cyan-300 to-indigo-400 text-slate-950 font-black text-base sm:text-xl md:text-2xl tracking-widest uppercase shadow-glowEmerald flex items-center gap-2 sm:gap-2.5 border-2 border-white/80 animate-pulse">
+                <Zap className="w-4 h-4 sm:w-6 sm:h-6 fill-slate-950 animate-bounce" />
                 <span>⚡ YOUR TURN! ⚡</span>
-                <Zap className="w-5 h-5 sm:w-7 sm:h-7 fill-slate-950 animate-bounce" />
+                <Zap className="w-4 h-4 sm:w-6 sm:h-6 fill-slate-950 animate-bounce" />
               </div>
-              <span className="text-xs sm:text-sm font-bold text-cyan-300 drop-shadow flex items-center gap-1.5 mt-0.5">
-                <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
-                Must start with <span className="font-mono font-black text-white text-base sm:text-lg px-2 py-0.5 rounded-lg bg-white/10 border border-white/20">&quot;{requiredPrefix}&quot;</span>
+              <span className="text-[11px] sm:text-xs font-bold text-cyan-300 drop-shadow flex items-center gap-1 mt-0.5">
+                <Sparkles className="w-3 h-3 text-cyan-300" />
+                Must start with <span className="font-mono font-black text-white text-sm sm:text-base px-1.5 py-0.2 rounded bg-white/10 border border-white/20">&quot;{requiredPrefix}&quot;</span>
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-2 text-slate-400 text-xs sm:text-sm font-mono font-semibold py-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-400 animate-ping" />
+            <div className="flex items-center gap-1.5 text-slate-400 text-xs font-mono font-semibold py-0.5">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
               <span><strong>{activePlayerUsername}</strong> is currently typing...</span>
             </div>
           )}
         </div>
 
         {/* Central Letter Tiles Display (Locked Prefix + Smooth Pop Suffix) */}
-        <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2.5 min-h-[56px] sm:min-h-[72px] pointer-events-none">
+        <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-2 min-h-[48px] sm:min-h-[64px] pointer-events-none">
           {/* 1. Locked Prefix Tiles */}
           {prefixChars.map((char, index) => (
             <div
               key={`prefix-${char}-${index}`}
               className="relative flex flex-col items-center group"
             >
-              <div className="w-10 h-13 sm:w-14 sm:h-18 flex items-center justify-center rounded-xl font-mono font-black text-2xl sm:text-4xl bg-gradient-to-tr from-accent-primary via-indigo-500 to-accent-secondary text-white shadow-glow border-2 border-cyan-300">
+              <div className="w-8 h-11 sm:w-12 sm:h-15 flex items-center justify-center rounded-xl font-mono font-black text-xl sm:text-3xl bg-gradient-to-tr from-accent-primary via-indigo-500 to-accent-secondary text-white shadow-glow border-2 border-cyan-300">
                 {char}
               </div>
             </div>
@@ -325,7 +325,7 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
           {suffixChars.map((char, index) => (
             <div
               key={`suffix-${char}-${index}`}
-              className="w-9 h-12 sm:w-13 sm:h-16 flex items-center justify-center rounded-xl font-mono font-black text-xl sm:text-3xl bg-slate-800/90 border-2 border-indigo-400 text-white shadow-lg animate-tile-pop"
+              className="w-7 h-10 sm:w-11 sm:h-14 flex items-center justify-center rounded-xl font-mono font-black text-lg sm:text-2xl bg-slate-800/90 border-2 border-indigo-400 text-white shadow-lg animate-tile-pop"
             >
               {char}
             </div>
@@ -333,18 +333,18 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
 
           {/* Empty slot placeholder with pulsing cursor when waiting for letters */}
           {suffixChars.length === 0 && (
-            <div className="w-9 h-12 sm:w-13 sm:h-16 flex items-center justify-center rounded-xl font-mono font-bold text-xl sm:text-3xl bg-slate-950/60 border-2 border-dashed border-slate-700 text-slate-500">
+            <div className="w-7 h-10 sm:w-11 sm:h-14 flex items-center justify-center rounded-xl font-mono font-bold text-lg sm:text-2xl bg-slate-950/60 border-2 border-dashed border-slate-700 text-slate-500">
               {isMyTurn ? (
-                <span className="w-1.5 h-6 sm:h-8 bg-accent-secondary animate-pulse rounded-full" />
+                <span className="w-1.5 h-5 sm:h-7 bg-accent-secondary animate-pulse rounded-full" />
               ) : (
-                <span className="text-slate-600 text-sm font-mono">...</span>
+                <span className="text-slate-600 text-xs sm:text-sm font-mono">...</span>
               )}
             </div>
           )}
         </div>
 
         {/* Word Length Counter & Tip */}
-        <div className="mt-4 pt-3 border-t border-slate-800/80 w-full flex items-center justify-between text-[11px] text-slate-500 font-mono px-2 pointer-events-none">
+        <div className="mt-2.5 pt-2 border-t border-slate-800/80 w-full flex items-center justify-between text-[10px] sm:text-[11px] text-slate-500 font-mono px-1 pointer-events-none">
           <span>
             Total: <strong className="text-slate-300">{prefixChars.length + suffixChars.length}</strong> / 46
           </span>
@@ -357,15 +357,15 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
 
       {/* Inline rejection message underneath the stage */}
       {lastRejectionReason && (
-        <div className="flex items-center gap-1.5 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/30 py-1.5 px-4 rounded-xl animate-shake">
-          <ShieldAlert className="w-4 h-4 shrink-0" />
+        <div className="flex items-center gap-1.5 text-xs text-rose-400 bg-rose-500/10 border border-rose-500/30 py-1 px-3 rounded-xl animate-shake">
+          <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
           <span className="font-semibold">{lastRejectionReason}</span>
         </div>
       )}
 
       {/* Mobile Controls (Backspace & Submit) for touch users when it's their turn */}
       {isMyTurn && (
-        <div className="w-full flex items-center gap-2 pt-1 relative z-20">
+        <div className="w-full flex items-center gap-2 pt-0.5 relative z-20">
           {/* Dedicated Backspace Button */}
           <button
             type="button"
@@ -375,14 +375,14 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
               focusInput();
             }}
             disabled={typedSuffix.length === 0}
-            className={`px-4 sm:px-6 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all border ${
+            className={`px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all border ${
               typedSuffix.length > 0
                 ? 'bg-slate-800 hover:bg-slate-700 text-rose-300 border-rose-500/30 active:scale-95 shadow-md cursor-pointer'
                 : 'bg-slate-900/50 text-slate-600 border-slate-800 cursor-not-allowed'
             }`}
             title="Delete last letter"
           >
-            <Delete className="w-5 h-5 text-rose-400" />
+            <Delete className="w-4 h-4 text-rose-400" />
             <span className="font-mono font-bold tracking-wider">DELETE</span>
           </button>
 
@@ -394,14 +394,14 @@ export const CenterWordStage: React.FC<CenterWordStageProps> = ({
               handleFormSubmit();
             }}
             disabled={typedSuffix.trim().length === 0 || isThrottled}
-            className={`flex-1 py-3 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all shadow-glow ${
+            className={`flex-1 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-1.5 transition-all shadow-glow ${
               typedSuffix.trim().length > 0 && !isThrottled
                 ? 'bg-gradient-to-r from-accent-primary to-accent-secondary text-slate-950 hover:scale-[1.01] active:scale-[0.99] cursor-pointer'
                 : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
             }`}
           >
             <span>SUBMIT WORD</span>
-            <Send className="w-4 h-4" />
+            <Send className="w-3.5 h-3.5" />
           </button>
         </div>
       )}
