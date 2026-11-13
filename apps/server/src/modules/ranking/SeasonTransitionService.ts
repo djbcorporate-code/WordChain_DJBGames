@@ -112,6 +112,7 @@ export class SeasonTransitionService {
         .values({
           userId: prev.userId,
           seasonId: newSeasonId,
+          gameType: prev.gameType || 'WORDCHAIN',
           tier: targetTier,
           division: targetDivision,
           rankExp: 0,

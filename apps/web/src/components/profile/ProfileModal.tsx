@@ -184,26 +184,50 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               {/* TAB 1: OVERVIEW */}
               {activeTab === 'OVERVIEW' && (
                 <div className="space-y-4">
-                  {/* Current Academic Standing Card */}
-                  <div className="bg-card border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <RankEmblem
-                        tier={profileData.currentRank.tier}
-                        division={profileData.currentRank.division}
-                        scientistPoints={profileData.currentRank.scientistPoints}
-                        size="md"
-                      />
+                  {/* Competitive Standings per Game (Shared Website Account) */}
+                  <div className="bg-card border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                      <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 font-bold">
+                        Arcade Competitive Standings
+                      </span>
+                      <div className="text-left sm:text-right">
+                        <span className="text-[10px] font-mono uppercase text-slate-500 font-bold mr-2">
+                          Peak Standing:
+                        </span>
+                        <span className="text-xs font-bold text-accent-secondary">
+                          {profileData.highestRank.highestTier}
+                          {profileData.highestRank.highestScientistPoints > 0 &&
+                            ` (${profileData.highestRank.highestScientistPoints} SP)`}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="text-right">
-                      <span className="text-[10px] font-mono uppercase text-slate-500 font-bold block">
-                        Highest Standing
-                      </span>
-                      <span className="text-sm font-bold text-accent-secondary">
-                        {profileData.highestRank.highestTier}
-                        {profileData.highestRank.highestScientistPoints > 0 &&
-                          ` (${profileData.highestRank.highestScientistPoints} SP)`}
-                      </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-2">
+                        <span className="text-[10px] font-mono font-black uppercase tracking-wider text-cyan-400 block">
+                          WordChain Rank
+                        </span>
+                        <RankEmblem
+                          tier={profileData.gameRanks?.WORDCHAIN?.tier || profileData.currentRank.tier}
+                          division={profileData.gameRanks?.WORDCHAIN?.division ?? profileData.currentRank.division}
+                          scientistPoints={
+                            profileData.gameRanks?.WORDCHAIN?.scientistPoints ?? profileData.currentRank.scientistPoints
+                          }
+                          size="sm"
+                        />
+                      </div>
+
+                      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-2">
+                        <span className="text-[10px] font-mono font-black uppercase tracking-wider text-amber-400 block">
+                          MathBlitz Rank
+                        </span>
+                        <RankEmblem
+                          tier={profileData.gameRanks?.MATHRACE?.tier || 'NURSERY'}
+                          division={profileData.gameRanks?.MATHRACE?.division ?? 3}
+                          scientistPoints={profileData.gameRanks?.MATHRACE?.scientistPoints ?? 0}
+                          size="sm"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -357,11 +381,22 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
                             <div>
                               <div className="flex items-center gap-2 font-bold text-white">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-black uppercase ${
+                                    m.gameType === 'MATHRACE'
+                                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                      : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                                  }`}
+                                >
+                                  {m.gameType === 'MATHRACE' ? 'MathBlitz' : 'WordChain'}
+                                </span>
                                 <span>{m.gameMode}</span>
                                 {isVictory && <Crown className="w-3 h-3 text-amber-400 fill-current" />}
                               </div>
                               <span className="text-[11px] text-slate-400 font-mono">
-                                {m.wordsSubmitted} words submitted
+                                {m.gameType === 'MATHRACE'
+                                  ? `${m.wordsSubmitted} pts scored`
+                                  : `${m.wordsSubmitted} words submitted`}
                               </span>
                             </div>
                           </div>

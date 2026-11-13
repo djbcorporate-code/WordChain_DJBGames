@@ -1,12 +1,14 @@
 import {
   AuthenticatedUser,
   ForgotPasswordInput,
+  GameRankStanding,
+  GameType,
   LoginInput,
   RegisterInput,
   ResetPasswordInput,
   VerifyEmailInput,
 } from '@wordchain/shared';
-import { eq, or } from 'drizzle-orm';
+import { and, eq, or } from 'drizzle-orm';
 import { getDb } from '../../db/index.js';
 import { playerProfiles, playerRankProfiles, seasons, users } from '../../db/schema.js';
 import { generateJwt, generateRandomToken, hashPassword, verifyPassword } from '../../utils/security.js';
@@ -74,23 +76,7 @@ export class AuthService {
     const activeSeasons = await db.select().from(seasons).where(eq(seasons.isActive, true)).limit(1);
     const seasonId = activeSeasons.length > 0 ? activeSeasons[0].id : 1;
 
-    // Initialize player rank profile in NURSERY III
-    const [rankProfile] = await db
-      .insert(playerRankProfiles)
-      .values({
-        userId: createdUser.id,
-        seasonId,
-        tier: 'NURSERY',
-        division: 3,
-        rankExp: 0,
-        scientistPoints: 0,
-        highestTier: 'NURSERY',
-        highestScientistPoints: 0,
-        hiddenMmr: 1000,
-        seasonMatches: 0,
-        seasonWins: 0,
-      })
-      .returning();
+    await this.initializeGameRanks(createdUser.id, seasonId);
 
     const token = generateJwt({
       userId: createdUser.id,
@@ -100,31 +86,7 @@ export class AuthService {
       emailVerified: createdUser.emailVerified,
     });
 
-    const authenticatedUser: AuthenticatedUser = {
-      id: createdUser.id,
-      email: createdUser.email || undefined,
-      username: createdUser.username,
-      displayName: createdUser.displayName || createdUser.username,
-      role: createdUser.role as any,
-      emailVerified: createdUser.emailVerified,
-      profile: {
-        userId: profile.userId,
-        avatarId: profile.avatarId,
-        accountLevel: profile.accountLevel,
-        lifetimeXp: profile.lifetimeXp,
-        totalMatches: profile.totalMatches,
-        totalWins: profile.totalWins,
-        totalWordsPlayed: profile.totalWordsPlayed,
-        longestWord: profile.longestWord,
-      },
-      currentRank: {
-        tier: rankProfile.tier as any,
-        division: rankProfile.division,
-        rankExp: rankProfile.rankExp,
-        scientistPoints: rankProfile.scientistPoints,
-        hiddenMmr: rankProfile.hiddenMmr,
-      },
-    };
+    const authenticatedUser = await this.getFullUserProfile(createdUser.id);
 
     return { user: authenticatedUser, token, verificationToken };
   }
@@ -168,22 +130,7 @@ export class AuthService {
     const activeSeasons = await db.select().from(seasons).where(eq(seasons.isActive, true)).limit(1);
     const seasonId = activeSeasons.length > 0 ? activeSeasons[0].id : 1;
 
-    const [rankProfile] = await db
-      .insert(playerRankProfiles)
-      .values({
-        userId: createdUser.id,
-        seasonId,
-        tier: 'NURSERY',
-        division: 3,
-        rankExp: 0,
-        scientistPoints: 0,
-        highestTier: 'NURSERY',
-        highestScientistPoints: 0,
-        hiddenMmr: 1000,
-        seasonMatches: 0,
-        seasonWins: 0,
-      })
-      .returning();
+    await this.initializeGameRanks(createdUser.id, seasonId);
 
     const token = generateJwt({
       userId: createdUser.id,
@@ -193,31 +140,7 @@ export class AuthService {
       emailVerified: createdUser.emailVerified,
     });
 
-    const authenticatedUser: AuthenticatedUser = {
-      id: createdUser.id,
-      email: createdUser.email || undefined,
-      username: createdUser.username,
-      displayName: createdUser.displayName || createdUser.username,
-      role: createdUser.role as any,
-      emailVerified: createdUser.emailVerified,
-      profile: {
-        userId: profile.userId,
-        avatarId: profile.avatarId,
-        accountLevel: profile.accountLevel,
-        lifetimeXp: profile.lifetimeXp,
-        totalMatches: profile.totalMatches,
-        totalWins: profile.totalWins,
-        totalWordsPlayed: profile.totalWordsPlayed,
-        longestWord: profile.longestWord,
-      },
-      currentRank: {
-        tier: rankProfile.tier as any,
-        division: rankProfile.division,
-        rankExp: rankProfile.rankExp,
-        scientistPoints: rankProfile.scientistPoints,
-        hiddenMmr: rankProfile.hiddenMmr,
-      },
-    };
+    const authenticatedUser = await this.getFullUserProfile(createdUser.id);
 
     return { user: authenticatedUser, token };
   }
@@ -346,6 +269,42 @@ export class AuthService {
     return { message: 'Password reset successful. You may now log in with your new password.' };
   }
 
+  private static async initializeGameRanks(userId: string, seasonId: number): Promise<void> {
+    const db = await getDb();
+    const games: GameType[] = ['WORDCHAIN', 'MATHRACE'];
+    for (const gameType of games) {
+      await db
+        .insert(playerRankProfiles)
+        .values({
+          userId,
+          seasonId,
+          gameType,
+          tier: 'NURSERY',
+          division: 3,
+          rankExp: 0,
+          scientistPoints: 0,
+          highestTier: 'NURSERY',
+          highestScientistPoints: 0,
+          hiddenMmr: 1000,
+          seasonMatches: 0,
+          seasonWins: 0,
+        })
+        .onConflictDoNothing();
+    }
+  }
+
+  private static defaultRankStanding(): GameRankStanding {
+    return {
+      tier: 'NURSERY',
+      division: 3,
+      rankExp: 0,
+      scientistPoints: 0,
+      hiddenMmr: 1000,
+      seasonMatches: 0,
+      seasonWins: 0,
+    };
+  }
+
   static async getFullUserProfile(userId: string): Promise<AuthenticatedUser> {
     const db = await getDb();
     const foundUsers = await db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -368,19 +327,32 @@ export class AuthService {
       longestWord: '',
     };
 
+    const activeSeasons = await db.select().from(seasons).where(eq(seasons.isActive, true)).limit(1);
+    const activeSeasonId = activeSeasons.length > 0 ? activeSeasons[0].id : 1;
+
     const rankProfiles = await db
       .select()
       .from(playerRankProfiles)
-      .where(eq(playerRankProfiles.userId, userId))
-      .limit(1);
+      .where(and(eq(playerRankProfiles.userId, userId), eq(playerRankProfiles.seasonId, activeSeasonId)));
 
-    const rank = rankProfiles[0] || {
-      tier: 'NURSERY',
-      division: 3,
-      rankExp: 0,
-      scientistPoints: 0,
-      hiddenMmr: 1000,
-    };
+    const wordRankRow = rankProfiles.find((r) => (r.gameType || 'WORDCHAIN') === 'WORDCHAIN');
+    const mathRankRow = rankProfiles.find((r) => r.gameType === 'MATHRACE');
+
+    const mapRankRow = (row?: typeof rankProfiles[number]): GameRankStanding =>
+      row
+        ? {
+            tier: row.tier as any,
+            division: row.division,
+            rankExp: row.rankExp,
+            scientistPoints: row.scientistPoints,
+            hiddenMmr: row.hiddenMmr,
+            seasonMatches: row.seasonMatches,
+            seasonWins: row.seasonWins,
+          }
+        : this.defaultRankStanding();
+
+    const wordRank = mapRankRow(wordRankRow);
+    const mathRank = mapRankRow(mathRankRow);
 
     return {
       id: user.id,
@@ -400,11 +372,15 @@ export class AuthService {
         longestWord: profile.longestWord,
       },
       currentRank: {
-        tier: rank.tier as any,
-        division: rank.division,
-        rankExp: rank.rankExp,
-        scientistPoints: rank.scientistPoints,
-        hiddenMmr: rank.hiddenMmr,
+        tier: wordRank.tier,
+        division: wordRank.division,
+        rankExp: wordRank.rankExp,
+        scientistPoints: wordRank.scientistPoints,
+        hiddenMmr: wordRank.hiddenMmr,
+      },
+      gameRanks: {
+        WORDCHAIN: wordRank,
+        MATHRACE: mathRank,
       },
     };
   }

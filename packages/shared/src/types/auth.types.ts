@@ -1,4 +1,15 @@
+import { GameType } from './game.types.js';
 import { AcademicRankTier } from './ranking.types.js';
+
+export interface GameRankStanding {
+  tier: AcademicRankTier;
+  division: number;
+  rankExp: number;
+  scientistPoints: number;
+  hiddenMmr: number;
+  seasonMatches?: number;
+  seasonWins?: number;
+}
 
 export type UserRole = 'USER' | 'MODERATOR' | 'ADMIN' | 'BANNED';
 
@@ -39,6 +50,7 @@ export interface AuthenticatedUser {
     scientistPoints: number;
     hiddenMmr: number;
   };
+  gameRanks?: Record<GameType, GameRankStanding>;
 }
 
 export interface AuthSession {

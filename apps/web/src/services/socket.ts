@@ -4,6 +4,7 @@ import {
   GameMode,
   GameRoomSummary,
   GameTurnState,
+  MathOperationMode,
   PlayerInGame,
   RankProgressionDelta,
   ServerToClientEvents,
@@ -85,7 +86,11 @@ class SocketService {
 
   // Emitters
   public joinQueue(mode: GameMode = 'CASUAL', language: GameLanguage = 'ENGLISH'): void {
-    this.getSocket().emit('LOBBY_JOIN_QUEUE', { mode, language });
+    this.getSocket().emit('LOBBY_JOIN_QUEUE', { gameType: 'WORDCHAIN', mode, language });
+  }
+
+  public joinMathQueue(mode: GameMode = 'CASUAL', operationMode: MathOperationMode = 'MIXED'): void {
+    this.getSocket().emit('LOBBY_JOIN_QUEUE', { gameType: 'MATHRACE', mode, operationMode });
   }
 
   public leaveQueue(): void {
@@ -97,7 +102,14 @@ class SocketService {
   }
 
   public createPrivateRoom(customTimerSec: number = 15, language: GameLanguage = 'ENGLISH'): void {
-    this.getSocket().emit('ROOM_CREATE_PRIVATE', { customTimerSec, language });
+    this.getSocket().emit('ROOM_CREATE_PRIVATE', { gameType: 'WORDCHAIN', customTimerSec, language });
+  }
+
+  public createMathPrivateRoom(
+    operationMode: MathOperationMode = 'MIXED',
+    customTimerSec: number = 15
+  ): void {
+    this.getSocket().emit('ROOM_CREATE_PRIVATE', { gameType: 'MATHRACE', operationMode, customTimerSec });
   }
 
   public joinRoom(roomCode: string): void {
@@ -149,6 +161,15 @@ class SocketService {
 
   public requestSync(): void {
     this.getSocket().emit('GAME_REQUEST_SYNC');
+  }
+
+  // MathBlitz Emitters
+  public submitMathPick(number: number): void {
+    this.getSocket().emit('MATH_SUBMIT_PICK', { number });
+  }
+
+  public submitMathAnswer(answer: string): void {
+    this.getSocket().emit('MATH_SUBMIT_ANSWER', { answer });
   }
 
   // Voice Chat Emitters

@@ -1,6 +1,7 @@
 import {
   ACADEMIC_RANK_TIERS,
   AcademicRankTier,
+  GameType,
   PlayerInGame,
   RANK_TIER_CONFIGS,
   RankProgressionDelta,
@@ -16,6 +17,24 @@ import {
   users,
 } from '../../db/schema.js';
 import { GameRoom } from '../../game/GameRoom.js';
+
+export interface SettleableMatchParticipant {
+  userId: string;
+  tier?: AcademicRankTier;
+  division?: number;
+  placement: number;
+  activityCount: number;
+  eliminatedReason: string;
+}
+
+export interface SettleableMatchInput {
+  roomCode: string;
+  gameType: GameType;
+  mode: string;
+  roundNumber: number;
+  createdAt: number;
+  participants: SettleableMatchParticipant[];
+}
 
 export class RankingService {
   /**
@@ -52,7 +71,7 @@ export class RankingService {
   }
 
   /**
-   * Calculates Account XP earned from placement and words played in any game mode.
+   * Calculates Account XP earned from placement and activity in any game mode.
    */
   public static calculateAccountXpGain(
     placement: number,
@@ -65,13 +84,14 @@ export class RankingService {
     else if (placement === 2) basePlacementXp = 60;
     else if (placement === 3) basePlacementXp = 35;
     else if (placement === 4) basePlacementXp = 20;
+    else if (placement >= 5) basePlacementXp = 15;
 
     const wordBonusXp = Math.max(0, wordsSubmitted) * 5;
     return basePlacementXp + wordBonusXp;
   }
 
   /**
-   * Calculates base Rank EXP / Scientist Points based on Academic Tier and placement.
+   * Calculates base Rank EXP / Scientist Points based on Academic Tier and placement (scales 2–6 players).
    */
   public static calculatePlacementRewards(
     tier: AcademicRankTier,
@@ -82,10 +102,26 @@ export class RankingService {
     let expChange = 0;
     let pointsChange = 0;
 
+    // Normalize placements when totalPlayers >= 5 onto the 4-bracket ladder
+    let effectivePlacement = placement;
+    if (totalPlayers >= 5) {
+      if (placement === 1) effectivePlacement = 1;
+      else if (placement === 2) effectivePlacement = 2;
+      else if (placement === 3) effectivePlacement = 2; // Upper-half safe finish in 5-6 player lobbies
+      else if (placement === 4) effectivePlacement = 3;
+      else effectivePlacement = 4; // 5th & 6th
+    }
+
     if (tier === 'SCIENTIST') {
       // Scientist tier uses Scientist Points (SP)
       if (totalPlayers === 2) {
+        pointsChange = placement === 1 ? 3 : -3;
+      } else if (totalPlayers >= 5) {
         if (placement === 1) pointsChange = 3;
+        else if (placement === 2) pointsChange = 2;
+        else if (placement === 3) pointsChange = 0;
+        else if (placement === 4) pointsChange = -1;
+        else if (placement === 5) pointsChange = -2;
         else pointsChange = -3;
       } else {
         if (placement === 1) pointsChange = 3;
@@ -95,8 +131,9 @@ export class RankingService {
       }
 
       if (isUnderdog) {
-        if (placement <= (totalPlayers === 2 ? 1 : 2)) pointsChange += 1;
-        else pointsChange = Math.min(0, pointsChange + 1); // reduce loss
+        const winThreshold = totalPlayers === 2 ? 1 : totalPlayers >= 5 ? 3 : 2;
+        if (placement <= winThreshold) pointsChange += 1;
+        else pointsChange = Math.min(0, pointsChange + 1);
       }
 
       return { expChange: 0, pointsChange };
@@ -115,7 +152,6 @@ export class RankingService {
         ) expChange = 30;
         else expChange = 28;
       } else {
-        // In 2-player match, 2nd place is the defeated opponent
         if (tier === 'NURSERY' || tier === 'KINDER') expChange = 0;
         else if (tier === 'GRADER' || tier === 'HIGH_SCHOOL') expChange = -16;
         else if (
@@ -127,13 +163,13 @@ export class RankingService {
         else expChange = -26;
       }
     } else if (tier === 'NURSERY' || tier === 'KINDER') {
-      if (placement === 1) expChange = 35;
-      else if (placement === 2) expChange = 20;
-      else expChange = 0; // Demotion-protected at 3rd/4th
+      if (effectivePlacement === 1) expChange = 35;
+      else if (effectivePlacement === 2) expChange = placement === 3 && totalPlayers >= 5 ? 10 : 20;
+      else expChange = 0; // Demotion-protected
     } else if (tier === 'GRADER' || tier === 'HIGH_SCHOOL') {
-      if (placement === 1) expChange = 32;
-      else if (placement === 2) expChange = 16;
-      else if (placement === 3) expChange = -6;
+      if (effectivePlacement === 1) expChange = 32;
+      else if (effectivePlacement === 2) expChange = placement === 3 && totalPlayers >= 5 ? 6 : 16;
+      else if (effectivePlacement === 3) expChange = -6;
       else expChange = -16;
     } else if (
       tier === 'UNDERGRAD' ||
@@ -141,22 +177,23 @@ export class RankingService {
       tier === 'MAGNA_CUM_LAUDE' ||
       tier === 'SUMMA_CUM_LAUDE'
     ) {
-      if (placement === 1) expChange = 30;
-      else if (placement === 2) expChange = 12;
-      else if (placement === 3) expChange = -10;
+      if (effectivePlacement === 1) expChange = 30;
+      else if (effectivePlacement === 2) expChange = placement === 3 && totalPlayers >= 5 ? 4 : 12;
+      else if (effectivePlacement === 3) expChange = -10;
       else expChange = -20;
     } else if (tier === 'MASTERAL' || tier === 'DOCTORATE') {
-      if (placement === 1) expChange = 28;
-      else if (placement === 2) expChange = 10;
-      else if (placement === 3) expChange = -14;
+      if (effectivePlacement === 1) expChange = 28;
+      else if (effectivePlacement === 2) expChange = placement === 3 && totalPlayers >= 5 ? 2 : 10;
+      else if (effectivePlacement === 3) expChange = -14;
       else expChange = -26;
     }
 
     if (isUnderdog) {
-      if (placement <= (totalPlayers === 2 ? 1 : 2)) {
+      const winThreshold = totalPlayers === 2 ? 1 : totalPlayers >= 5 ? 3 : 2;
+      if (placement <= winThreshold) {
         expChange += 5;
       } else if (expChange < 0) {
-        expChange = Math.min(0, expChange + 5); // reduce negative loss by 5
+        expChange = Math.min(0, expChange + 5);
       }
     }
 
@@ -323,6 +360,13 @@ export class RankingService {
     if (totalPlayers === 2) {
       if (placement === 1) baseDelta = 25;
       else baseDelta = -25;
+    } else if (totalPlayers >= 5) {
+      if (placement === 1) baseDelta = 25;
+      else if (placement === 2) baseDelta = 14;
+      else if (placement === 3) baseDelta = 4;
+      else if (placement === 4) baseDelta = -8;
+      else if (placement === 5) baseDelta = -16;
+      else baseDelta = -25;
     } else {
       if (placement === 1) baseDelta = 25;
       else if (placement === 2) baseDelta = 8;
@@ -382,6 +426,28 @@ export class RankingService {
     matchId: string,
     room: GameRoom
   ): Promise<Record<string, RankProgressionDelta>> {
+    const playersList = Array.from(room.players.values());
+    return this.settleMatchSummary(matchId, {
+      roomCode: room.roomCode,
+      gameType: 'WORDCHAIN',
+      mode: room.mode,
+      roundNumber: room.roundNumber,
+      createdAt: room.createdAt,
+      participants: playersList.map((p) => ({
+        userId: p.userId,
+        tier: p.tier,
+        division: p.division,
+        placement: p.placement ?? 4,
+        activityCount: p.wordsSubmitted,
+        eliminatedReason: p.isAlive ? 'WINNER' : 'TIMEOUT',
+      })),
+    });
+  }
+
+  public static async settleMatchSummary(
+    matchId: string,
+    summary: SettleableMatchInput
+  ): Promise<Record<string, RankProgressionDelta>> {
     const db = await getDb();
 
     // 1. Check idempotency: Was this match already settled?
@@ -404,11 +470,11 @@ export class RankingService {
       .limit(1);
 
     const activeSeason = activeSeasons[0] || { id: 1 };
-    const playersList = Array.from(room.players.values());
+    const playersList = summary.participants;
 
     // 3. Compute match metrics
     const winner = playersList.find((p) => p.placement === 1) || playersList[0];
-    const durationSeconds = Math.max(0, Math.floor((Date.now() - room.createdAt) / 1000));
+    const durationSeconds = Math.max(0, Math.floor((Date.now() - summary.createdAt) / 1000));
     const winnerUserId = winner && !winner.userId.startsWith('guest-bot-') ? winner.userId : null;
 
     // Upsert match record
@@ -416,9 +482,10 @@ export class RankingService {
       await db
         .update(matches)
         .set({
+          gameType: summary.gameType,
           status: 'COMPLETED',
           winnerUserId,
-          totalRounds: room.roundNumber,
+          totalRounds: summary.roundNumber,
           durationSeconds,
           completedAt: new Date(),
         })
@@ -426,12 +493,13 @@ export class RankingService {
     } else {
       await db.insert(matches).values({
         id: matchId,
-        roomCode: room.roomCode,
-        gameMode: room.mode,
+        roomCode: summary.roomCode,
+        gameType: summary.gameType,
+        gameMode: summary.mode,
         seasonId: activeSeason.id,
         status: 'COMPLETED',
         winnerUserId,
-        totalRounds: room.roundNumber,
+        totalRounds: summary.roundNumber,
         durationSeconds,
         completedAt: new Date(),
       });
@@ -446,6 +514,7 @@ export class RankingService {
         playerRankMap.set(player.userId, {
           userId: player.userId,
           seasonId: activeSeason.id,
+          gameType: summary.gameType,
           tier: player.tier || 'NURSERY',
           division: player.division || 3,
           rankExp: 0,
@@ -466,7 +535,8 @@ export class RankingService {
         .where(
           and(
             eq(playerRankProfiles.userId, player.userId),
-            eq(playerRankProfiles.seasonId, activeSeason.id)
+            eq(playerRankProfiles.seasonId, activeSeason.id),
+            eq(playerRankProfiles.gameType, summary.gameType)
           )
         )
         .limit(1);
@@ -474,6 +544,7 @@ export class RankingService {
       const rank = existingRanks[0] || {
         userId: player.userId,
         seasonId: activeSeason.id,
+        gameType: summary.gameType,
         tier: player.tier || 'NURSERY',
         division: player.division || 3,
         rankExp: 0,
@@ -492,13 +563,13 @@ export class RankingService {
     const avgMmr = playersList.length > 0 ? Math.round(totalMmr / playersList.length) : 1000;
     const progressionDeltas: Record<string, RankProgressionDelta> = {};
 
-    // 5. Update each human player's profile and rank
+    // 5. Update each human player's profile and game-specific rank
     for (const player of playersList) {
       if (player.userId.startsWith('guest-bot-')) {
         continue;
       }
       const currentRank = playerRankMap.get(player.userId);
-      const placement = player.placement ?? 4;
+      const placement = player.placement ?? playersList.length;
       const isWinner = placement === 1;
       const isUnderdog = currentRank.hiddenMmr < avgMmr - 100;
 
@@ -506,7 +577,7 @@ export class RankingService {
       let expChange = 0;
       let pointsChange = 0;
 
-      if (room.mode === 'RANKED') {
+      if (summary.mode === 'RANKED') {
         const rewards = this.calculatePlacementRewards(currentRank.tier, placement, isUnderdog, playersList.length);
         expChange = rewards.expChange;
         pointsChange = rewards.pointsChange;
@@ -516,8 +587,8 @@ export class RankingService {
       const mmrDelta = this.calculateMmrDelta(currentRank.hiddenMmr, avgMmr, placement, playersList.length);
       const newMmr = Math.max(100, currentRank.hiddenMmr + mmrDelta);
 
-      // Account XP calculation
-      const accountXpEarned = this.calculateAccountXpGain(placement, player.wordsSubmitted, playersList.length);
+      // Account XP calculation (website-wide)
+      const accountXpEarned = this.calculateAccountXpGain(placement, player.activityCount, playersList.length);
 
       // Fetch user profile
       const profiles = await db
@@ -544,7 +615,9 @@ export class RankingService {
       progression.newAccountLevel = newAccountLevel;
       progressionDeltas[player.userId] = progression;
 
-      // Update player profile
+      const addedWords = summary.gameType === 'WORDCHAIN' ? player.activityCount : 0;
+
+      // Update global player profile
       await db
         .insert(playerProfiles)
         .values({
@@ -554,7 +627,7 @@ export class RankingService {
           lifetimeXp: newLifetimeXp,
           totalMatches: profile.totalMatches + 1,
           totalWins: profile.totalWins + (isWinner ? 1 : 0),
-          totalWordsPlayed: profile.totalWordsPlayed + player.wordsSubmitted,
+          totalWordsPlayed: profile.totalWordsPlayed + addedWords,
           longestWord: profile.longestWord,
         })
         .onConflictDoUpdate({
@@ -564,12 +637,12 @@ export class RankingService {
             lifetimeXp: newLifetimeXp,
             totalMatches: profile.totalMatches + 1,
             totalWins: profile.totalWins + (isWinner ? 1 : 0),
-            totalWordsPlayed: profile.totalWordsPlayed + player.wordsSubmitted,
+            totalWordsPlayed: profile.totalWordsPlayed + addedWords,
             longestWord: profile.longestWord,
           },
         });
 
-      // Update player rank profile (if ranked)
+      // Update game-specific rank profile
       const highestTierIdx = Math.max(
         ACADEMIC_RANK_TIERS.indexOf(currentRank.highestTier as AcademicRankTier),
         ACADEMIC_RANK_TIERS.indexOf(progression.newTier)
@@ -585,6 +658,7 @@ export class RankingService {
         .values({
           userId: player.userId,
           seasonId: activeSeason.id,
+          gameType: summary.gameType,
           tier: progression.newTier,
           division: progression.newDivision,
           rankExp: progression.newExp,
@@ -597,7 +671,7 @@ export class RankingService {
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
-          target: [playerRankProfiles.userId, playerRankProfiles.seasonId],
+          target: [playerRankProfiles.userId, playerRankProfiles.seasonId, playerRankProfiles.gameType],
           set: {
             tier: progression.newTier,
             division: progression.newDivision,
@@ -617,16 +691,16 @@ export class RankingService {
         matchId,
         userId: player.userId,
         placement,
-        wordsSubmitted: player.wordsSubmitted,
+        wordsSubmitted: player.activityCount,
         rankExpChange: expChange,
         scientistPointsChange: pointsChange,
         accountXpEarned,
-        eliminatedReason: player.isAlive ? 'WINNER' : 'TIMEOUT',
+        eliminatedReason: player.eliminatedReason,
       });
     }
 
     console.log(
-      `[RankingService] Match ${matchId} (${room.mode}) settled for ${playersList.length} scholars.`
+      `[RankingService] Match ${matchId} (${summary.gameType}/${summary.mode}) settled for ${playersList.length} players.`
     );
     return progressionDeltas;
   }

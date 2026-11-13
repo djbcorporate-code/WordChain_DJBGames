@@ -1,14 +1,26 @@
-import { CheckCircle2, Loader2, Swords, Trophy, Users, X } from 'lucide-react';
+import { Calculator, CheckCircle2, Swords, Users, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useGame } from '../../context/GameContext.js';
+import { useMathGame } from '../../context/MathGameContext.js';
 
 export const QueueModal: React.FC = () => {
   const { queueStatus, matchFoundNotice, currentRoom, leaveQueue } = useGame();
+  const {
+    queueStatus: mathQueueStatus,
+    matchFound: mathMatchFound,
+    mathRoom,
+    leaveQueue: leaveMathQueue,
+  } = useMathGame();
   const [elapsedSec, setElapsedSec] = useState(0);
   const [countdownRemaining, setCountdownRemaining] = useState(3);
 
+  const isMathQueue = !!mathQueueStatus?.inQueue;
+  const activeQueue = isMathQueue ? mathQueueStatus : queueStatus;
+  const activeMatchFound = mathMatchFound || matchFoundNotice;
+  const isMathActive = isMathQueue || !!mathMatchFound;
+
   useEffect(() => {
-    if (!queueStatus?.inQueue) {
+    if (!activeQueue?.inQueue) {
       setElapsedSec(0);
       return;
     }
@@ -18,16 +30,16 @@ export const QueueModal: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [queueStatus?.inQueue]);
+  }, [activeQueue?.inQueue]);
 
   // Handle Match Found 3-second countdown
   useEffect(() => {
-    if (!matchFoundNotice) {
+    if (!activeMatchFound) {
       setCountdownRemaining(3);
       return;
     }
 
-    setCountdownRemaining(matchFoundNotice.countdownSec || 3);
+    setCountdownRemaining(activeMatchFound.countdownSec || 3);
 
     const interval = setInterval(() => {
       setCountdownRemaining((prev) => {
@@ -40,10 +52,14 @@ export const QueueModal: React.FC = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [matchFoundNotice]);
+  }, [activeMatchFound]);
 
   // If in live match or nothing to show, dismiss modal immediately
-  if (currentRoom?.status === 'IN_PROGRESS' || (!queueStatus?.inQueue && !matchFoundNotice)) {
+  if (
+    currentRoom?.status === 'IN_PROGRESS' ||
+    mathRoom?.status === 'IN_PROGRESS' ||
+    (!activeQueue?.inQueue && !activeMatchFound)
+  ) {
     return null;
   }
 
@@ -53,8 +69,16 @@ export const QueueModal: React.FC = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const isMatched = !!matchFoundNotice;
-  const isRanked = queueStatus?.mode === 'RANKED';
+  const isMatched = !!activeMatchFound;
+  const isRanked = activeQueue?.mode === 'RANKED';
+
+  const handleCancelSearch = () => {
+    if (isMathQueue) {
+      leaveMathQueue();
+    } else {
+      leaveQueue();
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
@@ -64,6 +88,8 @@ export const QueueModal: React.FC = () => {
           className={`absolute top-0 w-64 h-64 rounded-full blur-3xl pointer-events-none transition-all duration-700 ${
             isMatched
               ? 'bg-emerald-500/20'
+              : isMathActive
+              ? 'bg-amber-500/20'
               : isRanked
               ? 'bg-indigo-500/25'
               : 'bg-accent-primary/20'
@@ -82,7 +108,13 @@ export const QueueModal: React.FC = () => {
               <div className="absolute inset-0 rounded-full border-2 border-accent-secondary/40 animate-ping" />
               <div className="absolute inset-2 rounded-full border border-accent-primary/60 animate-pulse" />
               <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center text-accent-secondary shadow-glow">
-                {isRanked ? <Swords className="w-7 h-7 text-indigo-400" /> : <Users className="w-7 h-7" />}
+                {isMathActive ? (
+                  <Calculator className="w-7 h-7 text-amber-400" />
+                ) : isRanked ? (
+                  <Swords className="w-7 h-7 text-indigo-400" />
+                ) : (
+                  <Users className="w-7 h-7" />
+                )}
               </div>
             </div>
           )}
@@ -93,16 +125,18 @@ export const QueueModal: React.FC = () => {
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-accent-secondary">
             {isMatched
               ? 'Match Confirmed'
-              : isRanked
-              ? 'Competitive Ranked Queue'
-              : 'Casual Matchmaking Queue'}
+              : `${isMathActive ? 'MathBlitz' : 'WordChain'} · ${isRanked ? 'Ranked' : 'Casual'} Queue`}
           </span>
           <h3 className="text-xl sm:text-2xl font-black text-white">
-            {isMatched ? 'Match Found!' : isRanked ? 'Finding Opponents...' : 'Searching for Scholars...'}
+            {isMatched ? 'Match Found!' : isRanked ? 'Finding Opponents...' : 'Searching for Players...'}
           </h3>
           <p className="text-xs text-slate-400">
             {isMatched
               ? `Entering Arena in ${countdownRemaining > 0 ? countdownRemaining : 1} second${countdownRemaining === 1 ? '' : 's'}`
+              : isMathActive
+              ? isRanked
+                ? 'Pairing 2 to 6 players within your MathBlitz MMR window (Balanced Ops).'
+                : `Pairing 2 to 6 players for MathBlitz (${mathQueueStatus?.operationMode || 'MIXED'}).`
               : isRanked
               ? 'Pairing you with 2 to 4 scholars within your Academic MMR window.'
               : 'Pairing you with 2 to 4 players for a casual word chain match.'}
@@ -120,14 +154,14 @@ export const QueueModal: React.FC = () => {
             <div className="flex flex-col items-center">
               <span className="text-[10px] uppercase text-slate-500 font-bold">Est. Wait</span>
               <span className="text-sm font-extrabold text-emerald-400">
-                ~{queueStatus?.estimatedWaitSec || 3}s
+                ~{activeQueue?.estimatedWaitSec || 3}s
               </span>
             </div>
             <div className="h-6 w-px bg-slate-800" />
             <div className="flex flex-col items-center">
               <span className="text-[10px] uppercase text-slate-500 font-bold">Queue Pos</span>
               <span className="text-sm font-extrabold text-indigo-400">
-                #{queueStatus?.position || 1}
+                #{activeQueue?.position || 1}
               </span>
             </div>
           </div>
@@ -136,7 +170,7 @@ export const QueueModal: React.FC = () => {
         {/* Cancel button */}
         {!isMatched && (
           <button
-            onClick={leaveQueue}
+            onClick={handleCancelSearch}
             className="relative z-10 w-full py-2.5 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors flex items-center justify-center gap-1.5"
           >
             <X className="w-3.5 h-3.5" />

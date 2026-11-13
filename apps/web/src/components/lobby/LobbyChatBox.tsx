@@ -1,3 +1,4 @@
+import { RoomChatMessage } from '@wordchain/shared';
 import { MessageSquare, Send } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.js';
@@ -6,14 +7,20 @@ import { useGame } from '../../context/GameContext.js';
 interface LobbyChatBoxProps {
   className?: string;
   maxHeight?: string;
+  messages?: RoomChatMessage[];
+  onSend?: (text: string) => void;
 }
 
 export const LobbyChatBox: React.FC<LobbyChatBoxProps> = ({
   className = '',
   maxHeight = 'max-h-[360px]',
+  messages,
+  onSend,
 }) => {
   const { user } = useAuth();
-  const { chatMessages, sendChatMessage } = useGame();
+  const { chatMessages: wordChatMessages, sendChatMessage: sendWordChatMessage } = useGame();
+  const chatMessages = messages ?? wordChatMessages;
+  const sendChatMessage = onSend ?? sendWordChatMessage;
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 

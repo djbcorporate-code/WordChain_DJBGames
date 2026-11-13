@@ -1,11 +1,40 @@
-import { GameLanguage, GameMode, GameRoomSummary, GameTurnState, PlayerInGame, RoomChatMessage, SkillActivationPayload, SkillType, WordRejectionReason } from './game.types.js';
+import {
+  GameLanguage,
+  GameMode,
+  GameRoomSummary,
+  GameTurnState,
+  GameType,
+  PlayerInGame,
+  RoomChatMessage,
+  SkillActivationPayload,
+  SkillType,
+  WordRejectionReason,
+} from './game.types.js';
+import {
+  MathOperation,
+  MathOperationMode,
+  MathPlayerInGame,
+  MathPlayerPickDisplay,
+  MathRoomSummary,
+  MathRoundResultPayload,
+} from './math.types.js';
 import { RankProgressionDelta } from './ranking.types.js';
 
 export interface ClientToServerEvents {
   // Lobby & Matchmaking
-  LOBBY_JOIN_QUEUE: (payload: { mode: GameMode; language?: GameLanguage }) => void;
+  LOBBY_JOIN_QUEUE: (payload: {
+    gameType?: GameType;
+    mode: GameMode;
+    language?: GameLanguage;
+    operationMode?: MathOperationMode;
+  }) => void;
   LOBBY_LEAVE_QUEUE: () => void;
-  ROOM_CREATE_PRIVATE: (payload?: { customTimerSec?: number; language?: GameLanguage }) => void;
+  ROOM_CREATE_PRIVATE: (payload?: {
+    gameType?: GameType;
+    customTimerSec?: number;
+    language?: GameLanguage;
+    operationMode?: MathOperationMode;
+  }) => void;
   ROOM_JOIN: (payload: { roomCode: string }) => void;
   ROOM_LEAVE: () => void;
   ROOM_READY_TOGGLE: (payload: { isReady: boolean }) => void;
@@ -14,13 +43,17 @@ export interface ClientToServerEvents {
   ROOM_KICK_PLAYER: (payload: { targetUserId: string }) => void;
   ROOM_SEND_CHAT: (payload: { text: string }) => void;
 
-  // Active Gameplay
+  // WordChain Active Gameplay
   GAME_SUBMIT_WORD: (payload: { word: string; clientTimestamp: number }) => void;
   GAME_TYPING_UPDATE: (payload: { inputSuffix: string }) => void;
   GAME_USE_SKILL: (payload: { skillId: SkillType }) => void;
   ROOM_RESET_REMATCH: () => void;
   GAME_REQUEST_SYNC: () => void;
   CLOCK_SYNC_PING: (payload: { clientPing: number }) => void;
+
+  // MathBlitz Active Gameplay
+  MATH_SUBMIT_PICK: (payload: { number: number }) => void;
+  MATH_SUBMIT_ANSWER: (payload: { answer: string }) => void;
 
   // Reconnection
   ROOM_RECONNECT: (payload: { roomId: string; sessionToken?: string }) => void;
@@ -36,25 +69,27 @@ export interface ServerToClientEvents {
   // Queue & Matchmaking Status
   QUEUE_STATUS: (payload: {
     inQueue: boolean;
+    gameType?: GameType;
     mode?: GameMode;
     language?: GameLanguage;
+    operationMode?: MathOperationMode;
     position?: number;
     estimatedWaitSec?: number;
   }) => void;
   MATCH_FOUND: (payload: {
     roomId: string;
+    gameType?: GameType;
     mode: GameMode;
     language?: GameLanguage;
+    operationMode?: MathOperationMode;
     countdownSec: number;
   }) => void;
 
-  // Room State
+  // WordChain Room & Turn Events
   ROOM_STATE_UPDATE: (payload: GameRoomSummary | null) => void;
   ROOM_PLAYER_JOINED: (payload: { player: PlayerInGame }) => void;
   ROOM_PLAYER_LEFT: (payload: { userId: string; newHostUserId?: string }) => void;
   ROOM_COUNTDOWN_TICK: (payload: { remainingSec: number }) => void;
-
-  // Real-Time Turn Events
   GAME_TURN_START: (payload: GameTurnState) => void;
   GAME_PLAYER_TYPING: (payload: { userId: string; inputSuffix: string }) => void;
   GAME_WORD_ACCEPTED: (payload: {
@@ -95,6 +130,49 @@ export interface ServerToClientEvents {
   GAME_MATCH_ENDED: (payload: {
     winnerId: string;
     standings: PlayerInGame[];
+    deltas: Record<string, RankProgressionDelta>;
+  }) => void;
+
+  // MathBlitz Room & Round Events
+  MATH_ROOM_STATE_UPDATE: (payload: MathRoomSummary | null) => void;
+  MATH_ROUND_PICK_START: (payload: {
+    roundNumber: number;
+    totalRounds: number;
+    operation: MathOperation;
+    pickOptions: number[];
+    durationSec: number;
+    deadlineUtc: number;
+    serverNowUtc: number;
+  }) => void;
+  MATH_PLAYER_PICKED: (payload: { userId: string }) => void;
+  MATH_ROUND_RACE_START: (payload: {
+    roundNumber: number;
+    totalRounds: number;
+    operation: MathOperation;
+    picks: MathPlayerPickDisplay[];
+    equationDisplay: string;
+    choices?: string[];
+    durationSec: number;
+    deadlineUtc: number;
+    serverNowUtc: number;
+  }) => void;
+  MATH_PLAYER_SOLVED: (payload: {
+    userId: string;
+    username: string;
+    placement: number;
+    pointsEarned: number;
+    totalScore: number;
+    solveTimeMs: number;
+  }) => void;
+  MATH_ANSWER_REJECTED: (payload: {
+    reason: 'WRONG_ANSWER' | 'LOCKED_OUT' | 'ALREADY_SOLVED' | 'NOT_RACING';
+    message: string;
+    lockedOut: boolean;
+  }) => void;
+  MATH_ROUND_ENDED: (payload: MathRoundResultPayload) => void;
+  MATH_MATCH_ENDED: (payload: {
+    winnerId: string;
+    standings: MathPlayerInGame[];
     deltas: Record<string, RankProgressionDelta>;
   }) => void;
 

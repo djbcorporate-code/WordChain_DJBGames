@@ -69,20 +69,25 @@ export class ProfileService {
           eq(playerRankProfiles.userId, user.id),
           eq(playerRankProfiles.seasonId, activeSeason.id)
         )
-      )
-      .limit(1);
+      );
 
-    const rank = ranks[0] || {
-      tier: 'NURSERY',
-      division: 3,
-      rankExp: 0,
-      scientistPoints: 0,
-      highestTier: 'NURSERY',
-      highestScientistPoints: 0,
-      hiddenMmr: 1000,
-    };
+    const findGameRank = (gt: string) =>
+      ranks.find((r) => (r.gameType || 'WORDCHAIN') === gt) || {
+        tier: 'NURSERY',
+        division: 3,
+        rankExp: 0,
+        scientistPoints: 0,
+        highestTier: 'NURSERY',
+        highestScientistPoints: 0,
+        hiddenMmr: 1000,
+        seasonMatches: 0,
+        seasonWins: 0,
+      };
 
-    // Fetch recent match history (last 10 matches)
+    const wordRank = findGameRank('WORDCHAIN');
+    const mathRank = findGameRank('MATHRACE');
+
+    // Fetch recent match history (last 10 matches across all portal games)
     const recentMatches = await db
       .select({
         matchId: matchPlayers.matchId,
@@ -92,6 +97,7 @@ export class ProfileService {
         scientistPointsChange: matchPlayers.scientistPointsChange,
         accountXpEarned: matchPlayers.accountXpEarned,
         eliminatedReason: matchPlayers.eliminatedReason,
+        gameType: matches.gameType,
         gameMode: matches.gameMode,
         completedAt: matches.completedAt,
         totalRounds: matches.totalRounds,
@@ -119,15 +125,35 @@ export class ProfileService {
       totalWordsPlayed: profile.totalWordsPlayed,
       longestWord: profile.longestWord,
       currentRank: {
-        tier: rank.tier as AcademicRankTier,
-        division: rank.division,
-        rankExp: rank.rankExp,
-        scientistPoints: rank.scientistPoints,
-        hiddenMmr: rank.hiddenMmr,
+        tier: wordRank.tier as AcademicRankTier,
+        division: wordRank.division,
+        rankExp: wordRank.rankExp,
+        scientistPoints: wordRank.scientistPoints,
+        hiddenMmr: wordRank.hiddenMmr,
       },
       highestRank: {
-        highestTier: rank.highestTier as AcademicRankTier,
-        highestScientistPoints: rank.highestScientistPoints,
+        highestTier: wordRank.highestTier as AcademicRankTier,
+        highestScientistPoints: wordRank.highestScientistPoints,
+      },
+      gameRanks: {
+        WORDCHAIN: {
+          tier: wordRank.tier as AcademicRankTier,
+          division: wordRank.division,
+          rankExp: wordRank.rankExp,
+          scientistPoints: wordRank.scientistPoints,
+          hiddenMmr: wordRank.hiddenMmr,
+          seasonMatches: wordRank.seasonMatches ?? 0,
+          seasonWins: wordRank.seasonWins ?? 0,
+        },
+        MATHRACE: {
+          tier: mathRank.tier as AcademicRankTier,
+          division: mathRank.division,
+          rankExp: mathRank.rankExp,
+          scientistPoints: mathRank.scientistPoints,
+          hiddenMmr: mathRank.hiddenMmr,
+          seasonMatches: mathRank.seasonMatches ?? 0,
+          seasonWins: mathRank.seasonWins ?? 0,
+        },
       },
       matchHistory: recentMatches,
     };

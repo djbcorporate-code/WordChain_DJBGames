@@ -57,6 +57,7 @@ export const playerRankProfiles = pgTable(
     seasonId: integer('season_id')
       .notNull()
       .references(() => seasons.id),
+    gameType: varchar('game_type', { length: 24 }).default('WORDCHAIN').notNull(),
     tier: varchar('tier', { length: 32 }).default('NURSERY').notNull(),
     division: integer('division').default(3).notNull(),
     rankExp: integer('rank_exp').default(0).notNull(),
@@ -69,14 +70,15 @@ export const playerRankProfiles = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.userId, table.seasonId] }),
-    uniqueIndex('user_season_idx').on(table.userId, table.seasonId),
+    primaryKey({ columns: [table.userId, table.seasonId, table.gameType] }),
+    uniqueIndex('user_season_game_idx').on(table.userId, table.seasonId, table.gameType),
   ]
 );
 
 export const matches = pgTable('matches', {
   id: uuid('id').defaultRandom().primaryKey(),
   roomCode: varchar('room_code', { length: 8 }).notNull(),
+  gameType: varchar('game_type', { length: 24 }).default('WORDCHAIN').notNull(),
   gameMode: varchar('game_mode', { length: 16 }).notNull(),
   seasonId: integer('season_id').references(() => seasons.id),
   status: varchar('status', { length: 16 }).notNull(),

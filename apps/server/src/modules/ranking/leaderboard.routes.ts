@@ -24,6 +24,7 @@ router.get('/', async (req, res) => {
   try {
     const db = await getDb();
     const type = (req.query.type as string) || 'SEASONAL';
+    const gameType = req.query.gameType === 'MATHRACE' ? 'MATHRACE' : 'WORDCHAIN';
     const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
     const limit = Math.min(50, Math.max(5, parseInt(req.query.limit as string, 10) || 20));
 
@@ -58,7 +59,8 @@ router.get('/', async (req, res) => {
         playerRankProfiles,
         and(
           eq(users.id, playerRankProfiles.userId),
-          eq(playerRankProfiles.seasonId, activeSeason.id)
+          eq(playerRankProfiles.seasonId, activeSeason.id),
+          eq(playerRankProfiles.gameType, gameType)
         )
       );
 
@@ -130,6 +132,7 @@ router.get('/', async (req, res) => {
     res.status(200).json({
       success: true,
       type,
+      gameType,
       season: {
         id: activeSeason.id,
         name: activeSeason.name,

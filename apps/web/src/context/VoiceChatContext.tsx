@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthContext.js';
 import { useGame } from './GameContext.js';
+import { useMathGame } from './MathGameContext.js';
 import { socketService } from '../services/socket.js';
 
 interface VoiceChatContextType {
@@ -37,6 +38,8 @@ const RTC_CONFIG: RTCConfiguration = {
 export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const { currentRoom } = useGame();
+  const { mathRoom } = useMathGame();
+  const activeRoom = currentRoom || mathRoom;
 
   const [isOpenMicEnabled, setIsOpenMicEnabled] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -58,7 +61,7 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const pendingIceCandidatesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
   const makingOfferRef = useRef<Map<string, boolean>>(new Map());
 
-  const isInRoom = !!currentRoom;
+  const isInRoom = !!activeRoom;
 
   // Helper: Resume/play all connected audio elements (bypasses browser autoplay lock)
   const resumeAllAudio = () => {
@@ -382,8 +385,8 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       socketService.joinVoiceRoom();
 
       // Initiate connection to all other human scholars in the room
-      if (currentRoom && user) {
-        for (const player of currentRoom.players) {
+      if (activeRoom && user) {
+        for (const player of activeRoom.players) {
           if (player.userId !== user.id && !player.userId.startsWith('guest-')) {
             initiateCall(player.userId);
           }

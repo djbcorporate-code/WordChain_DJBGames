@@ -2,8 +2,7 @@ import { LexiconService } from '@wordchain/lexicon';
 import { desc, eq, sql } from 'drizzle-orm';
 import { getDb } from '../../db/index.js';
 import { adminAuditLogs, matches, users } from '../../db/schema.js';
-import { GameRoom } from '../../game/GameRoom.js';
-import { RoomManager } from '../../game/RoomManager.js';
+import { AnyGameRoom, RoomManager } from '../../game/RoomManager.js';
 import { getIoServer } from '../../sockets/socketRegistry.js';
 import { MatchmakingService } from '../matchmaking/MatchmakingService.js';
 
@@ -16,7 +15,7 @@ export class AdminService {
     const roomManager = RoomManager.getInstance();
     const matchmaking = MatchmakingService.getInstance();
 
-    const activeRooms = Array.from((roomManager as any).rooms.values()) as GameRoom[];
+    const activeRooms: AnyGameRoom[] = roomManager.getAllRooms();
 
     let casualRooms = 0;
     let rankedRooms = 0;
@@ -140,10 +139,14 @@ export class AdminService {
 
     // Eliminate player from any ongoing match
     const roomManager = RoomManager.getInstance();
-    const activeRooms = Array.from((roomManager as any).rooms.values()) as GameRoom[];
-    for (const r of activeRooms) {
+    for (const r of roomManager.getAllRooms()) {
       if (r.players.has(targetUserId)) {
-        r.eliminatePlayer(targetUserId, 'FORFEIT');
+        if (r.gameType === 'MATHRACE') {
+          const { shouldClose } = r.removePlayer(targetUserId);
+          if (shouldClose) roomManager.removeRoom(r.roomId);
+        } else {
+          r.eliminatePlayer(targetUserId, 'FORFEIT');
+        }
       }
     }
 

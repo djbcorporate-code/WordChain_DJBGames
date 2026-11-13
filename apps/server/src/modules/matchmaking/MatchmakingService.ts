@@ -4,12 +4,13 @@ import {
   ClientToServerEvents,
   GameLanguage,
   GameMode,
+  GameType,
+  MathOperationMode,
   PlayerInGame,
   ServerToClientEvents,
 } from '@wordchain/shared';
-import { Server, Socket } from 'socket.io';
-import { GameRoom } from '../../game/GameRoom.js';
-import { RoomManager } from '../../game/RoomManager.js';
+import { Server } from 'socket.io';
+import { AnyGameRoom, RoomManager } from '../../game/RoomManager.js';
 import { AuthenticatedSocket } from '../../sockets/socketAuth.js';
 import { RankingService } from '../ranking/RankingService.js';
 
@@ -17,8 +18,10 @@ interface QueuedPlayer {
   user: AuthSession;
   socket: AuthenticatedSocket;
   playerInfo: PlayerInGame;
+  gameType: GameType;
   mode: GameMode;
   language: GameLanguage;
+  operationMode: MathOperationMode;
   mmr: number;
   enqueuedAt: number;
 }
@@ -28,7 +31,7 @@ export class MatchmakingService {
   private queue: QueuedPlayer[] = [];
   private workerInterval: NodeJS.Timeout | null = null;
   private io: Server<ClientToServerEvents, ServerToClientEvents> | null = null;
-  private bindCallbacksFn: ((room: GameRoom) => void) | null = null;
+  private bindCallbacksFn: ((room: AnyGameRoom) => void) | null = null;
 
   public static getInstance(): MatchmakingService {
     if (!MatchmakingService.instance) {
@@ -39,7 +42,7 @@ export class MatchmakingService {
 
   public initialize(
     io: Server<ClientToServerEvents, ServerToClientEvents>,
-    bindCallbacks: (room: GameRoom) => void
+    bindCallbacks: (room: AnyGameRoom) => void
   ): void {
     this.io = io;
     this.bindCallbacksFn = bindCallbacks;
@@ -55,7 +58,9 @@ export class MatchmakingService {
     playerInfo: PlayerInGame,
     mode: GameMode = 'CASUAL',
     mmr: number = 1000,
-    language: GameLanguage = 'ENGLISH'
+    language: GameLanguage = 'ENGLISH',
+    gameType: GameType = 'WORDCHAIN',
+    operationMode: MathOperationMode = 'MIXED'
   ): Promise<boolean> {
     // Check Ranked eligibility if queuing for Ranked
     if (mode === 'RANKED') {
@@ -74,6 +79,10 @@ export class MatchmakingService {
     if (existingIndex !== -1) {
       this.queue[existingIndex].socket = socket;
       this.queue[existingIndex].language = language;
+      this.queue[existingIndex].gameType = gameType;
+      this.queue[existingIndex].operationMode = operationMode;
+      this.queue[existingIndex].mode = mode;
+      this.queue[existingIndex].mmr = mmr;
       return true;
     }
 
@@ -81,17 +90,26 @@ export class MatchmakingService {
       user,
       socket,
       playerInfo,
+      gameType,
       mode,
       language,
+      operationMode,
       mmr,
       enqueuedAt: Date.now(),
     });
 
     socket.emit('QUEUE_STATUS', {
       inQueue: true,
+      gameType,
       mode,
       language,
-      position: this.queue.filter((p) => p.mode === mode && p.language === language).length,
+      operationMode,
+      position: this.queue.filter(
+        (p) =>
+          p.gameType === gameType &&
+          p.mode === mode &&
+          (gameType === 'MATHRACE' ? p.operationMode === operationMode : p.language === language)
+      ).length,
       estimatedWaitSec: mode === 'RANKED' ? 10 : 3,
     });
 
@@ -120,6 +138,8 @@ export class MatchmakingService {
 
     this.processCasualQueue();
     this.processRankedQueue();
+    this.processMathCasualQueue();
+    this.processMathRankedQueue();
   }
 
   private generateBotScholar(tier: AcademicRankTier = 'NURSERY', division: number = 3): PlayerInGame {
@@ -159,7 +179,9 @@ export class MatchmakingService {
   }
 
   private processCasualQueueForLanguage(lang: GameLanguage): void {
-    const casualQueue = this.queue.filter((p) => p.mode === 'CASUAL' && p.language === lang);
+    const casualQueue = this.queue.filter(
+      (p) => p.gameType === 'WORDCHAIN' && p.mode === 'CASUAL' && p.language === lang
+    );
     if (casualQueue.length === 0) return;
 
     // Rule 1: Instant match if 4 players are in queue
@@ -194,15 +216,7 @@ export class MatchmakingService {
     }
 
     // Broadcast updated queue positions to remaining players
-    casualQueue.forEach((p, idx) => {
-      p.socket.emit('QUEUE_STATUS', {
-        inQueue: true,
-        mode: 'CASUAL',
-        language: lang,
-        position: idx + 1,
-        estimatedWaitSec: Math.max(1, 3 - Math.floor((Date.now() - p.enqueuedAt) / 1000)),
-      });
-    });
+    this.emitQueueWaitingStatus(casualQueue, 'WORDCHAIN', 'CASUAL', { language: lang }, 3, 1);
   }
 
   private processRankedQueue(): void {
@@ -213,7 +227,9 @@ export class MatchmakingService {
   }
 
   private processRankedQueueForLanguage(lang: GameLanguage): void {
-    const rankedQueue = this.queue.filter((p) => p.mode === 'RANKED' && p.language === lang);
+    const rankedQueue = this.queue.filter(
+      (p) => p.gameType === 'WORDCHAIN' && p.mode === 'RANKED' && p.language === lang
+    );
     const now = Date.now();
 
     if (rankedQueue.length < 2) {
@@ -228,15 +244,7 @@ export class MatchmakingService {
         return;
       }
 
-      rankedQueue.forEach((p, idx) => {
-        p.socket.emit('QUEUE_STATUS', {
-          inQueue: true,
-          mode: 'RANKED',
-          language: lang,
-          position: idx + 1,
-          estimatedWaitSec: Math.max(1, 5 - Math.floor((now - p.enqueuedAt) / 1000)),
-        });
-      });
+      this.emitQueueWaitingStatus(rankedQueue, 'WORDCHAIN', 'RANKED', { language: lang }, 5, 1);
       return;
     }
 
@@ -289,15 +297,193 @@ export class MatchmakingService {
     }
 
     // Broadcast queue status to ranked players of this language
-    rankedQueue.forEach((p, idx) => {
+    this.emitQueueWaitingStatus(rankedQueue, 'WORDCHAIN', 'RANKED', { language: lang }, 6, 2);
+  }
+
+  private removeFromQueue(matchedPlayers: QueuedPlayer[]): void {
+    for (const matched of matchedPlayers) {
+      const idx = this.queue.findIndex((p) => p.user.userId === matched.user.userId);
+      if (idx !== -1) this.queue.splice(idx, 1);
+    }
+  }
+
+  private emitQueueWaitingStatus(
+    players: QueuedPlayer[],
+    gameType: GameType,
+    mode: GameMode,
+    extra: { language?: GameLanguage; operationMode?: MathOperationMode },
+    targetWaitSec: number,
+    minRemainingSec: number = 1
+  ): void {
+    const now = Date.now();
+    players.forEach((p, idx) => {
       p.socket.emit('QUEUE_STATUS', {
         inQueue: true,
-        mode: 'RANKED',
-        language: lang,
+        gameType,
+        mode,
+        ...extra,
         position: idx + 1,
-        estimatedWaitSec: Math.max(2, 6 - Math.floor((Date.now() - p.enqueuedAt) / 1000)),
+        estimatedWaitSec: Math.max(minRemainingSec, targetWaitSec - Math.floor((now - p.enqueuedAt) / 1000)),
       });
     });
+  }
+
+  private processMathCasualQueue(): void {
+    const opModes: MathOperationMode[] = ['MIXED', 'ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE'];
+    for (const opMode of opModes) {
+      const mathQueue = this.queue.filter(
+        (p) => p.gameType === 'MATHRACE' && p.mode === 'CASUAL' && p.operationMode === opMode
+      );
+      if (mathQueue.length === 0) continue;
+
+      const oldestWaitMs = Date.now() - mathQueue[0].enqueuedAt;
+      const shouldStartWithFewer = mathQueue.length >= 2 && oldestWaitMs >= 2500;
+      const hasFullRoom = mathQueue.length >= 6;
+
+      if (hasFullRoom || shouldStartWithFewer) {
+        const batchSize = Math.min(6, mathQueue.length);
+        const matchedBatch = mathQueue.slice(0, batchSize);
+        this.removeFromQueue(matchedBatch);
+        this.createMathMatch(matchedBatch, 'CASUAL', opMode);
+        continue;
+      }
+
+      // Solo player: pair with 2 AI bots so the match has a 3-number race
+      if (mathQueue.length === 1 && oldestWaitMs >= 3500) {
+        const solo = mathQueue[0];
+        this.removeFromQueue([solo]);
+        const bots = [
+          this.generateBotScholar('NURSERY', 3),
+          this.generateBotScholar('NURSERY', 2),
+        ];
+        this.createMathMatch([solo], 'CASUAL', opMode, bots);
+        continue;
+      }
+
+      this.emitQueueWaitingStatus(mathQueue, 'MATHRACE', 'CASUAL', { operationMode: opMode }, 3, 1);
+    }
+  }
+
+  private processMathRankedQueue(): void {
+    const opModes: MathOperationMode[] = ['MIXED', 'ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE'];
+    const now = Date.now();
+
+    for (const opMode of opModes) {
+      const rankedQueue = this.queue.filter(
+        (p) => p.gameType === 'MATHRACE' && p.mode === 'RANKED' && p.operationMode === opMode
+      );
+      if (rankedQueue.length === 0) continue;
+
+      if (rankedQueue.length < 2) {
+        const soloPlayer = rankedQueue[0];
+        if (soloPlayer && now - soloPlayer.enqueuedAt >= 5000) {
+          this.removeFromQueue([soloPlayer]);
+          const bots = [
+            this.generateBotScholar(soloPlayer.playerInfo.tier, soloPlayer.playerInfo.division),
+            this.generateBotScholar(soloPlayer.playerInfo.tier, soloPlayer.playerInfo.division),
+          ];
+          this.createMathMatch([soloPlayer], 'RANKED', opMode, bots);
+          continue;
+        }
+
+        this.emitQueueWaitingStatus(rankedQueue, 'MATHRACE', 'RANKED', { operationMode: opMode }, 5, 1);
+        continue;
+      }
+
+      const sorted = [...rankedQueue].sort((a, b) => a.mmr - b.mmr);
+      const oldestWaitMs = now - sorted[0].enqueuedAt;
+
+      if (sorted.length >= 6) {
+        for (let i = 0; i <= sorted.length - 6; i++) {
+          const pod = sorted.slice(i, i + 6);
+          const mmrSpread = pod[5].mmr - pod[0].mmr;
+          const maxWait = Math.max(...pod.map((p) => now - p.enqueuedAt));
+          const allowedTolerance = Math.min(350, 120 + Math.floor(maxWait / 5000) * 50);
+
+          if (mmrSpread <= allowedTolerance) {
+            this.removeFromQueue(pod);
+            this.createMathMatch(pod, 'RANKED', opMode);
+            return;
+          }
+        }
+      }
+
+      if (oldestWaitMs >= 2500) {
+        const batchSize = Math.min(6, sorted.length);
+        const pod = sorted.slice(0, batchSize);
+        const mmrSpread = pod[pod.length - 1].mmr - pod[0].mmr;
+        const maxWait = Math.max(...pod.map((p) => now - p.enqueuedAt));
+        const allowedTolerance = Math.min(400, 150 + Math.floor(maxWait / 2000) * 50);
+
+        if (mmrSpread <= allowedTolerance || maxWait >= 4000) {
+          this.removeFromQueue(pod);
+          this.createMathMatch(pod, 'RANKED', opMode);
+          continue;
+        }
+      }
+
+      this.emitQueueWaitingStatus(rankedQueue, 'MATHRACE', 'RANKED', { operationMode: opMode }, 6, 2);
+    }
+  }
+
+  private createMathMatch(
+    players: QueuedPlayer[],
+    mode: 'CASUAL' | 'RANKED',
+    operationMode: MathOperationMode = 'MIXED',
+    botOpponents: PlayerInGame[] = []
+  ): void {
+    const roomManager = RoomManager.getInstance();
+    const host = players[0];
+    const totalCount = players.length + botOpponents.length;
+
+    const room = roomManager.createMathRoom({
+      mode,
+      operationMode,
+      hostUserId: host.user.userId,
+      maxPlayers: Math.max(2, Math.min(6, totalCount)),
+    });
+
+    this.bindCallbacksFn!(room);
+
+    for (const p of players) {
+      room.addPlayer({
+        userId: p.playerInfo.userId,
+        username: p.playerInfo.username,
+        avatarId: p.playerInfo.avatarId,
+        tier: p.playerInfo.tier,
+        division: p.playerInfo.division,
+        isReady: true,
+      });
+
+      p.socket.join(room.roomId);
+      p.socket.data.roomId = room.roomId;
+
+      p.socket.emit('QUEUE_STATUS', { inQueue: false });
+      p.socket.emit('MATCH_FOUND', {
+        roomId: room.roomId,
+        gameType: 'MATHRACE',
+        mode,
+        operationMode,
+        countdownSec: 3,
+      });
+    }
+
+    for (const bot of botOpponents) {
+      room.addPlayer({
+        userId: bot.userId,
+        username: bot.username,
+        avatarId: bot.avatarId,
+        tier: bot.tier,
+        division: bot.division,
+        isReady: true,
+      });
+    }
+
+    this.io!.to(room.roomId).emit('MATH_ROOM_STATE_UPDATE', room.getSummary());
+    room.startCountdown();
+    console.log(
+      `[Matchmaking] MathBlitz ${mode} match (${operationMode}) created: ${room.roomCode} with ${totalCount} players`
+    );
   }
 
   private createCasualMatch(
@@ -332,6 +518,7 @@ export class MatchmakingService {
       p.socket.emit('QUEUE_STATUS', { inQueue: false });
       p.socket.emit('MATCH_FOUND', {
         roomId: room.roomId,
+        gameType: 'WORDCHAIN',
         mode: 'CASUAL',
         language,
         countdownSec: 3,
@@ -384,6 +571,7 @@ export class MatchmakingService {
       p.socket.emit('QUEUE_STATUS', { inQueue: false });
       p.socket.emit('MATCH_FOUND', {
         roomId: room.roomId,
+        gameType: 'WORDCHAIN',
         mode: 'RANKED',
         language,
         countdownSec: 3,

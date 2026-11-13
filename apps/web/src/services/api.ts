@@ -167,7 +167,8 @@ export const api = {
     async get(
       type: 'SEASONAL' | 'LIFETIME_WINS' | 'ACCOUNT_LEVEL' = 'SEASONAL',
       page: number = 1,
-      limit: number = 20
+      limit: number = 20,
+      gameType: 'WORDCHAIN' | 'MATHRACE' = 'WORDCHAIN'
     ): Promise<{
       success: boolean;
       type: string;
@@ -178,7 +179,7 @@ export const api = {
       totalPages: number;
       entries: any[];
     }> {
-      return request(`/leaderboards?type=${type}&page=${page}&limit=${limit}`);
+      return request(`/leaderboards?type=${type}&page=${page}&limit=${limit}&gameType=${gameType}`);
     },
   },
 

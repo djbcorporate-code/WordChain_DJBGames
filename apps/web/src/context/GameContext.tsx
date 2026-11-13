@@ -24,6 +24,7 @@ export interface TimeAttackAlert {
 
 export interface QueueState {
   inQueue: boolean;
+  gameType?: 'WORDCHAIN' | 'MATHRACE';
   mode?: GameMode;
   language?: GameLanguage;
   position?: number;
@@ -72,6 +73,8 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, refreshUser } = useAuth();
   const [currentRoom, setCurrentRoom] = useState<GameRoomSummary | null>(null);
+  const currentRoomRef = useRef<GameRoomSummary | null>(null);
+  currentRoomRef.current = currentRoom;
   const [turnState, setTurnState] = useState<GameTurnState | null>(null);
   const [chatMessages, setChatMessages] = useState<RoomChatMessage[]>([]);
   const [queueStatus, setQueueStatus] = useState<QueueState | null>(null);
@@ -120,13 +123,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleDisconnect = () => setIsConnected(false);
 
     const handleQueueStatus = (status: QueueState) => {
-      setQueueStatus(status);
       if (!status.inQueue) {
+        setQueueStatus(null);
         setMatchFoundNotice(null);
+        return;
       }
+      if (status.gameType === 'MATHRACE') return;
+      setQueueStatus(status);
     };
 
-    const handleMatchFound = (payload: { roomId: string; mode: GameMode; countdownSec: number }) => {
+    const handleMatchFound = (payload: { roomId: string; gameType?: 'WORDCHAIN' | 'MATHRACE'; mode: GameMode; countdownSec: number }) => {
+      if (payload.gameType === 'MATHRACE') return;
       soundManager.playVictory();
       setQueueStatus(null);
       setMatchFoundNotice({ roomId: payload.roomId, countdownSec: payload.countdownSec });
@@ -319,6 +326,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const handleRoomKicked = (payload: { reason?: string }) => {
+      if (!currentRoomRef.current) return;
       soundManager.playWordRejected();
       setError(payload.reason || 'You were kicked from the room by the host.');
       setCurrentRoom(null);
@@ -332,6 +340,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const handleChatMessage = (msg: RoomChatMessage) => {
+      if (!currentRoomRef.current || msg.roomId !== currentRoomRef.current.roomId) return;
       setChatMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];

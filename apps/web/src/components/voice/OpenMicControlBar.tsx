@@ -1,6 +1,7 @@
 import { AlertCircle, HeadphoneOff, Headphones, Mic, MicOff, PhoneOff, Radio, Volume2, VolumeX, X } from 'lucide-react';
 import React from 'react';
 import { useGame } from '../../context/GameContext.js';
+import { useMathGame } from '../../context/MathGameContext.js';
 import { useVoiceChat } from '../../context/VoiceChatContext.js';
 
 interface OpenMicControlBarProps {
@@ -9,6 +10,7 @@ interface OpenMicControlBarProps {
 
 export const OpenMicControlBar: React.FC<OpenMicControlBarProps> = ({ compact = false }) => {
   const { currentRoom } = useGame();
+  const { mathRoom } = useMathGame();
   const {
     isOpenMicEnabled,
     isMuted,
@@ -23,7 +25,7 @@ export const OpenMicControlBar: React.FC<OpenMicControlBarProps> = ({ compact = 
   } = useVoiceChat();
 
   // Voice chat is available across all events (Casual, Ranked, and Private)
-  if (!currentRoom) {
+  if (!currentRoom && !mathRoom) {
     return null;
   }
 

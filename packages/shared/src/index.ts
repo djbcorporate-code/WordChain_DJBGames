@@ -1,6 +1,7 @@
 // Re-export types
 export * from './types/auth.types.js';
 export * from './types/game.types.js';
+export * from './types/math.types.js';
 export * from './types/ranking.types.js';
 export * from './types/socket.events.js';
 

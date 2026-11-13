@@ -1,5 +1,7 @@
 import { AcademicRankTier } from './ranking.types.js';
 
+export type GameType = 'WORDCHAIN' | 'MATHRACE';
+
 export type GameMode = 'CASUAL' | 'RANKED' | 'PRIVATE';
 
 export type GameLanguage = 'ENGLISH' | 'TAGALOG' | 'BISAYA' | 'MIXED';
@@ -80,6 +82,7 @@ export interface RoomChatMessage {
 export interface GameRoomSummary {
   roomId: string;
   roomCode: string;
+  gameType?: GameType;
   mode: GameMode;
   language?: GameLanguage;
   status: RoomStatus;

@@ -120,6 +120,7 @@ async function ensureTablesCreated(): Promise<void> {
     CREATE TABLE IF NOT EXISTS player_rank_profiles (
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       season_id INTEGER NOT NULL REFERENCES seasons(id),
+      game_type VARCHAR(24) DEFAULT 'WORDCHAIN' NOT NULL,
       tier VARCHAR(32) DEFAULT 'NURSERY' NOT NULL,
       division INTEGER DEFAULT 3 NOT NULL,
       rank_exp INTEGER DEFAULT 0 NOT NULL,
@@ -130,12 +131,13 @@ async function ensureTablesCreated(): Promise<void> {
       season_matches INTEGER DEFAULT 0 NOT NULL,
       season_wins INTEGER DEFAULT 0 NOT NULL,
       updated_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-      PRIMARY KEY (user_id, season_id)
+      PRIMARY KEY (user_id, season_id, game_type)
     );
 
     CREATE TABLE IF NOT EXISTS matches (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       room_code VARCHAR(8) NOT NULL,
+      game_type VARCHAR(24) DEFAULT 'WORDCHAIN' NOT NULL,
       game_mode VARCHAR(16) NOT NULL,
       season_id INTEGER REFERENCES seasons(id),
       status VARCHAR(16) NOT NULL,
@@ -179,18 +181,38 @@ async function ensureTablesCreated(): Promise<void> {
     );
   `;
 
+  const migrationSql = `
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(64);
+    ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+    ALTER TABLE matches ADD COLUMN IF NOT EXISTS game_type VARCHAR(24) DEFAULT 'WORDCHAIN' NOT NULL;
+    ALTER TABLE player_rank_profiles ADD COLUMN IF NOT EXISTS game_type VARCHAR(24) DEFAULT 'WORDCHAIN' NOT NULL;
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE table_name = 'player_rank_profiles' AND constraint_type = 'PRIMARY KEY'
+      ) THEN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.key_column_usage
+          WHERE table_name = 'player_rank_profiles'
+            AND column_name = 'game_type'
+            AND constraint_name = 'player_rank_profiles_pkey'
+        ) THEN
+          ALTER TABLE player_rank_profiles DROP CONSTRAINT player_rank_profiles_pkey;
+          ALTER TABLE player_rank_profiles ADD PRIMARY KEY (user_id, season_id, game_type);
+        END IF;
+      END IF;
+    END $$;
+    DROP INDEX IF EXISTS user_season_idx;
+    CREATE UNIQUE INDEX IF NOT EXISTS user_season_game_idx ON player_rank_profiles (user_id, season_id, game_type);
+  `;
+
   if (pgPool) {
     await pgPool.query(ddlStatements);
-    await pgPool.query(`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(64);
-      ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
-    `);
+    await pgPool.query(migrationSql);
   } else if (pgliteClient) {
     await pgliteClient.exec(ddlStatements);
-    await pgliteClient.exec(`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(64);
-      ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
-    `);
+    await pgliteClient.exec(migrationSql);
   }
 }
 

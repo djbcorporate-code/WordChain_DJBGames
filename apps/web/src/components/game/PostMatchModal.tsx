@@ -1,4 +1,6 @@
 import {
+  AcademicRankTier,
+  MathPlayerInGame,
   PlayerInGame,
   RANK_TIER_CONFIGS,
   RankProgressionDelta,
@@ -17,11 +19,22 @@ import React from 'react';
 import { useAuth } from '../../context/AuthContext.js';
 import { RankEmblem } from '../RankEmblem.js';
 
+export type PostMatchStandingPlayer = {
+  userId: string;
+  username: string;
+  tier: AcademicRankTier;
+  division: number;
+  wordsSubmitted?: number;
+  score?: number;
+  firstPlaceFinishes?: number;
+};
+
 interface PostMatchModalProps {
   winnerId: string;
-  standings: PlayerInGame[];
+  standings: (PlayerInGame | MathPlayerInGame | PostMatchStandingPlayer)[];
   deltas?: Record<string, RankProgressionDelta>;
   mode?: string;
+  gameTitle?: string;
   isHost?: boolean;
   onRematch?: () => void;
   onClose: () => void;
@@ -194,7 +207,17 @@ export const PostMatchModal: React.FC<PostMatchModalProps> = ({
                       {isWinner && <Crown className="w-3.5 h-3.5 text-amber-400 fill-current" />}
                     </div>
                     <div className="flex items-center gap-1 text-[11px] text-slate-400 font-mono">
-                      <span>{player.wordsSubmitted} words submitted</span>
+                      {'score' in player && typeof player.score === 'number' ? (
+                        <span>
+                          {player.score} pts
+                          {typeof (player as MathPlayerInGame).firstPlaceFinishes === 'number' &&
+                          (player as MathPlayerInGame).firstPlaceFinishes > 0
+                            ? ` · ${(player as MathPlayerInGame).firstPlaceFinishes}x Fastest`
+                            : ''}
+                        </span>
+                      ) : (
+                        <span>{(player as PlayerInGame).wordsSubmitted ?? 0} words submitted</span>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -2,13 +2,16 @@ import {
   ClientToServerEvents,
   GameLanguage,
   GameRoomSummary,
+  GameType,
+  MathRoomSummary,
   PlayerInGame,
   RoomChatMessage,
   ServerToClientEvents,
 } from '@wordchain/shared';
 import { Server, Socket } from 'socket.io';
 import { GameRoom, GameRoomCallbacks } from '../game/GameRoom.js';
-import { RoomManager } from '../game/RoomManager.js';
+import { MathGameRoom, MathGameRoomCallbacks } from '../game/math/MathGameRoom.js';
+import { AnyGameRoom, RoomManager } from '../game/RoomManager.js';
 import { AuthService } from '../modules/auth/auth.service.js';
 import { MatchmakingService } from '../modules/matchmaking/MatchmakingService.js';
 import { RankingService } from '../modules/ranking/RankingService.js';
@@ -21,7 +24,40 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
   const matchmakingService = MatchmakingService.getInstance();
   const disconnectTimers = new Map<string, NodeJS.Timeout>();
 
-  function bindRoomCallbacks(room: GameRoom) {
+  function emitRoomStateToRoom(room: AnyGameRoom): void {
+    if (room.gameType === 'MATHRACE') {
+      io.to(room.roomId).emit('MATH_ROOM_STATE_UPDATE', room.getSummary());
+    } else {
+      io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+    }
+  }
+
+  function emitRoomStateToSocket(socket: AuthenticatedSocket, room: AnyGameRoom): void {
+    if (room.gameType === 'MATHRACE') {
+      socket.emit('MATH_ROOM_STATE_UPDATE', room.getSummary());
+    } else {
+      socket.emit('ROOM_STATE_UPDATE', room.getSummary());
+    }
+  }
+
+  function emitClearRoomState(socket: AuthenticatedSocket): void {
+    socket.emit('ROOM_STATE_UPDATE', null);
+    socket.emit('MATH_ROOM_STATE_UPDATE', null);
+  }
+
+  function findSocketInRoom(roomId: string, targetUserId: string): AuthenticatedSocket | undefined {
+    const roomSockets = io.sockets.adapter.rooms.get(roomId);
+    if (!roomSockets) return undefined;
+    for (const socketId of roomSockets) {
+      const candidate = io.sockets.sockets.get(socketId) as AuthenticatedSocket | undefined;
+      if (candidate?.data?.user?.userId === targetUserId) {
+        return candidate;
+      }
+    }
+    return undefined;
+  }
+
+  function bindWordRoomCallbacks(room: GameRoom): void {
     const callbacks: GameRoomCallbacks = {
       onStateChange: (summary: GameRoomSummary) => {
         io.to(room.roomId).emit('ROOM_STATE_UPDATE', summary);
@@ -80,6 +116,78 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
     (room as any).callbacks = callbacks;
   }
 
+  function bindMathRoomCallbacks(room: MathGameRoom): void {
+    const callbacks: MathGameRoomCallbacks = {
+      onStateChange: (summary: MathRoomSummary) => {
+        io.to(room.roomId).emit('MATH_ROOM_STATE_UPDATE', summary);
+      },
+      onRoundPickStart: (payload) => {
+        io.to(room.roomId).emit('MATH_ROUND_PICK_START', payload);
+      },
+      onPlayerPicked: (payload) => {
+        io.to(room.roomId).emit('MATH_PLAYER_PICKED', payload);
+      },
+      onRoundRaceStart: (payload) => {
+        io.to(room.roomId).emit('MATH_ROUND_RACE_START', payload);
+      },
+      onPlayerSolved: (payload) => {
+        io.to(room.roomId).emit('MATH_PLAYER_SOLVED', payload);
+      },
+      onAnswerRejected: (payload) => {
+        const targetSocket = findSocketInRoom(room.roomId, payload.userId);
+        targetSocket?.emit('MATH_ANSWER_REJECTED', {
+          reason: payload.reason,
+          message: payload.message,
+          lockedOut: payload.lockedOut,
+        });
+      },
+      onRoundEnded: (payload) => {
+        io.to(room.roomId).emit('MATH_ROUND_ENDED', payload);
+      },
+      onMatchEnded: async (payload) => {
+        try {
+          const deltas = await RankingService.settleMatchSummary(room.roomId, {
+            roomCode: room.roomCode,
+            gameType: 'MATHRACE',
+            mode: room.mode,
+            roundNumber: room.roundNumber,
+            createdAt: room.createdAt,
+            participants: payload.standings.map((p, idx) => ({
+              userId: p.userId,
+              tier: p.tier,
+              division: p.division,
+              placement: p.placement || idx + 1,
+              activityCount: p.score,
+              eliminatedReason: p.placement === 1 ? 'WINNER' : 'COMPLETED',
+            })),
+          });
+          io.to(room.roomId).emit('MATH_MATCH_ENDED', {
+            winnerId: payload.winnerId,
+            standings: payload.standings,
+            deltas,
+          });
+        } catch (err: any) {
+          console.error(`[Socket] Error settling MathBlitz match ${room.roomId}:`, err);
+          io.to(room.roomId).emit('MATH_MATCH_ENDED', {
+            winnerId: payload.winnerId,
+            standings: payload.standings,
+            deltas: {},
+          });
+        }
+      },
+    };
+
+    (room as any).callbacks = callbacks;
+  }
+
+  function bindRoomCallbacks(room: AnyGameRoom): void {
+    if (room.gameType === 'MATHRACE') {
+      bindMathRoomCallbacks(room);
+    } else {
+      bindWordRoomCallbacks(room);
+    }
+  }
+
   // Initialize Matchmaking with Socket broadcaster
   matchmakingService.initialize(io, bindRoomCallbacks);
 
@@ -90,11 +198,16 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
     console.log(`[Socket] Scholar connected: ${user.username} (${user.userId}) [socketId: ${socket.id}]`);
 
     // AUTO-RECONNECT CHECK: If user was disconnected from an active match, clear timeout and re-attach!
-    const activeRooms = Array.from((roomManager as any).rooms.values()) as GameRoom[];
+    const activeRooms = roomManager.getAllRooms();
     for (const room of activeRooms) {
       if (room.status === 'IN_PROGRESS') {
         const player = room.players.get(user.userId);
-        if (player && player.isAlive && player.isDisconnected) {
+        const canReconnect =
+          room.gameType === 'MATHRACE'
+            ? Boolean(player && player.isDisconnected)
+            : Boolean(player && (player as PlayerInGame).isAlive && player.isDisconnected);
+
+        if (player && canReconnect) {
           const pendingTimer = disconnectTimers.get(user.userId);
           if (pendingTimer) {
             clearTimeout(pendingTimer);
@@ -106,11 +219,14 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           socket.join(room.roomId);
           socket.data.roomId = room.roomId;
 
-          socket.emit('ROOM_STATE_UPDATE', room.getSummary());
-          if (room.getSummary().turnState) {
-            socket.emit('GAME_TURN_START', room.getSummary().turnState!);
+          emitRoomStateToSocket(socket, room);
+          if (room.gameType === 'WORDCHAIN') {
+            const wordTurn = room.getSummary().turnState;
+            if (wordTurn) {
+              socket.emit('GAME_TURN_START', wordTurn);
+            }
           }
-          io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+          emitRoomStateToRoom(room);
           console.log(`[Socket] Auto-reconnected disconnected scholar: ${user.username} to room ${room.roomCode}`);
           break;
         }
@@ -118,21 +234,29 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
     }
 
     // MATCHMAKING: JOIN QUEUE (Casual / Ranked)
-    socket.on('LOBBY_JOIN_QUEUE', async ({ mode, language }) => {
+    socket.on('LOBBY_JOIN_QUEUE', async (payload) => {
       try {
+        const gameType: GameType = payload?.gameType === 'MATHRACE' ? 'MATHRACE' : 'WORDCHAIN';
+        const mode = payload?.mode || 'CASUAL';
+        const language = payload?.language || 'ENGLISH';
+        const operationMode = payload?.operationMode || 'MIXED';
+
         const fullUser = await AuthService.getFullUserProfile(user.userId).catch(() => ({
           id: user.userId,
           username: user.username,
           currentRank: { tier: 'NURSERY' as const, division: 3, hiddenMmr: 1000 },
+          gameRanks: undefined,
           profile: { avatarId: 'avatar_default_01' },
         }));
+
+        const gameRank = fullUser.gameRanks?.[gameType] || fullUser.currentRank;
 
         const playerInfo: PlayerInGame = {
           userId: user.userId,
           username: user.username,
           avatarId: fullUser.profile.avatarId,
-          tier: fullUser.currentRank.tier,
-          division: fullUser.currentRank.division,
+          tier: gameRank.tier,
+          division: gameRank.division,
           lives: 3,
           isAlive: true,
           isReady: true,
@@ -144,9 +268,11 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           user,
           socket,
           playerInfo,
-          mode || 'CASUAL',
-          (fullUser.currentRank as any).hiddenMmr || 1000,
-          language || 'ENGLISH'
+          mode,
+          (gameRank as any).hiddenMmr || 1000,
+          language,
+          gameType,
+          operationMode
         );
       } catch (err: any) {
         socket.emit('SOCKET_ERROR', { code: 'QUEUE_FAILED', message: err.message });
@@ -176,12 +302,43 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           }
         }
 
+        const gameType: GameType = payload?.gameType === 'MATHRACE' ? 'MATHRACE' : 'WORDCHAIN';
+
         const fullUser = await AuthService.getFullUserProfile(user.userId).catch(() => ({
           id: user.userId,
           username: user.username,
           currentRank: { tier: 'NURSERY' as const, division: 3 },
+          gameRanks: undefined,
           profile: { avatarId: 'avatar_default_01' },
         }));
+
+        const gameRank = fullUser.gameRanks?.[gameType] || fullUser.currentRank;
+
+        if (gameType === 'MATHRACE') {
+          const mathRoom = roomManager.createMathRoom({
+            mode: 'PRIVATE',
+            operationMode: payload?.operationMode || 'MIXED',
+            hostUserId: user.userId,
+            maxPlayers: 6,
+            raceDurationSec: payload?.customTimerSec || 15,
+          });
+
+          bindRoomCallbacks(mathRoom);
+          mathRoom.addPlayer({
+            userId: user.userId,
+            username: user.username,
+            avatarId: fullUser.profile.avatarId,
+            tier: gameRank.tier,
+            division: gameRank.division,
+            isReady: true,
+          });
+
+          socket.join(mathRoom.roomId);
+          socket.data.roomId = mathRoom.roomId;
+          emitRoomStateToRoom(mathRoom);
+          console.log(`[Socket] MathBlitz private room created: ${mathRoom.roomCode} (${mathRoom.roomId}) by ${user.username}`);
+          return;
+        }
 
         const room = roomManager.createRoom({
           mode: 'PRIVATE',
@@ -196,8 +353,8 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           userId: user.userId,
           username: user.username,
           avatarId: fullUser.profile.avatarId,
-          tier: fullUser.currentRank.tier,
-          division: fullUser.currentRank.division,
+          tier: gameRank.tier,
+          division: gameRank.division,
           lives: 3,
           isAlive: true,
           isReady: true,
@@ -234,8 +391,9 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           return;
         }
 
-        if (room.players.size >= 8) {
-          socket.emit('SOCKET_ERROR', { code: 'ROOM_FULL', message: 'Room has reached maximum capacity (8 players).' });
+        const maxCap = room.maxPlayers || 8;
+        if (room.players.size >= maxCap) {
+          socket.emit('SOCKET_ERROR', { code: 'ROOM_FULL', message: `Room has reached maximum capacity (${maxCap} players).` });
           return;
         }
 
@@ -243,23 +401,41 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           id: user.userId,
           username: user.username,
           currentRank: { tier: 'NURSERY' as const, division: 3 },
+          gameRanks: undefined,
           profile: { avatarId: 'avatar_default_01' },
         }));
 
-        const joiningPlayer: PlayerInGame = {
-          userId: user.userId,
-          username: user.username,
-          avatarId: fullUser.profile.avatarId,
-          tier: fullUser.currentRank.tier,
-          division: fullUser.currentRank.division,
-          lives: 3,
-          isAlive: true,
-          isReady: false,
-          wordsSubmitted: 0,
-          isDisconnected: false,
-        };
+        const gameRank = fullUser.gameRanks?.[room.gameType] || fullUser.currentRank;
 
-        const added = room.addPlayer(joiningPlayer);
+        let added = false;
+        if (room.gameType === 'MATHRACE') {
+          added = room.addPlayer({
+            userId: user.userId,
+            username: user.username,
+            avatarId: fullUser.profile.avatarId,
+            tier: gameRank.tier,
+            division: gameRank.division,
+            isReady: false,
+          });
+        } else {
+          const joiningPlayer: PlayerInGame = {
+            userId: user.userId,
+            username: user.username,
+            avatarId: fullUser.profile.avatarId,
+            tier: gameRank.tier,
+            division: gameRank.division,
+            lives: 3,
+            isAlive: true,
+            isReady: false,
+            wordsSubmitted: 0,
+            isDisconnected: false,
+          };
+          added = room.addPlayer(joiningPlayer);
+          if (added) {
+            io.to(room.roomId).emit('ROOM_PLAYER_JOINED', { player: joiningPlayer });
+          }
+        }
+
         if (!added) {
           socket.emit('SOCKET_ERROR', { code: 'JOIN_FAILED', message: 'Could not join room.' });
           return;
@@ -270,8 +446,6 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
         socket.join(room.roomId);
         socket.data.roomId = room.roomId;
 
-        io.to(room.roomId).emit('ROOM_PLAYER_JOINED', { player: joiningPlayer });
-        
         // System chat notification for joined player
         const joinMsg: RoomChatMessage = {
           id: `sys-join-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -284,8 +458,8 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
         };
         room.addChatMessage(joinMsg);
         io.to(room.roomId).emit('ROOM_CHAT_MESSAGE', joinMsg);
-        io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
-        console.log(`[Socket] ${user.username} joined room ${room.roomCode}`);
+        emitRoomStateToRoom(room);
+        console.log(`[Socket] ${user.username} joined ${room.gameType} room ${room.roomCode}`);
       } catch (err: any) {
         socket.emit('SOCKET_ERROR', { code: 'ROOM_JOIN_ERROR', message: err.message });
       }
@@ -313,7 +487,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       };
       room.addChatMessage(readyMsg);
       io.to(room.roomId).emit('ROOM_CHAT_MESSAGE', readyMsg);
-      io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+      emitRoomStateToRoom(room);
     });
 
     // ADD GUEST SCHOLAR (Host Only, Private Rooms)
@@ -329,8 +503,9 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
         return;
       }
 
-      if (room.players.size >= 8) {
-        socket.emit('SOCKET_ERROR', { code: 'ROOM_FULL', message: 'Room has reached maximum capacity of 8 players.' });
+      const maxCap = room.maxPlayers || 8;
+      if (room.players.size >= maxCap) {
+        socket.emit('SOCKET_ERROR', { code: 'ROOM_FULL', message: `Room has reached maximum capacity of ${maxCap} players.` });
         return;
       }
 
@@ -338,22 +513,33 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       const guestIndex = room.players.size;
       const guestUsername = `${guestNames[guestIndex % guestNames.length]}_${Math.floor(100 + Math.random() * 900)}`;
 
-      const guestPlayer: PlayerInGame = {
-        userId: `guest-bot-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        username: guestUsername,
-        avatarId: `avatar_0${(guestIndex % 4) + 1}`,
-        tier: 'NURSERY',
-        division: 3,
-        lives: 3,
-        isAlive: true,
-        isReady: true,
-        wordsSubmitted: 0,
-        isDisconnected: false,
-      };
+      if (room.gameType === 'MATHRACE') {
+        room.addPlayer({
+          userId: `guest-bot-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          username: guestUsername,
+          avatarId: `avatar_0${(guestIndex % 4) + 1}`,
+          tier: 'NURSERY',
+          division: 3,
+          isReady: true,
+        });
+      } else {
+        const guestPlayer: PlayerInGame = {
+          userId: `guest-bot-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          username: guestUsername,
+          avatarId: `avatar_0${(guestIndex % 4) + 1}`,
+          tier: 'NURSERY',
+          division: 3,
+          lives: 3,
+          isAlive: true,
+          isReady: true,
+          wordsSubmitted: 0,
+          isDisconnected: false,
+        };
+        room.addPlayer(guestPlayer);
+        io.to(room.roomId).emit('ROOM_PLAYER_JOINED', { player: guestPlayer });
+      }
 
-      room.addPlayer(guestPlayer);
-      io.to(room.roomId).emit('ROOM_PLAYER_JOINED', { player: guestPlayer });
-      io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+      emitRoomStateToRoom(room);
       console.log(`[Socket] Host ${user.username} added guest player ${guestUsername} to room ${room.roomCode}`);
     });
 
@@ -375,7 +561,13 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
         return;
       }
 
-      const allReady = Array.from(room.players.values()).every((p) => p.isReady);
+      let allReady = true;
+      for (const p of room.players.values()) {
+        if (!p.isReady) {
+          allReady = false;
+          break;
+        }
+      }
       if (!allReady) {
         socket.emit('SOCKET_ERROR', { code: 'PLAYERS_NOT_READY', message: 'All scholars must be marked Ready before starting.' });
         return;
@@ -415,7 +607,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           s.leave(room.roomId);
           delete s.data.roomId;
           s.emit('ROOM_KICKED', { reason: `You were kicked from room ${room.roomCode} by the host.` });
-          s.emit('ROOM_STATE_UPDATE', null);
+          emitClearRoomState(s as AuthenticatedSocket);
         }
       }
 
@@ -424,7 +616,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
       // Notify remaining players in the room
       io.to(room.roomId).emit('ROOM_PLAYER_LEFT', { userId: targetUserId });
-      io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+      emitRoomStateToRoom(room);
 
       // Broadcast system chat message to the room
       const systemMsg: RoomChatMessage = {
@@ -480,7 +672,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       const roomId = socket.data.roomId;
       if (!roomId) return;
 
-      const room = roomManager.getRoom(roomId);
+      const room = roomManager.getWordRoom(roomId);
       if (!room) return;
 
       room.submitWord(user.userId, word, clientTimestamp);
@@ -491,7 +683,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       const roomId = socket.data.roomId;
       if (!roomId) return;
 
-      const room = roomManager.getRoom(roomId);
+      const room = roomManager.getWordRoom(roomId);
       if (!room) return;
 
       room.useSkill(user.userId, skillId);
@@ -502,7 +694,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       const roomId = socket.data.roomId;
       if (!roomId) return;
 
-      const room = roomManager.getRoom(roomId);
+      const room = roomManager.getWordRoom(roomId);
       if (!room || room.status !== 'IN_PROGRESS') return;
 
       const activeUserId = room.getActivePlayerId();
@@ -512,6 +704,29 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           inputSuffix: typeof inputSuffix === 'string' ? inputSuffix.slice(0, 46) : '',
         });
       }
+    });
+
+    // MATHBLITZ: SUBMIT RANDOM NUMBER PICK (1-99)
+    socket.on('MATH_SUBMIT_PICK', ({ number }) => {
+      const roomId = socket.data.roomId;
+      if (!roomId || typeof number !== 'number') return;
+
+      const room = roomManager.getMathRoom(roomId);
+      if (!room) return;
+
+      room.submitPick(user.userId, number);
+    });
+
+    // MATHBLITZ: SUBMIT EQUATION ANSWER
+    socket.on('MATH_SUBMIT_ANSWER', ({ answer }) => {
+      if (typeof answer !== 'string' || !answer.trim()) return;
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+
+      const room = roomManager.getMathRoom(roomId);
+      if (!room) return;
+
+      room.submitAnswer(user.userId, answer);
     });
 
     // PRIVATE ROOM REMATCH (Reset room to lobby without changing room code)
@@ -529,7 +744,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
       const reset = room.resetToLobby();
       if (reset) {
-        io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+        emitRoomStateToRoom(room);
       }
     });
 
@@ -540,7 +755,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
       const room = roomManager.getRoom(roomId);
       if (room) {
-        socket.emit('ROOM_STATE_UPDATE', room.getSummary());
+        emitRoomStateToSocket(socket, room);
       }
     });
 
@@ -565,7 +780,10 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       }
 
       const player = room.players.get(user.userId);
-      if (!player || !player.isAlive) {
+      const isValidPlayer =
+        room.gameType === 'MATHRACE' ? Boolean(player) : Boolean(player && (player as PlayerInGame).isAlive);
+
+      if (!player || !isValidPlayer) {
         socket.emit('SOCKET_ERROR', { code: 'RECONNECT_FAILED', message: 'Player eliminated or not in match.' });
         return;
       }
@@ -582,11 +800,14 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       socket.join(room.roomId);
       socket.data.roomId = room.roomId;
 
-      socket.emit('ROOM_STATE_UPDATE', room.getSummary());
-      if (room.getSummary().turnState) {
-        socket.emit('GAME_TURN_START', room.getSummary().turnState!);
+      emitRoomStateToSocket(socket, room);
+      if (room.gameType === 'WORDCHAIN') {
+        const wordTurn = room.getSummary().turnState;
+        if (wordTurn) {
+          socket.emit('GAME_TURN_START', wordTurn);
+        }
       }
-      io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+      emitRoomStateToRoom(room);
       console.log(`[Socket] Scholar manually reconnected: ${user.username} to room ${room.roomCode}`);
     });
 
@@ -594,7 +815,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
     socket.on('ROOM_LEAVE', () => {
       const roomId = socket.data.roomId;
       if (!roomId) {
-        socket.emit('ROOM_STATE_UPDATE', null);
+        emitClearRoomState(socket);
         return;
       }
 
@@ -606,7 +827,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       delete socket.data.roomId;
 
       // Definitively clear the room state on this client
-      socket.emit('ROOM_STATE_UPDATE', null);
+      emitClearRoomState(socket);
 
       const room = roomManager.getRoom(roomId);
       if (room) {
@@ -616,7 +837,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           roomManager.removeRoom(roomId);
         } else {
           io.to(roomId).emit('ROOM_PLAYER_LEFT', { userId: user.userId, newHostUserId: newHostId });
-          io.to(roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+          emitRoomStateToRoom(room);
         }
       }
     });
@@ -741,9 +962,34 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           roomManager.removeRoom(roomId);
         } else {
           io.to(roomId).emit('ROOM_PLAYER_LEFT', { userId: user.userId, newHostUserId: newHostId });
-          io.to(roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
+          emitRoomStateToRoom(room);
         }
       } else if (room.status === 'IN_PROGRESS') {
+        if (room.gameType === 'MATHRACE') {
+          const player = room.players.get(user.userId);
+          if (player) {
+            player.isDisconnected = true;
+            player.disconnectedAt = Date.now();
+            emitRoomStateToRoom(room);
+
+            const timer = setTimeout(() => {
+              disconnectTimers.delete(user.userId);
+              const targetRoom = roomManager.getMathRoom(roomId);
+              if (targetRoom && targetRoom.status === 'IN_PROGRESS') {
+                const connectedHumans = Array.from(targetRoom.players.values()).filter(
+                  (p) => !p.userId.startsWith('guest-bot-') && !p.isDisconnected
+                );
+                if (connectedHumans.length === 0) {
+                  roomManager.removeRoom(roomId);
+                }
+              }
+            }, 25000);
+
+            disconnectTimers.set(user.userId, timer);
+          }
+          return;
+        }
+
         const player = room.players.get(user.userId);
         if (player && player.isAlive) {
           player.isDisconnected = true;
@@ -753,7 +999,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           // 25-second grace window before auto-forfeit elimination
           const timer = setTimeout(() => {
             disconnectTimers.delete(user.userId);
-            const targetRoom = roomManager.getRoom(roomId);
+            const targetRoom = roomManager.getWordRoom(roomId);
             if (targetRoom && targetRoom.status === 'IN_PROGRESS') {
               const p = targetRoom.players.get(user.userId);
               if (p && p.isDisconnected && p.isAlive) {

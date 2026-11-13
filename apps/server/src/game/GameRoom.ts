@@ -71,6 +71,7 @@ export interface GameRoomOptions {
 }
 
 export class GameRoom {
+  public readonly gameType = 'WORDCHAIN' as const;
   public readonly roomId: string;
   public readonly roomCode: string;
   public readonly mode: GameMode;

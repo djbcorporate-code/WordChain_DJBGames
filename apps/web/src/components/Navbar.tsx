@@ -1,4 +1,5 @@
-import { AlertCircle, CheckCircle2, LogOut, ShieldAlert, Trophy, User as UserIcon, Zap } from 'lucide-react';
+import { GameType } from '@wordchain/shared';
+import { CheckCircle2, Gamepad2, LayoutGrid, LogOut, ShieldAlert, Trophy, User as UserIcon, Zap } from 'lucide-react';
 import React from 'react';
 import { useAuth } from '../context/AuthContext.js';
 import { RankEmblem } from './RankEmblem.js';
@@ -8,6 +9,8 @@ interface NavbarProps {
   onOpenLeaderboard?: () => void;
   onOpenProfile?: () => void;
   onOpenAdmin?: () => void;
+  activeGame?: 'CATALOG' | GameType;
+  onReturnToCatalog?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -15,35 +18,70 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenLeaderboard,
   onOpenProfile,
   onOpenAdmin,
+  activeGame = 'CATALOG',
+  onReturnToCatalog,
 }) => {
   const { user, logout, loginAsGuest } = useAuth();
+
+  const activeRank =
+    activeGame === 'MATHRACE'
+      ? user?.gameRanks?.MATHRACE || { tier: 'NURSERY' as const, division: 3, scientistPoints: 0 }
+      : user?.gameRanks?.WORDCHAIN || user?.currentRank;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-surface/90 backdrop-blur-md shrink-0">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2">
         {/* Brand */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-tr from-accent-primary to-accent-secondary flex items-center justify-center font-black text-base sm:text-xl text-white shadow-glow shrink-0">
-            W
+        <button
+          type="button"
+          onClick={onReturnToCatalog}
+          className="flex items-center gap-2 sm:gap-3 shrink-0 text-left group cursor-pointer"
+          title="Back to DJB Arcade Catalog"
+        >
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-gradient-to-tr from-accent-primary to-accent-secondary flex items-center justify-center font-black text-base sm:text-xl text-white shadow-glow shrink-0 group-hover:scale-105 transition-transform">
+            <Gamepad2 className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="font-extrabold text-base sm:text-xl tracking-tight text-white whitespace-nowrap">
-                Word<span className="text-accent-secondary">Chain</span>
+                DJB<span className="text-accent-secondary">Arcade</span>
               </span>
-              <span className="hidden sm:inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent-primary/20 text-indigo-300 border border-accent-primary/30 uppercase tracking-wider shrink-0">
-                S1 Academic
-              </span>
+              {activeGame !== 'CATALOG' && (
+                <span
+                  className={`hidden sm:inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 border ${
+                    activeGame === 'MATHRACE'
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-400/30'
+                      : 'bg-cyan-500/20 text-cyan-300 border-cyan-400/30'
+                  }`}
+                >
+                  {activeGame === 'MATHRACE' ? 'MathBlitz' : 'WordChain'}
+                </span>
+              )}
             </div>
-            <p className="text-[11px] text-slate-400 font-medium hidden sm:block whitespace-nowrap">Multiplayer Word Arena</p>
+            <p className="text-[11px] text-slate-400 font-medium hidden sm:block whitespace-nowrap">
+              {activeGame === 'MATHRACE'
+                ? 'Speed Arithmetic Race'
+                : activeGame === 'WORDCHAIN'
+                ? 'Multiplayer Word Arena'
+                : 'Multi-Game Competitive Portal'}
+            </p>
           </div>
-        </div>
+        </button>
 
-        {/* Global Leaderboards Quick Nav */}
+        {/* Center / Quick Nav */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {activeGame !== 'CATALOG' && onReturnToCatalog && (
+            <button
+              onClick={onReturnToCatalog}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-slate-200 hover:text-white bg-slate-900/90 hover:bg-slate-800 border border-slate-700 transition-all shadow-sm cursor-pointer"
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-accent-secondary" />
+              <span className="hidden sm:inline">All Games</span>
+            </button>
+          )}
           <button
             onClick={onOpenLeaderboard}
-            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 transition-all shadow-sm"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 transition-all shadow-sm cursor-pointer"
           >
             <Trophy className="w-3.5 h-3.5 text-amber-400" />
             <span className="hidden sm:inline">Leaderboards</span>
@@ -80,18 +118,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               {/* Rank Pill */}
-              <div
-                onClick={onOpenProfile}
-                className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 px-2 sm:px-3 py-1 rounded-xl cursor-pointer transition-all"
-                title="View Rank Standing"
-              >
-                <RankEmblem
-                  tier={user.currentRank.tier}
-                  division={user.currentRank.division}
-                  scientistPoints={user.currentRank.scientistPoints}
-                  size="sm"
-                />
-              </div>
+              {activeRank && (
+                <div
+                  onClick={onOpenProfile}
+                  className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 px-2 sm:px-3 py-1 rounded-xl cursor-pointer transition-all"
+                  title="View Rank Standing"
+                >
+                  <RankEmblem
+                    tier={activeRank.tier}
+                    division={activeRank.division}
+                    scientistPoints={activeRank.scientistPoints}
+                    size="sm"
+                  />
+                </div>
+              )}
 
               {/* User menu / Logout */}
               <div className="flex items-center gap-1 sm:gap-2 pl-1.5 sm:pl-2 border-l border-slate-800">
