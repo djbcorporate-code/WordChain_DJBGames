@@ -376,7 +376,7 @@ export const MathPracticeArena: React.FC<MathPracticeArenaProps> = ({ onExit }) 
             <div>
               <h2 className="text-2xl font-black text-white">Practice Simulator</h2>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Play 10 full rounds vs 2 AI Math Bots using the official 3s Pick &amp; 15s Race rules.
+                Play 10 full rounds vs 2 AI Math Bots using the official 3s Pick &amp; 1-Min (60s) Race rules.
               </p>
             </div>
 

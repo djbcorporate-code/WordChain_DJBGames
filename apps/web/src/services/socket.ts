@@ -107,7 +107,7 @@ class SocketService {
 
   public createMathPrivateRoom(
     operationMode: MathOperationMode = 'MIXED',
-    customTimerSec: number = 15
+    customTimerSec: number = 60
   ): void {
     this.getSocket().emit('ROOM_CREATE_PRIVATE', { gameType: 'MATHRACE', operationMode, customTimerSec });
   }

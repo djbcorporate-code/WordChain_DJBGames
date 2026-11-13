@@ -101,7 +101,7 @@ export const MathDashboard: React.FC<MathDashboardProps> = ({
             <div className="flex flex-wrap gap-2 text-[11px] font-mono text-slate-300 pt-1">
               <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800">10 Rounds</span>
               <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800">3s Number Pick</span>
-              <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800">15s Solve Race</span>
+              <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800">1-Min (60s) Solve Race</span>
               <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800">
                 ÷ Has 4 Choices (No Typing)
               </span>

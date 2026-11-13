@@ -115,7 +115,7 @@ export class MathGameRoom {
     this.operationMode = options.operationMode || 'MIXED';
     this.hostUserId = options.hostUserId;
     this.maxPlayers = Math.min(6, Math.max(2, options.maxPlayers || 6));
-    this.raceDurationSec = Math.min(30, Math.max(8, options.raceDurationSec || MATH_RACE_DURATION_SEC));
+    this.raceDurationSec = Math.min(120, Math.max(8, options.raceDurationSec || MATH_RACE_DURATION_SEC));
     this.resultDelayMs = options.resultDelayMs ?? MATH_ROUND_RESULT_DELAY_MS;
     this.callbacks = options.callbacks || {};
   }

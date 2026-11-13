@@ -374,7 +374,7 @@ export const MathGameProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setQueueStatus(null);
   }, []);
 
-  const createPrivateRoom = useCallback((operationMode: MathOperationMode = 'MIXED', customTimerSec = 15) => {
+  const createPrivateRoom = useCallback((operationMode: MathOperationMode = 'MIXED', customTimerSec = 60) => {
     setError(null);
     socketService.createMathPrivateRoom(operationMode, customTimerSec);
   }, []);

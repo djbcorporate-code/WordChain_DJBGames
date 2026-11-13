@@ -74,7 +74,7 @@ export const BISAYA_SEED_WORDS = [
 
 export const MATH_TOTAL_ROUNDS = 10;
 export const MATH_PICK_DURATION_SEC = 3;
-export const MATH_RACE_DURATION_SEC = 15;
+export const MATH_RACE_DURATION_SEC = 60;
 export const MATH_ROUND_RESULT_DELAY_MS = 2800;
 export const MATH_PICK_OPTION_COUNT = 12;
 export const MATH_PLACEMENT_POINTS = [100, 75, 60, 45, 35, 25] as const;

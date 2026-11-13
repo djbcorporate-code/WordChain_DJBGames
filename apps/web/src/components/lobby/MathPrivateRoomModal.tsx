@@ -20,7 +20,7 @@ export const MathPrivateRoomModal: React.FC<MathPrivateRoomModalProps> = ({ isOp
   const { createPrivateRoom, joinRoom, error } = useMathGame();
   const [activeTab, setActiveTab] = useState<'CREATE' | 'JOIN'>('CREATE');
   const [operationMode, setOperationMode] = useState<MathOperationMode>('MIXED');
-  const [raceTimerSec, setRaceTimerSec] = useState<number>(15);
+  const [raceTimerSec, setRaceTimerSec] = useState<number>(60);
   const [joinCode, setJoinCode] = useState('');
 
   if (!isOpen) return null;
@@ -120,7 +120,7 @@ export const MathPrivateRoomModal: React.FC<MathPrivateRoomModalProps> = ({ isOp
                 <span>Solve Window per Round ({raceTimerSec}s)</span>
               </label>
               <div className="grid grid-cols-3 gap-2">
-                {[12, 15, 20].map((sec) => (
+                {[30, 60, 90].map((sec) => (
                   <button
                     key={sec}
                     type="button"

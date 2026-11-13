@@ -1,4 +1,4 @@
-import { MATH_PLACEMENT_POINTS, MathOperation } from '@wordchain/shared';
+import { MATH_PLACEMENT_POINTS, MATH_RACE_DURATION_SEC, MathOperation } from '@wordchain/shared';
 import {
   AlertCircle,
   CheckCircle2,
@@ -107,7 +107,7 @@ export const MathLiveArena: React.FC = () => {
   const sortedPlayers = [...mathRoom.players].sort((a, b) => b.score - a.score);
   const myStandingRank = sortedPlayers.findIndex((p) => p.userId === user.id) + 1;
 
-  const totalPhaseMs = Math.max(1000, (roundState?.phaseDurationSec || 15) * 1000);
+  const totalPhaseMs = Math.max(1000, (roundState?.phaseDurationSec || MATH_RACE_DURATION_SEC) * 1000);
   const progressPct = Math.min(100, Math.max(0, (remainingMs / totalPhaseMs) * 100));
   const remainingSecDisplay =
     roundState?.phase === 'PICKING' ? (remainingMs / 1000).toFixed(1) : Math.ceil(remainingMs / 1000).toString();

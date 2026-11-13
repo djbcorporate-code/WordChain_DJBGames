@@ -76,7 +76,7 @@ export const MathLobbyRoomView: React.FC = () => {
             <span>MathBlitz Room Lobby</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            2–6 Players · 3s Random Pick (1–99) · 15s Equation Race · Highest Score Wins
+            2–6 Players · 3s Random Pick (1–99) · 1-Min (60s) Equation Race · Highest Score Wins
           </p>
         </div>
 

@@ -134,6 +134,7 @@ describe('MathEquationGenerator & MathGameRoom Engine', () => {
         await vi.advanceTimersByTimeAsync(3500);
 
         expect(room.phase).toBe('RACING');
+        expect(room.getSummary().roundState!.phaseDurationSec).toBe(60);
         expect(latestRace).not.toBeNull();
         expect(latestRace.picks).toHaveLength(6);
         room.cleanup();

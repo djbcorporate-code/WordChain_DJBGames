@@ -3,6 +3,7 @@ import {
   GameLanguage,
   GameRoomSummary,
   GameType,
+  MATH_RACE_DURATION_SEC,
   MathRoomSummary,
   PlayerInGame,
   RoomChatMessage,
@@ -320,7 +321,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
             operationMode: payload?.operationMode || 'MIXED',
             hostUserId: user.userId,
             maxPlayers: 6,
-            raceDurationSec: payload?.customTimerSec || 15,
+            raceDurationSec: payload?.customTimerSec || MATH_RACE_DURATION_SEC,
           });
 
           bindRoomCallbacks(mathRoom);
