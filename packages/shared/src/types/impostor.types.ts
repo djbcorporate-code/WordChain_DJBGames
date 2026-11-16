@@ -24,6 +24,14 @@ export type ImpostorConcreteCategoryId =
   | 'ABSTRACT_CONCEPTS';
 
 export type ImpostorCategoryId = 'RANDOM' | ImpostorConcreteCategoryId;
+export type ImpostorCategoryDisplayId = ImpostorCategoryId | 'CONCEALED';
+
+export interface ImpostorMaskedSettings {
+  category: ImpostorCategoryDisplayId;
+  difficulty: ImpostorDifficulty;
+  impostorCount: number;
+  conversationSec: number;
+}
 
 export interface ImpostorCategoryMeta {
   id: ImpostorConcreteCategoryId;
@@ -104,7 +112,7 @@ export interface ImpostorRoomSummary {
   mode: GameMode;
   status: RoomStatus;
   hostUserId: string;
-  settings: ImpostorSettings;
+  settings: ImpostorMaskedSettings;
   minPlayers: number;
   maxPlayers: number;
   players: ImpostorPlayerInGame[];

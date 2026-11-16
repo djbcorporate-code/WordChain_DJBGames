@@ -129,16 +129,35 @@ describe('ImpostorGameRoom Engine & Privacy', () => {
     room.cleanup();
   });
 
-  it('masks secretWord from Impostor and impostorHint from Crewmates during active play', () => {
+  it('masks secretWord from Impostor, impostorHint from Crewmates, and conceals category from non-host players until FINISHED', () => {
     const room = seedRoom(5, {
       category: 'DOTA2_HEROES',
       difficulty: 'MEDIUM',
       impostorCount: 1,
       conversationSec: 60,
     });
+
+    // In WAITING lobby: Host sees chosen category, joined players see CONCEALED
+    expect(room.getSummaryForUser('u1').settings.category).toBe('DOTA2_HEROES');
+    expect(room.getSummaryForUser('u2').settings.category).toBe('CONCEALED');
+    expect(room.getSummaryForUser('u3').settings.category).toBe('CONCEALED');
+
     room.startMatch();
     expect(room.status).toBe('IN_PROGRESS');
     expect(room.phase).toBe('ROLE_REVEAL');
+
+    const hostSummary = room.getSummaryForUser('u1');
+    expect(hostSummary.settings.category).toBe('DOTA2_HEROES');
+    expect(hostSummary.resolvedCategory?.id).toBe('DOTA2_HEROES');
+
+    // Non-host joined players must NOT see settings.category, resolvedCategory, or category name in system chat
+    for (const nonHostId of ['u2', 'u3', 'u4', 'u5']) {
+      const s = room.getSummaryForUser(nonHostId);
+      expect(s.settings.category).toBe('CONCEALED');
+      expect(s.resolvedCategory).toBeUndefined();
+      const chatText = (s.chatHistory || []).map((m) => m.text).join(' ');
+      expect(chatText).not.toContain('Dota 2 Heroes');
+    }
 
     const summaries = ['u1', 'u2', 'u3', 'u4', 'u5'].map((id) => ({
       id,
@@ -238,6 +257,7 @@ describe('ImpostorGameRoom Engine & Privacy', () => {
     expect(endPayload?.winnerFaction).toBe('CREWMATES');
     expect(endPayload?.secretWord).toBeTruthy();
     expect(endPayload?.impostorHint).toBeTruthy();
+    expect(room.getSummaryForUser('u2').resolvedCategory?.id).toBe('MOBILE_LEGENDS_HEROES');
 
     room.cleanup();
   });

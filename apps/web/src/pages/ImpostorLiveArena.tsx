@@ -153,13 +153,18 @@ export const ImpostorLiveArena: React.FC = () => {
             <span className="px-2.5 py-1 rounded-lg bg-rose-600/20 border border-rose-500/35 text-[11px] font-black uppercase tracking-widest text-rose-300">
               ROUND {impostorRoom.roundNumber || 1}
             </span>
-            {impostorRoom.resolvedCategory && (
+            {impostorRoom.resolvedCategory ? (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-white/10 bg-white/5 text-xs font-bold text-white">
                 <span>{impostorRoom.resolvedCategory.emoji}</span>
                 <span>{impostorRoom.resolvedCategory.label}</span>
                 <span className="text-[10px] font-black uppercase text-amber-300 ml-1">
                   · {impostorRoom.resolvedCategory.difficulty}
                 </span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-rose-500/25 bg-rose-950/35 text-[11px] font-black uppercase tracking-wider text-rose-200/90">
+                <span>🔒</span>
+                <span>Category Concealed</span>
               </div>
             )}
           </div>

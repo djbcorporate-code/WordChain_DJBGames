@@ -278,28 +278,38 @@ export const ImpostorLobbyView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Category Select */}
+                {/* Category Select (Host Eyes Only — Concealed to Joined Players) */}
                 <div>
                   <label className="block text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400 mb-1.5">
-                    Category
+                    Category {isHost ? '(Concealed From Joined Players)' : ''}
                   </label>
-                  <select
-                    disabled={!isHost}
-                    value={impostorRoom.settings.category}
-                    onChange={(e) =>
-                      updateSettings({ category: e.target.value as ImpostorCategoryId })
-                    }
-                    className="w-full px-3 py-2 rounded-xl border border-white/15 bg-black/60 text-xs font-bold text-white focus:outline-none focus:border-rose-500 disabled:opacity-75"
-                  >
-                    <option value="RANDOM">
-                      🎲 Random ({impostorRoom.settings.difficulty} Pool)
-                    </option>
-                    {filteredCategories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.emoji} {cat.label} ({cat.difficulty})
+                  {isHost ? (
+                    <select
+                      value={
+                        impostorRoom.settings.category === 'CONCEALED'
+                          ? 'RANDOM'
+                          : impostorRoom.settings.category
+                      }
+                      onChange={(e) =>
+                        updateSettings({ category: e.target.value as ImpostorCategoryId })
+                      }
+                      className="w-full px-3 py-2 rounded-xl border border-white/15 bg-black/60 text-xs font-bold text-white focus:outline-none focus:border-rose-500"
+                    >
+                      <option value="RANDOM">
+                        🎲 Random ({impostorRoom.settings.difficulty} Pool)
                       </option>
-                    ))}
-                  </select>
+                      {filteredCategories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.emoji} {cat.label} ({cat.difficulty})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="w-full px-3 py-2 rounded-xl border border-rose-500/30 bg-rose-950/25 text-xs font-black tracking-wider text-rose-300 flex items-center justify-between">
+                      <span>🔒 CLASSIFIED · HOST ONLY</span>
+                      <span className="text-[10px] text-rose-400/80 uppercase">Redacted</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Impostor Count */}

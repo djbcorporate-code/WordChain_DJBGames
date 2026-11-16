@@ -467,7 +467,7 @@ export class ImpostorGameRoom {
     this.phaseDeadlineUtc = now + revealMs;
 
     this.appendSystemMessage(
-      `Classified Briefing started! Category: ${this.resolvedCategory.emoji} ${this.resolvedCategory.label} (${effectiveImpostors} Impostor${effectiveImpostors > 1 ? 's' : ''}).`
+      `Classified Briefing started! (${effectiveImpostors} Impostor${effectiveImpostors > 1 ? 's' : ''} hidden in the squad — category eyes-only for Host).`
     );
 
     this.callbacks.onStateChange?.();
@@ -801,6 +801,8 @@ export class ImpostorGameRoom {
    */
   public getSummaryForUser(recipientUserId?: string): ImpostorRoomSummary {
     const isFinished = this.status === 'FINISHED';
+    const isHost = Boolean(recipientUserId && recipientUserId === this.hostUserId);
+    const canSeeCategory = isHost || isFinished;
     const recipientRole = recipientUserId
       ? this.roles.get(recipientUserId)
       : undefined;
@@ -843,7 +845,10 @@ export class ImpostorGameRoom {
       mode: this.mode,
       status: this.status,
       hostUserId: this.hostUserId,
-      settings: { ...this.settings },
+      settings: {
+        ...this.settings,
+        category: canSeeCategory ? this.settings.category : 'CONCEALED',
+      },
       minPlayers: this.minPlayers,
       maxPlayers: this.maxPlayers,
       players: maskedPlayers,
@@ -852,9 +857,10 @@ export class ImpostorGameRoom {
       phaseStartedAtUtc: this.phaseStartedAtUtc,
       phaseDeadlineUtc: this.phaseDeadlineUtc,
       serverNowUtc: Date.now(),
-      resolvedCategory: this.resolvedCategory
-        ? { ...this.resolvedCategory }
-        : undefined,
+      resolvedCategory:
+        canSeeCategory && this.resolvedCategory
+          ? { ...this.resolvedCategory }
+          : undefined,
       myRole:
         this.status === 'IN_PROGRESS' || isFinished ? recipientRole : undefined,
       secretWord,
