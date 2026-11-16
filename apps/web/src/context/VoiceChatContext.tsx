@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthContext.js';
+import { useChessGame } from './ChessGameContext.js';
 import { useGame } from './GameContext.js';
+import { useImpostorGame } from './ImpostorGameContext.js';
 import { useMathGame } from './MathGameContext.js';
 import { socketService } from '../services/socket.js';
 
@@ -39,7 +41,9 @@ export const VoiceChatProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const { user } = useAuth();
   const { currentRoom } = useGame();
   const { mathRoom } = useMathGame();
-  const activeRoom = currentRoom || mathRoom;
+  const { chessRoom } = useChessGame();
+  const { impostorRoom } = useImpostorGame();
+  const activeRoom = currentRoom || mathRoom || chessRoom || impostorRoom;
 
   const [isOpenMicEnabled, setIsOpenMicEnabled] = useState(false);
   const [isMuted, setIsMuted] = useState(false);

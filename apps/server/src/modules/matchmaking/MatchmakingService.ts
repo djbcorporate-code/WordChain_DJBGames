@@ -9,6 +9,8 @@ import {
   GameLanguage,
   GameMode,
   GameType,
+  IMPOSTOR_MAX_PLAYERS,
+  IMPOSTOR_MIN_PLAYERS,
   MATH_DIFFICULTY_CONFIGS,
   MATH_DIFFICULTY_ORDER,
   MathDifficulty,
@@ -88,6 +90,15 @@ export class MatchmakingService {
       chessVariant && ['2P', '3P', '4P'].includes(chessVariant) ? chessVariant : '2P';
     const resolvedClockSec = Math.min(1800, Math.max(60, clockSec || CHESS_DEFAULT_CLOCK_SEC));
 
+    // Who Is The Impostor is strictly unranked
+    if (gameType === 'IMPOSTOR' && mode === 'RANKED') {
+      socket.emit('SOCKET_ERROR', {
+        code: 'RANKED_NOT_SUPPORTED',
+        message: 'Who Is The Impostor is unranked only. Join Public Casual or host a Private lobby!',
+      });
+      return false;
+    }
+
     // Check Ranked eligibility if queuing for Ranked
     if (mode === 'RANKED') {
       const eligibility = await RankingService.checkRankedEligibility(user.userId);
@@ -147,6 +158,8 @@ export class MatchmakingService {
               (mode === 'RANKED' || p.difficulty === resolvedDifficulty)
             : gameType === 'CHESS'
             ? p.chessVariant === resolvedVariant
+            : gameType === 'IMPOSTOR'
+            ? true
             : p.language === language)
       ).length,
       estimatedWaitSec: mode === 'RANKED' ? 10 : 3,
@@ -180,6 +193,7 @@ export class MatchmakingService {
     this.processMathCasualQueue();
     this.processMathRankedQueue();
     this.processChessQueues();
+    this.processImpostorCasualQueue();
   }
 
   private generateBotScholar(tier: AcademicRankTier = 'NURSERY', division: number = 3): PlayerInGame {
@@ -507,6 +521,87 @@ export class MatchmakingService {
     room.startCountdown();
     console.log(
       `[Matchmaking] Chess ${mode} (${variant}) created: ${room.roomCode} with ${totalCount} players`
+    );
+  }
+
+  private processImpostorCasualQueue(): void {
+    const impostorQueue = this.queue.filter(
+      (p) => p.gameType === 'IMPOSTOR' && p.mode === 'CASUAL'
+    );
+    if (impostorQueue.length === 0) return;
+
+    const now = Date.now();
+    const oldestWaitMs = now - impostorQueue[0].enqueuedAt;
+
+    if (
+      impostorQueue.length >= IMPOSTOR_MAX_PLAYERS ||
+      (impostorQueue.length >= IMPOSTOR_MIN_PLAYERS && oldestWaitMs >= 4000)
+    ) {
+      const batch = impostorQueue.slice(0, IMPOSTOR_MAX_PLAYERS);
+      this.removeFromQueue(batch);
+      this.createImpostorCasualMatch(batch);
+      return;
+    }
+
+    // Strictly wait for >= 3 human players (no AI bots in social deduction)
+    this.emitQueueWaitingStatus(
+      impostorQueue,
+      'IMPOSTOR',
+      'CASUAL',
+      {},
+      impostorQueue.length >= IMPOSTOR_MIN_PLAYERS ? 4 : 15,
+      1
+    );
+  }
+
+  private createImpostorCasualMatch(players: QueuedPlayer[]): void {
+    const roomManager = RoomManager.getInstance();
+    const host = players[0];
+    const impostorCount = players.length >= 7 ? 2 : 1;
+
+    const room = roomManager.createImpostorRoom({
+      mode: 'CASUAL',
+      hostUserId: host.user.userId,
+      settings: {
+        category: 'RANDOM',
+        difficulty: 'ALL',
+        impostorCount,
+        conversationSec: 90,
+      },
+    });
+
+    this.bindCallbacksFn!(room);
+
+    for (const p of players) {
+      room.addPlayer({
+        userId: p.playerInfo.userId,
+        username: p.playerInfo.username,
+        avatarId: p.playerInfo.avatarId,
+        isReady: true,
+      });
+
+      p.socket.join(room.roomId);
+      p.socket.data.roomId = room.roomId;
+
+      p.socket.emit('QUEUE_STATUS', { inQueue: false });
+      p.socket.emit('MATCH_FOUND', {
+        roomId: room.roomId,
+        gameType: 'IMPOSTOR',
+        mode: 'CASUAL',
+        countdownSec: 3,
+      });
+    }
+
+    for (const p of players) {
+      p.socket.emit(
+        'IMPOSTOR_ROOM_STATE_UPDATE',
+        room.getSummaryForUser(p.playerInfo.userId)
+      );
+    }
+
+    room.startCountdown();
+    console.log(
+      `[Matchmaking] Impostor Casual match created: ${room.roomCode} with ${players.length} human agents (${impostorCount} impostor${impostorCount > 1 ? 's' : ''})`
     );
   }
 

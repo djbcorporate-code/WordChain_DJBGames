@@ -1,8 +1,8 @@
 import {
   ACADEMIC_RANK_TIERS,
   AcademicRankTier,
-  GameType,
   PlayerInGame,
+  RankedGameType,
   RANK_TIER_CONFIGS,
   RankProgressionDelta,
 } from '@wordchain/shared';
@@ -29,7 +29,7 @@ export interface SettleableMatchParticipant {
 
 export interface SettleableMatchInput {
   roomCode: string;
-  gameType: GameType;
+  gameType: RankedGameType;
   mode: string;
   roundNumber: number;
   createdAt: number;

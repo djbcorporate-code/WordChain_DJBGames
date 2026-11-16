@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Calculator,
   Crown,
+  Fingerprint,
   Flame,
   Gamepad2,
   Hash,
@@ -185,11 +186,11 @@ export const GameCatalogPage: React.FC<GameCatalogPageProps> = ({
             </p>
           </div>
           <span className="text-xs font-mono text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/25 px-3 py-1 rounded-full self-start sm:self-auto">
-            3 Playable Arenas Live
+            4 Playable Arenas Live
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* CARD 1: WORDCHAIN */}
           <div className="group relative rounded-3xl bg-card border border-slate-800 hover:border-cyan-500/60 p-6 sm:p-7 transition-all shadow-xl hover:shadow-cyan-950/30 flex flex-col justify-between gap-6">
             <div className="space-y-4">
@@ -358,6 +359,57 @@ export const GameCatalogPage: React.FC<GameCatalogPageProps> = ({
               </button>
             </div>
           </div>
+
+          {/* CARD 4: WHO IS THE IMPOSTOR */}
+          <div className="group relative rounded-3xl bg-[#090b12] border border-rose-500/30 hover:border-rose-500/70 p-6 sm:p-7 transition-all shadow-xl hover:shadow-rose-950/40 flex flex-col justify-between gap-6">
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-600/25 to-red-900/35 border border-rose-500/40 flex items-center justify-center text-rose-400 shadow-inner">
+                  <Fingerprint className="w-7 h-7" />
+                </div>
+                <div className="flex flex-wrap gap-1.5 justify-end">
+                  <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/35 text-[11px] font-mono font-black flex items-center gap-1">
+                    <Flame className="w-3 h-3" /> NEW NOIR
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[11px] font-mono font-bold flex items-center gap-1">
+                    <Users className="w-3 h-3 text-rose-400" /> 3–10 Humans
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-2xl font-black text-white group-hover:text-rose-300 transition-colors">
+                  Who Is The Impostor
+                </h3>
+                <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
+                  Unranked social word deduction in Spy Noir theme! Crewmates receive the Secret Word while Impostors blend in off subtle clues across 18 categories — including Pinoy Slang, MLBB &amp; Dota 2 Heroes.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-[11px] font-mono text-slate-300">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">18 Categories</span>
+                <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">Voice + Chat</span>
+                <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">No Rank Needed</span>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-3 border-t border-slate-800/80">
+              <div className="flex items-center justify-between bg-rose-950/30 px-3.5 py-2.5 rounded-2xl border border-rose-500/25">
+                <span className="text-[11px] font-mono uppercase text-rose-300 font-bold">Mode</span>
+                <span className="text-xs font-black uppercase tracking-wider text-white">
+                  Social Party · Zero AI Bots
+                </span>
+              </div>
+
+              <button
+                onClick={() => onSelectGame('IMPOSTOR')}
+                className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-rose-900/30 transition-all cursor-pointer"
+              >
+                <span>Enter Spy Lounge</span>
+                <Fingerprint className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -370,7 +422,7 @@ export const GameCatalogPage: React.FC<GameCatalogPageProps> = ({
           <div>
             <h3 className="font-bold text-sm sm:text-base text-white">Have a Private Room Code?</h3>
             <p className="text-xs text-slate-400">
-              Enter any WordChain, MathBlitz, or Chess 6-character code — you&apos;ll automatically route into the host&apos;s game.
+              Enter any WordChain, MathBlitz, Chess, or Impostor 6-character code — you&apos;ll automatically route into the host&apos;s game.
             </p>
           </div>
         </div>

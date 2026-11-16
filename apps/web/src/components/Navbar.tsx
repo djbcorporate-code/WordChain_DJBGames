@@ -1,5 +1,5 @@
 import { GameType } from '@wordchain/shared';
-import { CheckCircle2, Gamepad2, LayoutGrid, LogOut, ShieldAlert, Trophy, User as UserIcon, Zap } from 'lucide-react';
+import { CheckCircle2, Fingerprint, Gamepad2, LayoutGrid, LogOut, ShieldAlert, Trophy, User as UserIcon, Zap } from 'lucide-react';
 import React from 'react';
 import { useAuth } from '../context/AuthContext.js';
 import { RankEmblem } from './RankEmblem.js';
@@ -24,7 +24,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { user, logout, loginAsGuest } = useAuth();
 
   const activeRank =
-    activeGame === 'MATHRACE'
+    activeGame === 'IMPOSTOR'
+      ? null
+      : activeGame === 'MATHRACE'
       ? user?.gameRanks?.MATHRACE || { tier: 'NURSERY' as const, division: 3, scientistPoints: 0 }
       : activeGame === 'CHESS'
       ? user?.gameRanks?.CHESS || { tier: 'NURSERY' as const, division: 3, scientistPoints: 0 }
@@ -55,10 +57,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                       ? 'bg-amber-500/20 text-amber-300 border-amber-400/30'
                       : activeGame === 'CHESS'
                       ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30'
+                      : activeGame === 'IMPOSTOR'
+                      ? 'bg-rose-500/20 text-rose-300 border-rose-400/30'
                       : 'bg-cyan-500/20 text-cyan-300 border-cyan-400/30'
                   }`}
                 >
-                  {activeGame === 'MATHRACE' ? 'MathBlitz' : activeGame === 'CHESS' ? 'Chess' : 'WordChain'}
+                  {activeGame === 'MATHRACE'
+                    ? 'MathBlitz'
+                    : activeGame === 'CHESS'
+                    ? 'Chess'
+                    : activeGame === 'IMPOSTOR'
+                    ? 'Impostor'
+                    : 'WordChain'}
                 </span>
               )}
             </div>
@@ -67,6 +77,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 ? 'Speed Arithmetic Race'
                 : activeGame === 'CHESS'
                 ? '2P · 3P Hex · 4P Cross Chess'
+                : activeGame === 'IMPOSTOR'
+                ? 'Social Deduction · Unranked'
                 : activeGame === 'WORDCHAIN'
                 ? 'Multiplayer Word Arena'
                 : 'Multi-Game Competitive Portal'}
@@ -123,20 +135,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Lv. {user.profile.accountLevel}</span>
               </button>
 
-              {/* Rank Pill */}
-              {activeRank && (
-                <div
-                  onClick={onOpenProfile}
-                  className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 px-2 sm:px-3 py-1 rounded-xl cursor-pointer transition-all"
-                  title="View Rank Standing"
-                >
-                  <RankEmblem
-                    tier={activeRank.tier}
-                    division={activeRank.division}
-                    scientistPoints={activeRank.scientistPoints}
-                    size="sm"
-                  />
+              {/* Rank Pill (Hidden in Unranked Impostor Mode) */}
+              {activeGame === 'IMPOSTOR' ? (
+                <div className="hidden sm:flex items-center gap-1.5 bg-rose-950/50 border border-rose-500/30 px-2.5 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider text-rose-300">
+                  <Fingerprint className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Unranked Spy</span>
                 </div>
+              ) : (
+                activeRank && (
+                  <div
+                    onClick={onOpenProfile}
+                    className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 px-2 sm:px-3 py-1 rounded-xl cursor-pointer transition-all"
+                    title="View Rank Standing"
+                  >
+                    <RankEmblem
+                      tier={activeRank.tier}
+                      division={activeRank.division}
+                      scientistPoints={activeRank.scientistPoints}
+                      size="sm"
+                    />
+                  </div>
+                )
               )}
 
               {/* User menu / Logout */}

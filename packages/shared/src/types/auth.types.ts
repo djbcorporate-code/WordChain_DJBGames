@@ -1,4 +1,4 @@
-import { GameType } from './game.types.js';
+import { RankedGameType } from './game.types.js';
 import { AcademicRankTier } from './ranking.types.js';
 
 export interface GameRankStanding {
@@ -50,7 +50,7 @@ export interface AuthenticatedUser {
     scientistPoints: number;
     hiddenMmr: number;
   };
-  gameRanks?: Record<GameType, GameRankStanding>;
+  gameRanks?: Record<RankedGameType, GameRankStanding>;
 }
 
 export interface AuthSession {

@@ -1,9 +1,10 @@
 import { GameMode } from '@wordchain/shared';
 import { ChessGameRoom, ChessGameRoomOptions } from './chess/ChessGameRoom.js';
 import { GameRoom, GameRoomOptions } from './GameRoom.js';
+import { ImpostorGameRoom, ImpostorGameRoomOptions } from './impostor/ImpostorGameRoom.js';
 import { MathGameRoom, MathGameRoomOptions } from './math/MathGameRoom.js';
 
-export type AnyGameRoom = GameRoom | MathGameRoom | ChessGameRoom;
+export type AnyGameRoom = GameRoom | MathGameRoom | ChessGameRoom | ImpostorGameRoom;
 
 export class RoomManager {
   private static instance: RoomManager | null = null;
@@ -38,6 +39,13 @@ export class RoomManager {
     return room;
   }
 
+  public createImpostorRoom(options: ImpostorGameRoomOptions): ImpostorGameRoom {
+    const room = new ImpostorGameRoom(options);
+    this.rooms.set(room.roomId, room);
+    this.codeIndex.set(room.roomCode.toUpperCase(), room.roomId);
+    return room;
+  }
+
   public getRoom(roomId: string): AnyGameRoom | undefined {
     if (!roomId || typeof roomId !== 'string') return undefined;
     return this.rooms.get(roomId);
@@ -56,6 +64,11 @@ export class RoomManager {
   public getChessRoom(roomId: string): ChessGameRoom | undefined {
     const room = this.getRoom(roomId);
     return room && room.gameType === 'CHESS' ? room : undefined;
+  }
+
+  public getImpostorRoom(roomId: string): ImpostorGameRoom | undefined {
+    const room = this.getRoom(roomId);
+    return room && room.gameType === 'IMPOSTOR' ? room : undefined;
   }
 
   public getRoomByCode(code: string): AnyGameRoom | undefined {

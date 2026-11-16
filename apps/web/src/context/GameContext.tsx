@@ -3,6 +3,7 @@ import {
   GameMode,
   GameRoomSummary,
   GameTurnState,
+  GameType,
   PlayerInGame,
   RankProgressionDelta,
   RoomChatMessage,
@@ -24,7 +25,7 @@ export interface TimeAttackAlert {
 
 export interface QueueState {
   inQueue: boolean;
-  gameType?: 'WORDCHAIN' | 'MATHRACE' | 'CHESS';
+  gameType?: GameType;
   mode?: GameMode;
   language?: GameLanguage;
   position?: number;
@@ -128,17 +129,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setMatchFoundNotice(null);
         return;
       }
-      if (status.gameType === 'MATHRACE' || status.gameType === 'CHESS') return;
+      if (status.gameType === 'MATHRACE' || status.gameType === 'CHESS' || status.gameType === 'IMPOSTOR') return;
       setQueueStatus(status);
     };
 
     const handleMatchFound = (payload: {
       roomId: string;
-      gameType?: 'WORDCHAIN' | 'MATHRACE' | 'CHESS';
+      gameType?: GameType;
       mode: GameMode;
       countdownSec: number;
     }) => {
-      if (payload.gameType === 'MATHRACE' || payload.gameType === 'CHESS') return;
+      if (payload.gameType === 'MATHRACE' || payload.gameType === 'CHESS' || payload.gameType === 'IMPOSTOR') return;
       soundManager.playVictory();
       setQueueStatus(null);
       setMatchFoundNotice({ roomId: payload.roomId, countdownSec: payload.countdownSec });

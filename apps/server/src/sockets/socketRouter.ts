@@ -8,6 +8,7 @@ import {
   GameLanguage,
   GameRoomSummary,
   GameType,
+  IMPOSTOR_MIN_PLAYERS,
   MATH_DIFFICULTY_CONFIGS,
   MATH_RACE_DURATION_SEC,
   MathDifficulty,
@@ -19,6 +20,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { ChessGameRoom, ChessGameRoomCallbacks } from '../game/chess/ChessGameRoom.js';
 import { GameRoom, GameRoomCallbacks } from '../game/GameRoom.js';
+import { ImpostorGameRoom, ImpostorGameRoomCallbacks } from '../game/impostor/ImpostorGameRoom.js';
 import { MathGameRoom, MathGameRoomCallbacks } from '../game/math/MathGameRoom.js';
 import { AnyGameRoom, RoomManager } from '../game/RoomManager.js';
 import { AuthService } from '../modules/auth/auth.service.js';
@@ -38,6 +40,16 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       io.to(room.roomId).emit('MATH_ROOM_STATE_UPDATE', room.getSummary());
     } else if (room.gameType === 'CHESS') {
       io.to(room.roomId).emit('CHESS_ROOM_STATE_UPDATE', room.getSummary());
+    } else if (room.gameType === 'IMPOSTOR') {
+      const roomSockets = io.sockets.adapter.rooms.get(room.roomId);
+      if (!roomSockets) return;
+      for (const socketId of roomSockets) {
+        const candidate = io.sockets.sockets.get(socketId) as AuthenticatedSocket | undefined;
+        const recipientId = candidate?.data?.user?.userId;
+        if (candidate && recipientId) {
+          candidate.emit('IMPOSTOR_ROOM_STATE_UPDATE', room.getSummaryForUser(recipientId));
+        }
+      }
     } else {
       io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
     }
@@ -48,6 +60,8 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       socket.emit('MATH_ROOM_STATE_UPDATE', room.getSummary());
     } else if (room.gameType === 'CHESS') {
       socket.emit('CHESS_ROOM_STATE_UPDATE', room.getSummary());
+    } else if (room.gameType === 'IMPOSTOR') {
+      socket.emit('IMPOSTOR_ROOM_STATE_UPDATE', room.getSummaryForUser(socket.data.user.userId));
     } else {
       socket.emit('ROOM_STATE_UPDATE', room.getSummary());
     }
@@ -57,6 +71,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
     socket.emit('ROOM_STATE_UPDATE', null);
     socket.emit('MATH_ROOM_STATE_UPDATE', null);
     socket.emit('CHESS_ROOM_STATE_UPDATE', null);
+    socket.emit('IMPOSTOR_ROOM_STATE_UPDATE', null);
   }
 
   function findSocketInRoom(roomId: string, targetUserId: string): AuthenticatedSocket | undefined {
@@ -256,11 +271,28 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
     (room as any).callbacks = callbacks;
   }
 
+  function bindImpostorRoomCallbacks(room: ImpostorGameRoom): void {
+    const callbacks: ImpostorGameRoomCallbacks = {
+      onStateChange: () => {
+        emitRoomStateToRoom(room);
+      },
+      onCountdownTick: (payload) => {
+        io.to(room.roomId).emit('ROOM_COUNTDOWN_TICK', payload);
+      },
+      onMatchEnded: (payload) => {
+        io.to(room.roomId).emit('IMPOSTOR_MATCH_ENDED', payload);
+      },
+    };
+    room.setCallbacks(callbacks);
+  }
+
   function bindRoomCallbacks(room: AnyGameRoom): void {
     if (room.gameType === 'MATHRACE') {
       bindMathRoomCallbacks(room);
     } else if (room.gameType === 'CHESS') {
       bindChessRoomCallbacks(room);
+    } else if (room.gameType === 'IMPOSTOR') {
+      bindImpostorRoomCallbacks(room);
     } else {
       bindWordRoomCallbacks(room);
     }
@@ -281,7 +313,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       if (room.status === 'IN_PROGRESS') {
         const player = room.players.get(user.userId);
         const canReconnect =
-          room.gameType === 'MATHRACE' || room.gameType === 'CHESS'
+          room.gameType === 'MATHRACE' || room.gameType === 'CHESS' || room.gameType === 'IMPOSTOR'
             ? Boolean(player && player.isDisconnected)
             : Boolean(player && (player as PlayerInGame).isAlive && player.isDisconnected);
 
@@ -319,6 +351,8 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
             ? 'MATHRACE'
             : payload?.gameType === 'CHESS'
             ? 'CHESS'
+            : payload?.gameType === 'IMPOSTOR'
+            ? 'IMPOSTOR'
             : 'WORDCHAIN';
         const mode = payload?.mode || 'CASUAL';
         const language = payload?.language || 'ENGLISH';
@@ -339,7 +373,10 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           profile: { avatarId: 'avatar_default_01' },
         }));
 
-        const gameRank = fullUser.gameRanks?.[gameType] || fullUser.currentRank;
+        const gameRank =
+          gameType === 'IMPOSTOR'
+            ? fullUser.currentRank
+            : fullUser.gameRanks?.[gameType] || fullUser.currentRank;
 
         const playerInfo: PlayerInGame = {
           userId: user.userId,
@@ -400,6 +437,8 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
             ? 'MATHRACE'
             : payload?.gameType === 'CHESS'
             ? 'CHESS'
+            : payload?.gameType === 'IMPOSTOR'
+            ? 'IMPOSTOR'
             : 'WORDCHAIN';
 
         const fullUser = await AuthService.getFullUserProfile(user.userId).catch(() => ({
@@ -410,7 +449,34 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           profile: { avatarId: 'avatar_default_01' },
         }));
 
-        const gameRank = fullUser.gameRanks?.[gameType] || fullUser.currentRank;
+        const gameRank =
+          gameType === 'IMPOSTOR'
+            ? fullUser.currentRank
+            : fullUser.gameRanks?.[gameType] || fullUser.currentRank;
+
+        if (gameType === 'IMPOSTOR') {
+          const impostorRoom = roomManager.createImpostorRoom({
+            mode: 'PRIVATE',
+            hostUserId: user.userId,
+            settings: payload?.impostorSettings,
+          });
+
+          bindRoomCallbacks(impostorRoom);
+          impostorRoom.addPlayer({
+            userId: user.userId,
+            username: user.username,
+            avatarId: fullUser.profile.avatarId,
+            isReady: true,
+          });
+
+          socket.join(impostorRoom.roomId);
+          socket.data.roomId = impostorRoom.roomId;
+          emitRoomStateToRoom(impostorRoom);
+          console.log(
+            `[Socket] Impostor private room created: ${impostorRoom.roomCode} (${impostorRoom.roomId}) by ${user.username}`
+          );
+          return;
+        }
 
         if (gameType === 'CHESS') {
           const requestedVariant = payload?.chessVariant;
@@ -536,10 +602,20 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           profile: { avatarId: 'avatar_default_01' },
         }));
 
-        const gameRank = fullUser.gameRanks?.[room.gameType] || fullUser.currentRank;
+        const gameRank =
+          room.gameType === 'IMPOSTOR'
+            ? fullUser.currentRank
+            : fullUser.gameRanks?.[room.gameType] || fullUser.currentRank;
 
         let added = false;
-        if (room.gameType === 'MATHRACE' || room.gameType === 'CHESS') {
+        if (room.gameType === 'IMPOSTOR') {
+          added = room.addPlayer({
+            userId: user.userId,
+            username: user.username,
+            avatarId: fullUser.profile.avatarId,
+            isReady: false,
+          });
+        } else if (room.gameType === 'MATHRACE' || room.gameType === 'CHESS') {
           added = room.addPlayer({
             userId: user.userId,
             username: user.username,
@@ -634,6 +710,14 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
         return;
       }
 
+      if (room.gameType === 'IMPOSTOR') {
+        socket.emit('SOCKET_ERROR', {
+          code: 'BOTS_NOT_ALLOWED',
+          message: 'Who Is The Impostor is for real human players only — AI bots cannot join.',
+        });
+        return;
+      }
+
       const maxCap = room.maxPlayers || 8;
       if (room.players.size >= maxCap) {
         socket.emit('SOCKET_ERROR', { code: 'ROOM_FULL', message: `Room has reached maximum capacity of ${maxCap} players.` });
@@ -687,13 +771,20 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
         return;
       }
 
-      const requiredPlayers = room.gameType === 'CHESS' ? room.maxPlayers : 2;
+      const requiredPlayers =
+        room.gameType === 'CHESS'
+          ? room.maxPlayers
+          : room.gameType === 'IMPOSTOR'
+          ? IMPOSTOR_MIN_PLAYERS
+          : 2;
       if (room.players.size < requiredPlayers) {
         socket.emit('SOCKET_ERROR', {
           code: 'NOT_ENOUGH_PLAYERS',
           message:
             room.gameType === 'CHESS'
               ? `${room.variant} Chess requires ${requiredPlayers} seated players (invite friends or add AI bots).`
+              : room.gameType === 'IMPOSTOR'
+              ? `Who Is The Impostor requires at least ${IMPOSTOR_MIN_PLAYERS} human agents to launch.`
               : 'At least 2 players are required to start.',
         });
         return;
@@ -782,6 +873,14 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
       const player = room.players.get(user.userId);
       if (!player) return;
+
+      if (room.gameType === 'IMPOSTOR' && !room.canSendPublicChat(user.userId)) {
+        socket.emit('SOCKET_ERROR', {
+          code: 'EJECTED_SILENCED',
+          message: 'Ejected agents are silenced until the mission ends.',
+        });
+        return;
+      }
 
       if (!text || typeof text !== 'string') return;
       const trimmed = text.trim().slice(0, 200);
@@ -890,6 +989,52 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       room.resignPlayer(user.userId, 'RESIGN');
     });
 
+    // WHO IS THE IMPOSTOR: LIVE HOST SETUP SETTINGS
+    socket.on('IMPOSTOR_UPDATE_SETTINGS', (patch) => {
+      const roomId = socket.data.roomId;
+      if (!roomId || !patch || typeof patch !== 'object') return;
+
+      const room = roomManager.getImpostorRoom(roomId);
+      if (!room) return;
+
+      const result = room.updateSettings(user.userId, patch);
+      if (!result.ok) {
+        socket.emit('SOCKET_ERROR', {
+          code: 'SETTINGS_REJECTED',
+          message: result.error || 'Could not update Impostor lobby settings.',
+        });
+      }
+    });
+
+    // WHO IS THE IMPOSTOR: READY TO VOTE FAST-FORWARD
+    socket.on('IMPOSTOR_READY_TO_VOTE', ({ ready }) => {
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+
+      const room = roomManager.getImpostorRoom(roomId);
+      if (!room) return;
+
+      room.setReadyToVote(user.userId, Boolean(ready));
+    });
+
+    // WHO IS THE IMPOSTOR: CAST VOTE
+    socket.on('IMPOSTOR_CAST_VOTE', ({ targetUserId }) => {
+      if (typeof targetUserId !== 'string' || !targetUserId.trim()) return;
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+
+      const room = roomManager.getImpostorRoom(roomId);
+      if (!room) return;
+
+      const result = room.castVote(user.userId, targetUserId);
+      if (!result.ok) {
+        socket.emit('SOCKET_ERROR', {
+          code: 'VOTE_REJECTED',
+          message: result.error || 'Could not record your vote.',
+        });
+      }
+    });
+
     // PRIVATE ROOM REMATCH (Reset room to lobby without changing room code)
     socket.on('ROOM_RESET_REMATCH', () => {
       const roomId = socket.data.roomId;
@@ -942,7 +1087,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
       const player = room.players.get(user.userId);
       const isValidPlayer =
-        room.gameType === 'MATHRACE' || room.gameType === 'CHESS'
+        room.gameType === 'MATHRACE' || room.gameType === 'CHESS' || room.gameType === 'IMPOSTOR'
           ? Boolean(player)
           : Boolean(player && (player as PlayerInGame).isAlive);
 
@@ -1128,7 +1273,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           emitRoomStateToRoom(room);
         }
       } else if (room.status === 'IN_PROGRESS') {
-        if (room.gameType === 'MATHRACE' || room.gameType === 'CHESS') {
+        if (room.gameType === 'MATHRACE' || room.gameType === 'CHESS' || room.gameType === 'IMPOSTOR') {
           const player = room.players.get(user.userId);
           if (player) {
             player.isDisconnected = true;
@@ -1140,6 +1285,8 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
               const targetRoom =
                 room.gameType === 'CHESS'
                   ? roomManager.getChessRoom(roomId)
+                  : room.gameType === 'IMPOSTOR'
+                  ? roomManager.getImpostorRoom(roomId)
                   : roomManager.getMathRoom(roomId);
               if (targetRoom && targetRoom.status === 'IN_PROGRESS') {
                 let connectedHumansCount = 0;

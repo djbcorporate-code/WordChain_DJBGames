@@ -9,6 +9,7 @@ import {
   GameMode,
   GameRoomSummary,
   GameTurnState,
+  ImpostorSettings,
   MathDifficulty,
   MathOperationMode,
   PlayerInGame,
@@ -216,6 +217,30 @@ class SocketService {
 
   public resignChess(): void {
     this.getSocket().emit('CHESS_RESIGN');
+  }
+
+  // Who Is The Impostor Emitters
+  public joinImpostorCasualQueue(): void {
+    this.getSocket().emit('LOBBY_JOIN_QUEUE', { gameType: 'IMPOSTOR', mode: 'CASUAL' });
+  }
+
+  public createImpostorPrivateRoom(impostorSettings?: Partial<ImpostorSettings>): void {
+    this.getSocket().emit('ROOM_CREATE_PRIVATE', {
+      gameType: 'IMPOSTOR',
+      impostorSettings,
+    });
+  }
+
+  public updateImpostorSettings(patch: Partial<ImpostorSettings>): void {
+    this.getSocket().emit('IMPOSTOR_UPDATE_SETTINGS', patch);
+  }
+
+  public readyToVoteImpostor(ready: boolean): void {
+    this.getSocket().emit('IMPOSTOR_READY_TO_VOTE', { ready });
+  }
+
+  public castImpostorVote(targetUserId: string | 'SKIP'): void {
+    this.getSocket().emit('IMPOSTOR_CAST_VOTE', { targetUserId });
   }
 
   // Voice Chat Emitters

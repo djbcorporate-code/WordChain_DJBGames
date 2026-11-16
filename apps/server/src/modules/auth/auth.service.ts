@@ -2,7 +2,7 @@ import {
   AuthenticatedUser,
   ForgotPasswordInput,
   GameRankStanding,
-  GameType,
+  RankedGameType,
   LoginInput,
   RegisterInput,
   ResetPasswordInput,
@@ -271,7 +271,7 @@ export class AuthService {
 
   private static async initializeGameRanks(userId: string, seasonId: number): Promise<void> {
     const db = await getDb();
-    const games: GameType[] = ['WORDCHAIN', 'MATHRACE', 'CHESS'];
+    const games: RankedGameType[] = ['WORDCHAIN', 'MATHRACE', 'CHESS'];
     for (const gameType of games) {
       await db
         .insert(playerRankProfiles)

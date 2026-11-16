@@ -1,6 +1,7 @@
 import { AcademicRankTier } from './ranking.types.js';
 
-export type GameType = 'WORDCHAIN' | 'MATHRACE' | 'CHESS';
+export type RankedGameType = 'WORDCHAIN' | 'MATHRACE' | 'CHESS';
+export type GameType = RankedGameType | 'IMPOSTOR';
 
 export type GameMode = 'CASUAL' | 'RANKED' | 'PRIVATE';
 

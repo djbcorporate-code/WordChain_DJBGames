@@ -2,6 +2,7 @@
 export * from './types/auth.types.js';
 export * from './types/chess.types.js';
 export * from './types/game.types.js';
+export * from './types/impostor.types.js';
 export * from './types/math.types.js';
 export * from './types/ranking.types.js';
 export * from './types/socket.events.js';
@@ -15,6 +16,9 @@ export * from './constants/ranks.constants.js';
 export * from './chess/ChessTopologies.js';
 export * from './chess/ChessEngine.js';
 export * from './chess/ChessBotAI.js';
+
+// Re-export Impostor word bank
+export * from './impostor/ImpostorWordBank.js';
 
 // Re-export validators
 export * from './validators/auth.schema.js';

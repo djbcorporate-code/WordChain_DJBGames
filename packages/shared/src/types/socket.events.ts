@@ -28,6 +28,13 @@ import {
   MathRoomSummary,
   MathRoundResultPayload,
 } from './math.types.js';
+import {
+  ImpostorPlayerInGame,
+  ImpostorResolvedCategory,
+  ImpostorRoomSummary,
+  ImpostorSettings,
+  ImpostorWinnerFaction,
+} from './impostor.types.js';
 import { RankProgressionDelta } from './ranking.types.js';
 
 export interface ClientToServerEvents {
@@ -50,6 +57,7 @@ export interface ClientToServerEvents {
     difficulty?: MathDifficulty;
     chessVariant?: ChessVariant;
     incrementSec?: number;
+    impostorSettings?: Partial<ImpostorSettings>;
   }) => void;
   ROOM_JOIN: (payload: { roomCode: string }) => void;
   ROOM_LEAVE: () => void;
@@ -74,6 +82,11 @@ export interface ClientToServerEvents {
   // Chess Active Gameplay
   CHESS_MAKE_MOVE: (payload: { from: string; to: string; promotion?: ChessPieceType }) => void;
   CHESS_RESIGN: () => void;
+
+  // Who Is The Impostor Setup & Active Gameplay
+  IMPOSTOR_UPDATE_SETTINGS: (payload: Partial<ImpostorSettings>) => void;
+  IMPOSTOR_READY_TO_VOTE: (payload: { ready: boolean }) => void;
+  IMPOSTOR_CAST_VOTE: (payload: { targetUserId: string | 'SKIP' }) => void;
 
   // Reconnection
   ROOM_RECONNECT: (payload: { roomId: string; sessionToken?: string }) => void;
@@ -226,6 +239,16 @@ export interface ServerToClientEvents {
     drawReason?: ChessEndReason;
     standings: ChessPlayerInGame[];
     deltas: Record<string, RankProgressionDelta>;
+  }) => void;
+
+  // Who Is The Impostor Room & Match Events
+  IMPOSTOR_ROOM_STATE_UPDATE: (payload: ImpostorRoomSummary | null) => void;
+  IMPOSTOR_MATCH_ENDED: (payload: {
+    winnerFaction: ImpostorWinnerFaction;
+    secretWord: string;
+    impostorHint: string;
+    resolvedCategory: ImpostorResolvedCategory;
+    players: ImpostorPlayerInGame[];
   }) => void;
 
   // Latency & Time Sync

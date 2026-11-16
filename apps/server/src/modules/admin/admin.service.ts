@@ -147,6 +147,9 @@ export class AdminService {
         } else if (r.gameType === 'CHESS') {
           const { shouldClose } = r.removePlayer(targetUserId);
           if (shouldClose) roomManager.removeRoom(r.roomId);
+        } else if (r.gameType === 'IMPOSTOR') {
+          const { shouldClose } = r.removePlayer(targetUserId);
+          if (shouldClose) roomManager.removeRoom(r.roomId);
         } else {
           r.eliminatePlayer(targetUserId, 'FORFEIT');
         }

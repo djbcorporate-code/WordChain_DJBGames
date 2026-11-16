@@ -1,8 +1,9 @@
 import { DEFAULT_MATH_DIFFICULTY, MATH_DIFFICULTY_CONFIGS } from '@wordchain/shared';
-import { Calculator, CheckCircle2, Crown, Swords, Users, X } from 'lucide-react';
+import { Calculator, CheckCircle2, Crown, Fingerprint, Swords, Users, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useChessGame } from '../../context/ChessGameContext.js';
 import { useGame } from '../../context/GameContext.js';
+import { useImpostorGame } from '../../context/ImpostorGameContext.js';
 import { useMathGame } from '../../context/MathGameContext.js';
 
 export const QueueModal: React.FC = () => {
@@ -19,15 +20,29 @@ export const QueueModal: React.FC = () => {
     chessRoom,
     leaveQueue: leaveChessQueue,
   } = useChessGame();
+  const {
+    queueStatus: impostorQueueStatus,
+    matchFoundNotice: impostorMatchFound,
+    impostorRoom,
+    leaveQueue: leaveImpostorQueue,
+  } = useImpostorGame();
   const [elapsedSec, setElapsedSec] = useState(0);
   const [countdownRemaining, setCountdownRemaining] = useState(3);
 
   const isMathQueue = !!mathQueueStatus?.inQueue;
   const isChessQueue = !!chessQueueStatus?.inQueue;
-  const activeQueue = isMathQueue ? mathQueueStatus : isChessQueue ? chessQueueStatus : queueStatus;
-  const activeMatchFound = chessMatchFound || mathMatchFound || matchFoundNotice;
+  const isImpostorQueue = !!impostorQueueStatus?.inQueue;
+  const activeQueue = isMathQueue
+    ? mathQueueStatus
+    : isChessQueue
+    ? chessQueueStatus
+    : isImpostorQueue
+    ? impostorQueueStatus
+    : queueStatus;
+  const activeMatchFound = chessMatchFound || mathMatchFound || impostorMatchFound || matchFoundNotice;
   const isMathActive = isMathQueue || !!mathMatchFound;
   const isChessActive = isChessQueue || !!chessMatchFound;
+  const isImpostorActive = isImpostorQueue || !!impostorMatchFound;
 
   useEffect(() => {
     if (!activeQueue?.inQueue) {
@@ -69,6 +84,7 @@ export const QueueModal: React.FC = () => {
     currentRoom?.status === 'IN_PROGRESS' ||
     mathRoom?.status === 'IN_PROGRESS' ||
     chessRoom?.status === 'IN_PROGRESS' ||
+    impostorRoom?.status === 'IN_PROGRESS' ||
     (!activeQueue?.inQueue && !activeMatchFound)
   ) {
     return null;
@@ -88,6 +104,8 @@ export const QueueModal: React.FC = () => {
       leaveMathQueue();
     } else if (isChessQueue) {
       leaveChessQueue();
+    } else if (isImpostorQueue) {
+      leaveImpostorQueue();
     } else {
       leaveQueue();
     }
@@ -101,6 +119,8 @@ export const QueueModal: React.FC = () => {
           className={`absolute top-0 w-64 h-64 rounded-full blur-3xl pointer-events-none transition-all duration-700 ${
             isMatched
               ? 'bg-emerald-500/20'
+              : isImpostorActive
+              ? 'bg-rose-600/25'
               : isMathActive
               ? 'bg-amber-500/20'
               : isChessActive
@@ -123,7 +143,9 @@ export const QueueModal: React.FC = () => {
               <div className="absolute inset-0 rounded-full border-2 border-accent-secondary/40 animate-ping" />
               <div className="absolute inset-2 rounded-full border border-accent-primary/60 animate-pulse" />
               <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center text-accent-secondary shadow-glow">
-                {isMathActive ? (
+                {isImpostorActive ? (
+                  <Fingerprint className="w-7 h-7 text-rose-400" />
+                ) : isMathActive ? (
                   <Calculator className="w-7 h-7 text-amber-400" />
                 ) : isChessActive ? (
                   <Crown className="w-7 h-7 text-emerald-400" />
@@ -142,7 +164,15 @@ export const QueueModal: React.FC = () => {
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-accent-secondary">
             {isMatched
               ? 'Match Confirmed'
-              : `${isMathActive ? 'MathBlitz' : isChessActive ? 'Chess' : 'WordChain'} · ${isRanked ? 'Ranked' : 'Casual'} Queue`}
+              : `${
+                  isImpostorActive
+                    ? 'Who Is The Impostor'
+                    : isMathActive
+                    ? 'MathBlitz'
+                    : isChessActive
+                    ? 'Chess'
+                    : 'WordChain'
+                } · ${isImpostorActive ? 'Unranked Casual' : isRanked ? 'Ranked' : 'Casual'} Queue`}
           </span>
           <h3 className="text-xl sm:text-2xl font-black text-white">
             {isMatched ? 'Match Found!' : isRanked ? 'Finding Opponents...' : 'Searching for Players...'}
@@ -150,6 +180,8 @@ export const QueueModal: React.FC = () => {
           <p className="text-xs text-slate-400">
             {isMatched
               ? `Entering Arena in ${countdownRemaining > 0 ? countdownRemaining : 1} second${countdownRemaining === 1 ? '' : 's'}`
+              : isImpostorActive
+              ? 'Gathering 3 to 10 human agents for classified deduction. No AI bots will join.'
               : isChessActive
               ? `Matching players for ${chessQueueStatus?.chessVariant || '2P'} Sovereign Chess (${isRanked ? 'Ranked MMR' : 'Casual'}).`
               : isMathActive

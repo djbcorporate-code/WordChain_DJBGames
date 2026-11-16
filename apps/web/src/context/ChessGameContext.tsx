@@ -9,6 +9,7 @@ import {
   ChessRoomSummary,
   ChessVariant,
   GameMode,
+  GameType,
   RankProgressionDelta,
   RoomChatMessage,
 } from '@wordchain/shared';
@@ -122,7 +123,7 @@ export const ChessGameProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const handleQueueStatus = (status: {
       inQueue: boolean;
-      gameType?: 'WORDCHAIN' | 'MATHRACE' | 'CHESS';
+      gameType?: GameType;
       mode?: GameMode;
       chessVariant?: ChessVariant;
       position?: number;
@@ -144,7 +145,7 @@ export const ChessGameProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     const handleMatchFound = (info: {
       roomId: string;
-      gameType?: 'WORDCHAIN' | 'MATHRACE' | 'CHESS';
+      gameType?: GameType;
       mode: GameMode;
       chessVariant?: ChessVariant;
       countdownSec: number;
