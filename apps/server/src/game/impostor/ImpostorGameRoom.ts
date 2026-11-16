@@ -82,12 +82,15 @@ export function sanitizeImpostorSettings(
     typeof patch.conversationSec === 'number' && Number.isFinite(patch.conversationSec)
       ? Math.max(30, Math.min(180, Math.round(patch.conversationSec)))
       : current.conversationSec;
+  const blindMode =
+    typeof patch.blindMode === 'boolean' ? patch.blindMode : current.blindMode;
 
   return {
     category,
     difficulty,
     impostorCount,
     conversationSec,
+    blindMode,
   };
 }
 
@@ -467,7 +470,9 @@ export class ImpostorGameRoom {
     this.phaseDeadlineUtc = now + revealMs;
 
     this.appendSystemMessage(
-      `Classified Briefing started! (${effectiveImpostors} Impostor${effectiveImpostors > 1 ? 's' : ''} hidden in the squad — category eyes-only for Host).`
+      this.settings.blindMode
+        ? `Classified Briefing started! BLIND MODE active — nobody knows if they are the Impostor (${effectiveImpostors} hidden).`
+        : `Classified Briefing started! (${effectiveImpostors} Impostor${effectiveImpostors > 1 ? 's' : ''} hidden in the squad — category eyes-only for Host).`
     );
 
     this.callbacks.onStateChange?.();
@@ -823,18 +828,34 @@ export class ImpostorGameRoom {
 
     let secretWord: string | undefined;
     let impostorHint: string | undefined;
+    let assignedWord: string | undefined;
     let allyImpostorIds: string[] | undefined;
+    let myRole: ImpostorRole | undefined;
 
     if (isFinished) {
+      myRole = recipientRole;
       secretWord = this.secretWord;
       impostorHint = this.impostorHint;
       allyImpostorIds = allImpostorIds;
     } else if (this.status === 'IN_PROGRESS') {
-      if (recipientRole === 'CREWMATE') {
-        secretWord = this.secretWord;
-      } else if (recipientRole === 'IMPOSTOR') {
-        impostorHint = this.impostorHint;
-        allyImpostorIds = allImpostorIds.filter((id) => id !== recipientUserId);
+      if (this.settings.blindMode) {
+        // Blind Mode: conceal role & whether assignedWord is Secret Word or One-Word Clue
+        myRole = undefined;
+        allyImpostorIds = undefined;
+        assignedWord =
+          recipientRole === 'IMPOSTOR'
+            ? this.impostorHint
+            : recipientRole === 'CREWMATE'
+              ? this.secretWord
+              : undefined;
+      } else {
+        myRole = recipientRole;
+        if (recipientRole === 'CREWMATE') {
+          secretWord = this.secretWord;
+        } else if (recipientRole === 'IMPOSTOR') {
+          impostorHint = this.impostorHint;
+          allyImpostorIds = allImpostorIds.filter((id) => id !== recipientUserId);
+        }
       }
     }
 
@@ -861,8 +882,8 @@ export class ImpostorGameRoom {
         canSeeCategory && this.resolvedCategory
           ? { ...this.resolvedCategory }
           : undefined,
-      myRole:
-        this.status === 'IN_PROGRESS' || isFinished ? recipientRole : undefined,
+      myRole,
+      assignedWord,
       secretWord,
       impostorHint,
       allyImpostorIds,

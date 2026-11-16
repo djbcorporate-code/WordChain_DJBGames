@@ -36,6 +36,7 @@ export const ImpostorPrivateModal: React.FC<ImpostorPrivateModalProps> = ({
   const [difficulty, setDifficulty] = useState<ImpostorDifficulty>(initialDifficulty);
   const [impostorCount, setImpostorCount] = useState<number>(1);
   const [conversationSec, setConversationSec] = useState<number>(90);
+  const [blindMode, setBlindMode] = useState<boolean>(false);
   const [roomCodeInput, setRoomCodeInput] = useState('');
 
   React.useEffect(() => {
@@ -59,6 +60,7 @@ export const ImpostorPrivateModal: React.FC<ImpostorPrivateModalProps> = ({
       difficulty,
       impostorCount,
       conversationSec,
+      blindMode,
     };
     createPrivateRoom(settings);
     onClose();
@@ -234,6 +236,38 @@ export const ImpostorPrivateModal: React.FC<ImpostorPrivateModalProps> = ({
                   ))}
                 </div>
               </div>
+            </div>
+
+            {/* Blind Role Mode Toggle */}
+            <div className="rounded-2xl border border-violet-500/25 bg-violet-950/15 p-3.5 flex items-center justify-between gap-4">
+              <div>
+                <div className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
+                  <span>🕶️ Blind Identity Mode</span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                      blindMode
+                        ? 'bg-violet-500 text-white'
+                        : 'bg-white/10 text-zinc-400'
+                    }`}
+                  >
+                    {blindMode ? 'ON' : 'OFF'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-400 mt-0.5 leading-snug">
+                  Players don&apos;t know if they are Crewmate or Impostor — everyone receives an unlabeled word or clue!
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBlindMode((v) => !v)}
+                className={`shrink-0 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  blindMode
+                    ? 'border-violet-400 bg-violet-600 text-white shadow-lg shadow-violet-600/25'
+                    : 'border-white/15 bg-white/5 text-zinc-300 hover:text-white'
+                }`}
+              >
+                {blindMode ? 'Enabled' : 'Enable'}
+              </button>
             </div>
 
             <button

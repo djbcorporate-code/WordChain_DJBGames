@@ -92,7 +92,8 @@ export const ImpostorLiveArena: React.FC = () => {
 
   const isHost = impostorRoom.hostUserId === user.id;
   const myPlayer = impostorRoom.players.find((p) => p.userId === user.id);
-  const isImpostor = impostorRoom.myRole === 'IMPOSTOR';
+  const isBlindMode = Boolean(impostorRoom.settings.blindMode && impostorRoom.status !== 'FINISHED');
+  const isImpostor = !isBlindMode && impostorRoom.myRole === 'IMPOSTOR';
   const phase = impostorRoom.phase || 'ROLE_REVEAL';
 
   const deadline = impostorRoom.phaseDeadlineUtc || 0;
@@ -143,7 +144,13 @@ export const ImpostorLiveArena: React.FC = () => {
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div
           className={`absolute -top-32 left-1/4 h-96 w-96 rounded-full blur-[150px] transition-colors duration-700 ${
-            phase === 'VOTING' || isImpostor ? 'bg-rose-600/15' : 'bg-emerald-600/10'
+            phase === 'VOTING'
+              ? 'bg-rose-600/15'
+              : isBlindMode
+              ? 'bg-violet-600/15'
+              : isImpostor
+              ? 'bg-rose-600/15'
+              : 'bg-emerald-600/10'
           }`}
         />
         <div className="absolute -bottom-32 right-1/4 h-96 w-96 rounded-full bg-red-950/25 blur-[150px]" />
@@ -156,6 +163,11 @@ export const ImpostorLiveArena: React.FC = () => {
             <span className="px-2.5 py-1 rounded-lg bg-rose-600/20 border border-rose-500/35 text-[11px] font-black uppercase tracking-widest text-rose-300">
               ROUND {impostorRoom.roundNumber || 1}
             </span>
+            {impostorRoom.settings.blindMode && (
+              <span className="px-2.5 py-1 rounded-lg bg-violet-600/25 border border-violet-400/40 text-[10px] font-black uppercase tracking-widest text-violet-200">
+                🕶️ BLIND MODE
+              </span>
+            )}
             {impostorRoom.resolvedCategory ? (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-white/10 bg-white/5 text-xs font-bold text-white">
                 <span>{impostorRoom.resolvedCategory.emoji}</span>
@@ -309,7 +321,9 @@ export const ImpostorLiveArena: React.FC = () => {
               {/* FRONT FACE: Revealed Mission Intel */}
               <div
                 className={`backface-hidden rounded-3xl border p-5 flex flex-col justify-between min-h-[220px] shadow-2xl overflow-hidden ${
-                  isImpostor
+                  isBlindMode
+                    ? 'border-violet-500/45 bg-gradient-to-br from-[#191030] via-[#0e0a1b] to-[#08090f]'
+                    : isImpostor
                     ? 'border-rose-500/45 bg-gradient-to-br from-[#230911] via-[#13070e] to-[#08090f]'
                     : 'border-emerald-500/35 bg-gradient-to-br from-[#082019] via-[#091215] to-[#08090f]'
                 }`}
@@ -317,12 +331,19 @@ export const ImpostorLiveArena: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <span
                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border ${
-                      isImpostor
+                      isBlindMode
+                        ? 'bg-violet-500/20 border-violet-400/45 text-violet-200'
+                        : isImpostor
                         ? 'bg-rose-500/20 border-rose-500/40 text-rose-300'
                         : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
                     }`}
                   >
-                    {isImpostor ? (
+                    {isBlindMode ? (
+                      <>
+                        <Eye className="w-3.5 h-3.5" />
+                        ROLE UNKNOWN (BLIND MODE)
+                      </>
+                    ) : isImpostor ? (
                       <>
                         <Flame className="w-3.5 h-3.5" />
                         YOU ARE THE IMPOSTOR
@@ -341,7 +362,16 @@ export const ImpostorLiveArena: React.FC = () => {
                 </div>
 
                 <div className="my-4 space-y-2 text-center">
-                  {isImpostor ? (
+                  {isBlindMode ? (
+                    <>
+                      <div className="text-[10px] font-black uppercase tracking-[0.25em] text-violet-300/85">
+                        ASSIGNED INTEL WORD
+                      </div>
+                      <div className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                        {impostorRoom.assignedWord || '???'}
+                      </div>
+                    </>
+                  ) : isImpostor ? (
                     <>
                       <div className="text-[10px] font-black uppercase tracking-[0.25em] text-rose-300/80">
                         YOUR ONE-WORD CLUE
@@ -368,7 +398,9 @@ export const ImpostorLiveArena: React.FC = () => {
                 </div>
 
                 <div className="text-[11px] text-zinc-400 text-center border-t border-white/10 pt-2.5">
-                  {isImpostor
+                  {isBlindMode
+                    ? "You don't know if this is the Secret Word or the Impostor Clue — deduce your own role!"
+                    : isImpostor
                     ? 'You do not see the exact word. Listen to clues and blend in!'
                     : 'Give a clue without naming it outright. Flush out the Impostor!'}
                 </div>

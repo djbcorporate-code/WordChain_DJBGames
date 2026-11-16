@@ -31,6 +31,7 @@ export interface ImpostorMaskedSettings {
   difficulty: ImpostorDifficulty;
   impostorCount: number;
   conversationSec: number;
+  blindMode: boolean;
 }
 
 export interface ImpostorCategoryMeta {
@@ -47,6 +48,7 @@ export interface ImpostorSettings {
   difficulty: ImpostorDifficulty;
   impostorCount: number; // 1-3 (clamped at start based on player count)
   conversationSec: number; // 30-180
+  blindMode: boolean; // When true, players don't know if they are Impostor or Crewmate
 }
 
 export const IMPOSTOR_MIN_PLAYERS = 3;
@@ -61,6 +63,7 @@ export const DEFAULT_IMPOSTOR_SETTINGS: ImpostorSettings = {
   difficulty: 'ALL',
   impostorCount: 1,
   conversationSec: 90,
+  blindMode: false,
 };
 
 export type ImpostorPhase =
@@ -124,7 +127,9 @@ export interface ImpostorRoomSummary {
   resolvedCategory?: ImpostorResolvedCategory;
   /** Recipient-specific private mission fields */
   myRole?: ImpostorRole;
-  /** Shown ONLY to Crewmates during active play, and to all players once FINISHED */
+  /** Unified neutral word/clue shown in Blind Mode without revealing role */
+  assignedWord?: string;
+  /** Shown ONLY to Crewmates during active standard play, and to all players once FINISHED */
   secretWord?: string;
   /** Shown ONLY to Impostors during active play, and to all players once FINISHED */
   impostorHint?: string;

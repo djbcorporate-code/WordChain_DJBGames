@@ -344,6 +344,42 @@ export const ImpostorLobbyView: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Blind Identity Mode Toggle (Live Host Config) */}
+              <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[11px] font-black uppercase tracking-[0.16em] text-white flex items-center gap-2">
+                    <span>🕶️ Blind Identity Mode</span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                        impostorRoom.settings.blindMode
+                          ? 'bg-violet-500/30 border border-violet-400/50 text-violet-200'
+                          : 'bg-white/5 border border-white/10 text-zinc-400'
+                      }`}
+                    >
+                      {impostorRoom.settings.blindMode ? 'ON — Roles Hidden' : 'OFF — Standard'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                    When ON, nobody knows whether they received the Secret Word or the Impostor&apos;s Clue until the vote ends.
+                  </p>
+                </div>
+                {isHost && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateSettings({ blindMode: !impostorRoom.settings.blindMode })
+                    }
+                    className={`px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                      impostorRoom.settings.blindMode
+                        ? 'border-violet-400 bg-violet-600 text-white shadow-lg shadow-violet-600/25'
+                        : 'border-white/15 bg-white/5 text-zinc-300 hover:text-white hover:border-white/30'
+                    }`}
+                  >
+                    {impostorRoom.settings.blindMode ? 'Turn OFF' : 'Turn ON'}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Seated Human Agents Roster */}

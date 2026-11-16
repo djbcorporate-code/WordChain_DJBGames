@@ -67,7 +67,7 @@ describe('Impostor Word Bank & Categories', () => {
     const tiers: ImpostorDifficultyTier[] = ['EASY', 'MEDIUM', 'HARD', 'EXPERT'];
     for (const tier of tiers) {
       const result = pickImpostorPrompt(
-        { category: 'RANDOM', difficulty: tier, impostorCount: 1, conversationSec: 90 },
+        { category: 'RANDOM', difficulty: tier, impostorCount: 1, conversationSec: 90, blindMode: false },
         [
           { userId: 'u1', username: 'Ken', avatarId: 'a1', isAlive: true, isReady: true, readyToVote: false, isDisconnected: false, hasVoted: false, votesReceived: 0 },
           { userId: 'u2', username: 'Mia', avatarId: 'a2', isAlive: true, isReady: true, readyToVote: false, isDisconnected: false, hasVoted: false, votesReceived: 0 },
@@ -86,7 +86,7 @@ describe('Impostor Word Bank & Categories', () => {
     ];
     for (let i = 0; i < mockPlayers.length; i++) {
       const picked = pickImpostorPrompt(
-        { category: 'PLAYER_NAMES', difficulty: 'EASY', impostorCount: 1, conversationSec: 90 },
+        { category: 'PLAYER_NAMES', difficulty: 'EASY', impostorCount: 1, conversationSec: 90, blindMode: false },
         mockPlayers,
         'u1',
         () => i / mockPlayers.length
@@ -317,6 +317,68 @@ describe('ImpostorGameRoom Engine & Privacy', () => {
     vi.advanceTimersByTime(1000);
     expect(room.status).toBe('IN_PROGRESS');
     expect(room.phase).toBe('CONVERSATION');
+
+    room.cleanup();
+  });
+
+  it('supports toggleable Blind Identity Mode hiding roles, allies, and word vs clue distinction during active play', () => {
+    const room = seedRoom(4, {
+      category: 'MOBILE_LEGENDS_HEROES',
+      difficulty: 'MEDIUM',
+      impostorCount: 1,
+      conversationSec: 60,
+      blindMode: false,
+    });
+
+    // Host toggles Blind Mode ON live in lobby, then OFF, then ON
+    expect(room.updateSettings('u1', { blindMode: true }).ok).toBe(true);
+    expect(room.settings.blindMode).toBe(true);
+    expect(room.updateSettings('u2', { blindMode: false }).ok).toBe(false); // non-host rejected
+
+    room.startMatch();
+    expect(room.status).toBe('IN_PROGRESS');
+
+    const activeSummaries = ['u1', 'u2', 'u3', 'u4'].map((id) => ({
+      id,
+      summary: room.getSummaryForUser(id),
+    }));
+
+    // Every single player must have NO role, NO secretWord, NO impostorHint, NO allyImpostorIds
+    const assignedWords = new Set<string>();
+    for (const item of activeSummaries) {
+      expect(item.summary.settings.blindMode).toBe(true);
+      expect(item.summary.myRole).toBeUndefined();
+      expect(item.summary.secretWord).toBeUndefined();
+      expect(item.summary.impostorHint).toBeUndefined();
+      expect(item.summary.allyImpostorIds).toBeUndefined();
+      expect(item.summary.assignedWord).toBeTruthy();
+      assignedWords.add(item.summary.assignedWord!);
+    }
+
+    // 3 Crewmates got one word (the Secret Word) and 1 Impostor got a different word (the 1-word Clue)
+    expect(assignedWords.size).toBe(2);
+
+    // Advance into voting & eject players until FINISHED; then roles and secrets reveal cleanly
+    vi.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(5000);
+    expect(room.phase).toBe('VOTING');
+
+    // Eject u2 blindly (or whoever has majority)
+    for (const id of ['u1', 'u2', 'u3', 'u4']) {
+      room.castVote(id, 'u2');
+    }
+    vi.advanceTimersByTime(1000);
+
+    // If game continues (u2 wasn't impostor), living players still don't know their role; if finished, all roles unlock
+    if (room.status === 'IN_PROGRESS') {
+      expect(room.getSummaryForUser('u1').myRole).toBeUndefined();
+      expect(room.getSummaryForUser('u1').secretWord).toBeUndefined();
+      expect(room.getSummaryForUser('u1').impostorHint).toBeUndefined();
+    } else {
+      expect(room.getSummaryForUser('u1').myRole).toBeDefined();
+      expect(room.getSummaryForUser('u1').secretWord).toBeTruthy();
+      expect(room.getSummaryForUser('u1').impostorHint).toBeTruthy();
+    }
 
     room.cleanup();
   });
