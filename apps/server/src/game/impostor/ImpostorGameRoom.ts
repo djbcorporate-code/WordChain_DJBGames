@@ -123,6 +123,7 @@ export class ImpostorGameRoom {
   private secretWord: string = '';
   private impostorHint: string = '';
   private votes: Map<string, string> = new Map(); // voterUserId -> targetUserId | 'SKIP'
+  private usedWords: Set<string> = new Set();
 
   private chatMessages: RoomChatMessage[] = [];
   private countdownTimer: NodeJS.Timeout | null = null;
@@ -460,8 +461,14 @@ export class ImpostorGameRoom {
     const prompt = pickImpostorPrompt(
       this.settings,
       playerList,
-      this.hostUserId
+      this.hostUserId,
+      Math.random,
+      this.usedWords
     );
+    if (this.usedWords.has(prompt.secretWord)) {
+      this.usedWords.clear();
+    }
+    this.usedWords.add(prompt.secretWord);
     this.resolvedCategory = prompt.resolvedCategory;
     this.secretWord = prompt.secretWord;
     this.impostorHint = prompt.impostorHint;

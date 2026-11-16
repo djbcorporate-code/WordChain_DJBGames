@@ -50,15 +50,19 @@ describe('Impostor Word Bank & Categories', () => {
     expect(dota?.difficulty).toBe('MEDIUM');
   });
 
-  it('has strictly one-word hints in every static pool that never leak the exact word', () => {
+  it('has strictly one-word hints across >= 40 unique entries in every static pool', () => {
     for (const [catId, entries] of Object.entries(IMPOSTOR_WORD_POOLS)) {
-      expect(entries.length, `${catId} should have at least 18 words`).toBeGreaterThanOrEqual(18);
+      expect(entries.length, `${catId} should have at least 40 words`).toBeGreaterThanOrEqual(40);
+      const uniqueWords = new Set<string>();
       for (const entry of entries) {
         expect(entry.word.trim().length).toBeGreaterThan(0);
+        const lowerWord = entry.word.trim().toLowerCase();
+        expect(uniqueWords.has(lowerWord), `Duplicate word "${entry.word}" in ${catId}`).toBe(false);
+        uniqueWords.add(lowerWord);
         expect(entry.hint, `${catId}:${entry.word} hint "${entry.hint}" must be one word only`).toMatch(
           /^[A-Za-z]+$/
         );
-        expect(entry.hint.toLowerCase()).not.toContain(entry.word.toLowerCase());
+        expect(entry.hint.toLowerCase()).not.toContain(lowerWord);
       }
     }
   });
@@ -435,5 +439,42 @@ describe('ImpostorGameRoom Engine & Privacy', () => {
     });
     expect(privateRoom.settings.blindMode).toBe(false);
     privateRoom.cleanup();
+  });
+
+  it('does not repeat any secret words across 40 consecutive rematches in the same category', () => {
+    const room = seedRoom(3, {
+      category: 'FOOD_DRINKS',
+      difficulty: 'EASY',
+      impostorCount: 1,
+      conversationSec: 60,
+      blindMode: false,
+    });
+
+    const seenWords = new Set<string>();
+    for (let gameIdx = 0; gameIdx < 40; gameIdx++) {
+      room.startMatch();
+      const crewmateId = ['u1', 'u2', 'u3'].find(
+        (id) => room.getSummaryForUser(id).myRole === 'CREWMATE'
+      )!;
+      const word = room.getSummaryForUser(crewmateId).secretWord!;
+      expect(seenWords.has(word), `Repeated "${word}" before exhausting 40-word pool`).toBe(false);
+      seenWords.add(word);
+
+      // End game cleanly via ejecting impostor so resetToLobby() runs
+      const impostorId = ['u1', 'u2', 'u3'].find(
+        (id) => room.getSummaryForUser(id).myRole === 'IMPOSTOR'
+      )!;
+      vi.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(5000);
+      for (const id of ['u1', 'u2', 'u3']) {
+        room.castVote(id, impostorId);
+      }
+      vi.advanceTimersByTime(1000);
+      expect(room.status).toBe('FINISHED');
+      expect(room.resetToLobby()).toBe(true);
+    }
+
+    expect(seenWords.size).toBe(40);
+    room.cleanup();
   });
 });
