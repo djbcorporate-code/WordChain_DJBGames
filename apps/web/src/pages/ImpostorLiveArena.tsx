@@ -54,7 +54,56 @@ export const ImpostorLiveArena: React.FC = () => {
   const [isSoundMuted, setIsSoundMuted] = useState(() => soundManager.getMuted());
   const [nowMs, setNowMs] = useState(Date.now());
   const [chatInput, setChatInput] = useState('');
+  const [starterPopup, setStarterPopup] = useState<{
+    roundNumber: number;
+    starterUserId: string;
+    starterUsername: string;
+  } | null>(null);
+  const lastAnnouncedStarterKeyRef = useRef<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Trigger animated pop-up whenever system picks a first speaker for Conversation phase
+  useEffect(() => {
+    if (
+      impostorRoom?.status === 'IN_PROGRESS' &&
+      impostorRoom.phase === 'CONVERSATION' &&
+      impostorRoom.conversationStarterUserId &&
+      impostorRoom.conversationStarterUsername
+    ) {
+      const key = `${impostorRoom.roundNumber}:${impostorRoom.conversationStarterUserId}`;
+      if (lastAnnouncedStarterKeyRef.current !== key) {
+        lastAnnouncedStarterKeyRef.current = key;
+        setStarterPopup({
+          roundNumber: impostorRoom.roundNumber,
+          starterUserId: impostorRoom.conversationStarterUserId,
+          starterUsername: impostorRoom.conversationStarterUsername,
+        });
+        if (impostorRoom.conversationStarterUserId === user?.id) {
+          soundManager.playYourTurn();
+        } else {
+          soundManager.playTurnStart();
+        }
+        const timer = window.setTimeout(() => {
+          setStarterPopup((curr) =>
+            curr && `${curr.roundNumber}:${curr.starterUserId}` === key ? null : curr
+          );
+        }, 3600);
+        return () => window.clearTimeout(timer);
+      }
+    } else if (impostorRoom?.phase !== 'CONVERSATION') {
+      setStarterPopup(null);
+      if (impostorRoom?.status !== 'IN_PROGRESS') {
+        lastAnnouncedStarterKeyRef.current = null;
+      }
+    }
+  }, [
+    impostorRoom?.status,
+    impostorRoom?.phase,
+    impostorRoom?.roundNumber,
+    impostorRoom?.conversationStarterUserId,
+    impostorRoom?.conversationStarterUsername,
+    user?.id,
+  ]);
 
   // Compute server clock offset when state updates arrive
   const clockOffsetRef = useRef<number>(0);
@@ -594,6 +643,12 @@ export const ImpostorLiveArena: React.FC = () => {
                           {p.userId === impostorRoom.hostUserId && (
                             <Crown className="w-3 h-3 text-amber-400 shrink-0" />
                           )}
+                          {phase === 'CONVERSATION' &&
+                            impostorRoom.conversationStarterUserId === p.userId && (
+                              <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-400/40 text-[9px] font-black uppercase text-amber-300 shrink-0">
+                                🎙️ 1st
+                              </span>
+                            )}
                         </div>
                         <div className="text-[10px] font-bold mt-0.5 flex items-center gap-1.5">
                           {p.revealedRole ? (
@@ -683,6 +738,62 @@ export const ImpostorLiveArena: React.FC = () => {
           </div>
         </section>
       </main>
+
+      {/* ANIMATED FIRST-SPEAKER SPOTLIGHT POP-UP */}
+      {starterPopup && (
+        <div
+          onClick={() => setStarterPopup(null)}
+          className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-md rounded-3xl border border-amber-400/45 bg-gradient-to-b from-[#161224] via-[#0c0d16] to-[#07080d] p-7 text-center space-y-5 shadow-[0_0_80px_rgba(245,158,11,0.28)] overflow-hidden animate-speaker-pop cursor-default"
+          >
+            {/* Spinning spotlight ring behind avatar */}
+            <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
+              <div className="animate-radar-ping absolute inset-0 rounded-full border-2 border-amber-400/45" />
+              <div className="animate-radar-sweep absolute inset-1 rounded-full border border-dashed border-amber-400/35" />
+              <AgentAvatar
+                username={starterPopup.starterUsername}
+                size="lg"
+                isSpeaking={true}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-400/35 bg-amber-500/15 text-[10px] font-black uppercase tracking-[0.22em] text-amber-300">
+                <Mic className="w-3.5 h-3.5 animate-pulse" />
+                ROUND {starterPopup.roundNumber} · FIRST SPEAKER
+              </div>
+
+              <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                {starterPopup.starterUserId === user.id
+                  ? 'YOU START THE TALK!'
+                  : `${starterPopup.starterUsername} SPEAKS FIRST!`}
+              </h3>
+
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                {starterPopup.starterUserId === user.id
+                  ? 'Give the opening clue via Open Mic or chat — stay sharp and do not spoil the word!'
+                  : `Listen closely to ${starterPopup.starterUsername}'s opening clue and prepare yours next.`}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setStarterPopup(null)}
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black uppercase tracking-[0.18em] text-xs transition-all cursor-pointer"
+            >
+              Start Discussion →
+            </button>
+
+            {/* Auto-dismiss indicator bar */}
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/5">
+              <div className="h-full bg-amber-400 animate-shrink-width-3600" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FINAL MISSION RECAP OVERLAY (FINISHED) */}
       {finalSummary && (

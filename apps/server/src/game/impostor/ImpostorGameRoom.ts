@@ -115,6 +115,8 @@ export class ImpostorGameRoom {
   public resolvedCategory?: ImpostorResolvedCategory;
   public lastEjection?: ImpostorEjectionResult;
   public winnerFaction?: ImpostorWinnerFaction;
+  public conversationStarterUserId?: string;
+  public conversationStarterUsername?: string;
 
   // Strictly private server state (never emitted unmasked during active play)
   private roles: Map<string, ImpostorRole> = new Map();
@@ -437,6 +439,8 @@ export class ImpostorGameRoom {
     this.votes.clear();
     this.lastEjection = undefined;
     this.winnerFaction = undefined;
+    this.conversationStarterUserId = undefined;
+    this.conversationStarterUsername = undefined;
 
     for (const player of playerList) {
       const role: ImpostorRole = impostorSet.has(player.userId)
@@ -491,10 +495,26 @@ export class ImpostorGameRoom {
 
     this.phase = 'CONVERSATION';
     this.votes.clear();
+    const alivePlayers: ImpostorPlayerInGame[] = [];
     for (const p of this.players.values()) {
       p.readyToVote = false;
       p.hasVoted = false;
       p.votesReceived = 0;
+      if (p.isAlive) {
+        alivePlayers.push(p);
+      }
+    }
+
+    const connectedAlive = alivePlayers.filter((p) => !p.isDisconnected);
+    const starterPool = connectedAlive.length > 0 ? connectedAlive : alivePlayers;
+    if (starterPool.length > 0) {
+      const chosenStarter =
+        starterPool[Math.floor(Math.random() * starterPool.length)];
+      this.conversationStarterUserId = chosenStarter.userId;
+      this.conversationStarterUsername = chosenStarter.username;
+    } else {
+      this.conversationStarterUserId = undefined;
+      this.conversationStarterUsername = undefined;
     }
 
     const conversationMs =
@@ -504,7 +524,9 @@ export class ImpostorGameRoom {
     this.phaseDeadlineUtc = now + conversationMs;
 
     this.appendSystemMessage(
-      `Round ${this.roundNumber} Discussion open! Describe the secret subject without giving it away.`
+      this.conversationStarterUsername
+        ? `Round ${this.roundNumber} Discussion open! 🎙️ ${this.conversationStarterUsername} starts first — describe without spoiling.`
+        : `Round ${this.roundNumber} Discussion open! Describe the secret subject without giving it away.`
     );
     this.callbacks.onStateChange?.();
 
@@ -780,6 +802,8 @@ export class ImpostorGameRoom {
     this.resolvedCategory = undefined;
     this.lastEjection = undefined;
     this.winnerFaction = undefined;
+    this.conversationStarterUserId = undefined;
+    this.conversationStarterUsername = undefined;
     this.secretWord = '';
     this.impostorHint = '';
     this.roles.clear();
@@ -807,7 +831,9 @@ export class ImpostorGameRoom {
   public getSummaryForUser(recipientUserId?: string): ImpostorRoomSummary {
     const isFinished = this.status === 'FINISHED';
     const isHost = Boolean(recipientUserId && recipientUserId === this.hostUserId);
-    const canSeeCategory = isHost || isFinished;
+    const canSeeSettingsCategory = isHost || isFinished;
+    const canSeeResolvedCategory =
+      isFinished || (isHost && this.settings.category !== 'RANDOM');
     const recipientRole = recipientUserId
       ? this.roles.get(recipientUserId)
       : undefined;
@@ -868,7 +894,7 @@ export class ImpostorGameRoom {
       hostUserId: this.hostUserId,
       settings: {
         ...this.settings,
-        category: canSeeCategory ? this.settings.category : 'CONCEALED',
+        category: canSeeSettingsCategory ? this.settings.category : 'CONCEALED',
       },
       minPlayers: this.minPlayers,
       maxPlayers: this.maxPlayers,
@@ -879,7 +905,7 @@ export class ImpostorGameRoom {
       phaseDeadlineUtc: this.phaseDeadlineUtc,
       serverNowUtc: Date.now(),
       resolvedCategory:
-        canSeeCategory && this.resolvedCategory
+        canSeeResolvedCategory && this.resolvedCategory
           ? { ...this.resolvedCategory }
           : undefined,
       myRole,
@@ -898,6 +924,10 @@ export class ImpostorGameRoom {
           }
         : undefined,
       winnerFaction: this.winnerFaction,
+      conversationStarterUserId:
+        this.status === 'IN_PROGRESS' ? this.conversationStarterUserId : undefined,
+      conversationStarterUsername:
+        this.status === 'IN_PROGRESS' ? this.conversationStarterUsername : undefined,
       chatHistory: [...this.chatMessages],
     };
   }

@@ -253,3 +253,35 @@
 .rotate-y-180 {
   transform: rotateY(180deg);
 }
+
+@keyframes speakerSpotlightPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.55) translateY(24px);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.04) translateY(-4px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-speaker-pop {
+  animation: speakerSpotlightPop 0.48s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes shrinkWidthLinear {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.animate-shrink-width-3600 {
+  animation: shrinkWidthLinear 3.6s linear forwards;
+}

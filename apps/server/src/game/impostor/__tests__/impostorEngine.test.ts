@@ -204,6 +204,9 @@ describe('ImpostorGameRoom Engine & Privacy', () => {
     // Advance out of 1s ROLE_REVEAL -> CONVERSATION
     vi.advanceTimersByTime(1000);
     expect(room.phase).toBe('CONVERSATION');
+    const r1Starter = room.getSummaryForUser('u1').conversationStarterUserId;
+    expect(['u1', 'u2', 'u3', 'u4']).toContain(r1Starter);
+    expect(room.getSummaryForUser('u2').conversationStarterUsername).toBeTruthy();
 
     // All 4 click Ready to Vote -> jumps immediately to VOTING
     room.setReadyToVote('u1', true);
@@ -223,12 +226,13 @@ describe('ImpostorGameRoom Engine & Privacy', () => {
     expect(room.lastEjection?.outcome).toBe('TIE');
     expect(room.lastEjection?.ejectedUserId).toBeUndefined();
 
-    // Advance 1s ejection timer -> Round 2 CONVERSATION with SAME secret word!
+    // Advance 1s ejection timer -> Round 2 CONVERSATION with SAME secret word & starter selected!
     vi.advanceTimersByTime(1000);
     expect(room.status).toBe('IN_PROGRESS');
     expect(room.phase).toBe('CONVERSATION');
     expect(room.roundNumber).toBe(2);
     expect(room.getSummaryForUser(firstCrewmateId).secretWord).toBe(originalSecretWord);
+    expect(['u1', 'u2', 'u3', 'u4']).toContain(room.getSummaryForUser('u2').conversationStarterUserId);
 
     room.cleanup();
   });
@@ -379,6 +383,40 @@ describe('ImpostorGameRoom Engine & Privacy', () => {
       expect(room.getSummaryForUser('u1').secretWord).toBeTruthy();
       expect(room.getSummaryForUser('u1').impostorHint).toBeTruthy();
     }
+
+    room.cleanup();
+  });
+
+  it('conceals resolvedCategory from ALL players including Host when RANDOM pool is active during play', () => {
+    const room = seedRoom(3, {
+      category: 'RANDOM',
+      difficulty: 'ALL',
+      impostorCount: 1,
+      conversationSec: 60,
+      blindMode: false,
+    });
+    room.startMatch();
+
+    for (const id of ['u1', 'u2', 'u3']) {
+      expect(room.getSummaryForUser(id).resolvedCategory).toBeUndefined();
+    }
+
+    vi.advanceTimersByTime(1000); // CONVERSATION
+    expect(room.getSummaryForUser('u1').resolvedCategory).toBeUndefined();
+    expect(room.getSummaryForUser('u2').resolvedCategory).toBeUndefined();
+
+    const impostorId = ['u1', 'u2', 'u3'].find(
+      (id) => room.getSummaryForUser(id).myRole === 'IMPOSTOR'
+    )!;
+    vi.advanceTimersByTime(5000); // VOTING
+    for (const id of ['u1', 'u2', 'u3']) {
+      room.castVote(id, impostorId);
+    }
+    vi.advanceTimersByTime(1000); // FINISHED
+
+    expect(room.status).toBe('FINISHED');
+    expect(room.getSummaryForUser('u1').resolvedCategory).toBeDefined();
+    expect(room.getSummaryForUser('u2').resolvedCategory).toBeDefined();
 
     room.cleanup();
   });

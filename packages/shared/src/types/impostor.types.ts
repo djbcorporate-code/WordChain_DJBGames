@@ -138,5 +138,8 @@ export interface ImpostorRoomSummary {
   myVoteTargetId?: string | 'SKIP';
   lastEjection?: ImpostorEjectionResult;
   winnerFaction?: ImpostorWinnerFaction;
+  /** Alive player randomly picked by the system to speak first each Conversation round */
+  conversationStarterUserId?: string;
+  conversationStarterUsername?: string;
   chatHistory?: RoomChatMessage[];
 }
