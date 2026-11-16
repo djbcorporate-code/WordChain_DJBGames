@@ -420,4 +420,20 @@ describe('ImpostorGameRoom Engine & Privacy', () => {
 
     room.cleanup();
   });
+
+  it('defaults Blind Identity Mode ON automatically for CASUAL public lobbies while leaving PRIVATE toggleable', () => {
+    const casualRoom = new ImpostorGameRoom({
+      mode: 'CASUAL',
+      hostUserId: 'u1',
+    });
+    expect(casualRoom.settings.blindMode).toBe(true);
+    casualRoom.cleanup();
+
+    const privateRoom = new ImpostorGameRoom({
+      mode: 'PRIVATE',
+      hostUserId: 'u1',
+    });
+    expect(privateRoom.settings.blindMode).toBe(false);
+    privateRoom.cleanup();
+  });
 });

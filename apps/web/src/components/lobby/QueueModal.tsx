@@ -181,7 +181,7 @@ export const QueueModal: React.FC = () => {
             {isMatched
               ? `Entering Arena in ${countdownRemaining > 0 ? countdownRemaining : 1} second${countdownRemaining === 1 ? '' : 's'}`
               : isImpostorActive
-              ? 'Gathering 3 to 10 human agents for classified deduction. No AI bots will join.'
+              ? 'Gathering 3 to 10 human agents in automatic 🕶️ Blind Mode (roles & categories hidden). Zero AI bots.'
               : isChessActive
               ? `Matching players for ${chessQueueStatus?.chessVariant || '2P'} Sovereign Chess (${isRanked ? 'Ranked MMR' : 'Casual'}).`
               : isMathActive

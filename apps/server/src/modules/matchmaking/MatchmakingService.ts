@@ -567,6 +567,7 @@ export class MatchmakingService {
         difficulty: 'ALL',
         impostorCount,
         conversationSec: 90,
+        blindMode: true,
       },
     });
 

@@ -215,7 +215,7 @@ export const ImpostorDashboard: React.FC<ImpostorDashboardProps> = ({
                 </div>
                 <div className="text-xs text-zinc-400 mt-1 flex items-center gap-1.5">
                   <MessageSquare className="w-3.5 h-3.5 text-zinc-500" />
-                  Pairs 3–10 real players on randomized dossiers. Zero AI bots.
+                  Pairs 3–10 real players in automatic 🕶️ Blind Mode on hidden random categories. Zero AI bots.
                 </div>
               </button>
             </div>

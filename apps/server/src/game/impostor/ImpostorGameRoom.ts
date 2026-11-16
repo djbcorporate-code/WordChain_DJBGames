@@ -137,7 +137,10 @@ export class ImpostorGameRoom {
     this.mode = options.mode;
     this.hostUserId = options.hostUserId;
     this.settings = sanitizeImpostorSettings(
-      DEFAULT_IMPOSTOR_SETTINGS,
+      {
+        ...DEFAULT_IMPOSTOR_SETTINGS,
+        blindMode: options.mode === 'CASUAL' ? true : DEFAULT_IMPOSTOR_SETTINGS.blindMode,
+      },
       options.settings
     );
     this.countdownDelayMs = options.countdownDelayMs ?? 1000;
