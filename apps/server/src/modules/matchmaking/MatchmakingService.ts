@@ -1,13 +1,22 @@
 import {
   AcademicRankTier,
   AuthSession,
+  CHESS_DEFAULT_CLOCK_SEC,
+  CHESS_DEFAULT_INCREMENT_SEC,
+  ChessVariant,
   ClientToServerEvents,
+  DEFAULT_MATH_DIFFICULTY,
   GameLanguage,
   GameMode,
   GameType,
+  MATH_DIFFICULTY_CONFIGS,
+  MATH_DIFFICULTY_ORDER,
+  MathDifficulty,
   MathOperationMode,
   PlayerInGame,
   ServerToClientEvents,
+  getMathDifficultyForRankTier,
+  getMathDifficultyForTiers,
 } from '@wordchain/shared';
 import { Server } from 'socket.io';
 import { AnyGameRoom, RoomManager } from '../../game/RoomManager.js';
@@ -22,6 +31,9 @@ interface QueuedPlayer {
   mode: GameMode;
   language: GameLanguage;
   operationMode: MathOperationMode;
+  difficulty: MathDifficulty;
+  chessVariant: ChessVariant;
+  clockSec: number;
   mmr: number;
   enqueuedAt: number;
 }
@@ -60,8 +72,22 @@ export class MatchmakingService {
     mmr: number = 1000,
     language: GameLanguage = 'ENGLISH',
     gameType: GameType = 'WORDCHAIN',
-    operationMode: MathOperationMode = 'MIXED'
+    operationMode: MathOperationMode = 'MIXED',
+    difficulty: MathDifficulty = DEFAULT_MATH_DIFFICULTY,
+    chessVariant: ChessVariant = '2P',
+    clockSec: number = CHESS_DEFAULT_CLOCK_SEC
   ): Promise<boolean> {
+    const resolvedDifficulty: MathDifficulty =
+      mode === 'RANKED'
+        ? getMathDifficultyForRankTier(playerInfo.tier)
+        : difficulty in MATH_DIFFICULTY_CONFIGS
+        ? difficulty
+        : DEFAULT_MATH_DIFFICULTY;
+
+    const resolvedVariant: ChessVariant =
+      chessVariant && ['2P', '3P', '4P'].includes(chessVariant) ? chessVariant : '2P';
+    const resolvedClockSec = Math.min(1800, Math.max(60, clockSec || CHESS_DEFAULT_CLOCK_SEC));
+
     // Check Ranked eligibility if queuing for Ranked
     if (mode === 'RANKED') {
       const eligibility = await RankingService.checkRankedEligibility(user.userId);
@@ -81,6 +107,9 @@ export class MatchmakingService {
       this.queue[existingIndex].language = language;
       this.queue[existingIndex].gameType = gameType;
       this.queue[existingIndex].operationMode = operationMode;
+      this.queue[existingIndex].difficulty = resolvedDifficulty;
+      this.queue[existingIndex].chessVariant = resolvedVariant;
+      this.queue[existingIndex].clockSec = resolvedClockSec;
       this.queue[existingIndex].mode = mode;
       this.queue[existingIndex].mmr = mmr;
       return true;
@@ -94,6 +123,9 @@ export class MatchmakingService {
       mode,
       language,
       operationMode,
+      difficulty: resolvedDifficulty,
+      chessVariant: resolvedVariant,
+      clockSec: resolvedClockSec,
       mmr,
       enqueuedAt: Date.now(),
     });
@@ -104,11 +136,18 @@ export class MatchmakingService {
       mode,
       language,
       operationMode,
+      difficulty: gameType === 'MATHRACE' ? resolvedDifficulty : undefined,
+      chessVariant: gameType === 'CHESS' ? resolvedVariant : undefined,
       position: this.queue.filter(
         (p) =>
           p.gameType === gameType &&
           p.mode === mode &&
-          (gameType === 'MATHRACE' ? p.operationMode === operationMode : p.language === language)
+          (gameType === 'MATHRACE'
+            ? p.operationMode === operationMode &&
+              (mode === 'RANKED' || p.difficulty === resolvedDifficulty)
+            : gameType === 'CHESS'
+            ? p.chessVariant === resolvedVariant
+            : p.language === language)
       ).length,
       estimatedWaitSec: mode === 'RANKED' ? 10 : 3,
     });
@@ -140,6 +179,7 @@ export class MatchmakingService {
     this.processRankedQueue();
     this.processMathCasualQueue();
     this.processMathRankedQueue();
+    this.processChessQueues();
   }
 
   private generateBotScholar(tier: AcademicRankTier = 'NURSERY', division: number = 3): PlayerInGame {
@@ -311,7 +351,12 @@ export class MatchmakingService {
     players: QueuedPlayer[],
     gameType: GameType,
     mode: GameMode,
-    extra: { language?: GameLanguage; operationMode?: MathOperationMode },
+    extra: {
+      language?: GameLanguage;
+      operationMode?: MathOperationMode;
+      difficulty?: MathDifficulty;
+      chessVariant?: ChessVariant;
+    },
     targetWaitSec: number,
     minRemainingSec: number = 1
   ): void {
@@ -322,45 +367,195 @@ export class MatchmakingService {
         gameType,
         mode,
         ...extra,
+        difficulty: extra.difficulty ?? (gameType === 'MATHRACE' ? p.difficulty : undefined),
+        chessVariant: extra.chessVariant ?? (gameType === 'CHESS' ? p.chessVariant : undefined),
         position: idx + 1,
         estimatedWaitSec: Math.max(minRemainingSec, targetWaitSec - Math.floor((now - p.enqueuedAt) / 1000)),
       });
     });
   }
 
+  private processChessQueues(): void {
+    const variants: ChessVariant[] = ['2P', '3P', '4P'];
+    const now = Date.now();
+
+    for (const variant of variants) {
+      const requiredCount = variant === '4P' ? 4 : variant === '3P' ? 3 : 2;
+
+      // 1. Casual Queue
+      const casualChess = this.queue.filter(
+        (p) => p.gameType === 'CHESS' && p.mode === 'CASUAL' && p.chessVariant === variant
+      );
+      if (casualChess.length > 0) {
+        const oldestWaitMs = now - casualChess[0].enqueuedAt;
+        if (casualChess.length >= requiredCount) {
+          const batch = casualChess.slice(0, requiredCount);
+          this.removeFromQueue(batch);
+          this.createChessMatch(batch, 'CASUAL', variant);
+        } else if (oldestWaitMs >= 3500) {
+          const batch = casualChess.slice(0, requiredCount);
+          this.removeFromQueue(batch);
+          const bots: PlayerInGame[] = [];
+          const needed = requiredCount - batch.length;
+          for (let i = 0; i < needed; i++) {
+            bots.push(this.generateBotScholar('NURSERY', 3));
+          }
+          this.createChessMatch(batch, 'CASUAL', variant, bots);
+        } else {
+          this.emitQueueWaitingStatus(casualChess, 'CHESS', 'CASUAL', { chessVariant: variant }, 3, 1);
+        }
+      }
+
+      // 2. Ranked Queue
+      const rankedChess = this.queue.filter(
+        (p) => p.gameType === 'CHESS' && p.mode === 'RANKED' && p.chessVariant === variant
+      );
+      if (rankedChess.length > 0) {
+        const sorted = [...rankedChess].sort((a, b) => a.mmr - b.mmr);
+        const oldestWaitMs = now - sorted[0].enqueuedAt;
+
+        if (sorted.length >= requiredCount) {
+          let matched = false;
+          for (let i = 0; i <= sorted.length - requiredCount; i++) {
+            const pod = sorted.slice(i, i + requiredCount);
+            const mmrSpread = pod[pod.length - 1].mmr - pod[0].mmr;
+            const maxWait = Math.max(...pod.map((p) => now - p.enqueuedAt));
+            const allowedTolerance = Math.min(400, 150 + Math.floor(maxWait / 2000) * 50);
+
+            if (mmrSpread <= allowedTolerance || maxWait >= 4000) {
+              this.removeFromQueue(pod);
+              this.createChessMatch(pod, 'RANKED', variant);
+              matched = true;
+              break;
+            }
+          }
+          if (!matched) {
+            this.emitQueueWaitingStatus(rankedChess, 'CHESS', 'RANKED', { chessVariant: variant }, 6, 2);
+          }
+        } else if (oldestWaitMs >= 5000) {
+          const pod = sorted.slice(0, requiredCount);
+          this.removeFromQueue(pod);
+          const lead = pod[0];
+          const bots: PlayerInGame[] = [];
+          const needed = requiredCount - pod.length;
+          for (let i = 0; i < needed; i++) {
+            bots.push(this.generateBotScholar(lead.playerInfo.tier, lead.playerInfo.division));
+          }
+          this.createChessMatch(pod, 'RANKED', variant, bots);
+        } else {
+          this.emitQueueWaitingStatus(rankedChess, 'CHESS', 'RANKED', { chessVariant: variant }, 5, 1);
+        }
+      }
+    }
+  }
+
+  private createChessMatch(
+    players: QueuedPlayer[],
+    mode: 'CASUAL' | 'RANKED',
+    variant: ChessVariant = '2P',
+    botOpponents: PlayerInGame[] = []
+  ): void {
+    const roomManager = RoomManager.getInstance();
+    const host = players[0];
+    const totalCount = players.length + botOpponents.length;
+
+    const room = roomManager.createChessRoom({
+      mode,
+      variant,
+      clockSec: host.clockSec || CHESS_DEFAULT_CLOCK_SEC,
+      incrementSec: CHESS_DEFAULT_INCREMENT_SEC,
+      hostUserId: host.user.userId,
+    });
+
+    this.bindCallbacksFn!(room);
+
+    for (const p of players) {
+      room.addPlayer({
+        userId: p.playerInfo.userId,
+        username: p.playerInfo.username,
+        avatarId: p.playerInfo.avatarId,
+        tier: p.playerInfo.tier,
+        division: p.playerInfo.division,
+        isReady: true,
+      });
+
+      p.socket.join(room.roomId);
+      p.socket.data.roomId = room.roomId;
+
+      p.socket.emit('QUEUE_STATUS', { inQueue: false });
+      p.socket.emit('MATCH_FOUND', {
+        roomId: room.roomId,
+        gameType: 'CHESS',
+        mode,
+        chessVariant: variant,
+        countdownSec: 3,
+      });
+    }
+
+    for (const bot of botOpponents) {
+      room.addPlayer({
+        userId: bot.userId,
+        username: bot.username,
+        avatarId: bot.avatarId,
+        tier: bot.tier,
+        division: bot.division,
+        isReady: true,
+      });
+    }
+
+    this.io!.to(room.roomId).emit('CHESS_ROOM_STATE_UPDATE', room.getSummary());
+    room.startCountdown();
+    console.log(
+      `[Matchmaking] Chess ${mode} (${variant}) created: ${room.roomCode} with ${totalCount} players`
+    );
+  }
+
   private processMathCasualQueue(): void {
     const opModes: MathOperationMode[] = ['MIXED', 'ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE'];
     for (const opMode of opModes) {
-      const mathQueue = this.queue.filter(
-        (p) => p.gameType === 'MATHRACE' && p.mode === 'CASUAL' && p.operationMode === opMode
-      );
-      if (mathQueue.length === 0) continue;
+      for (const difficulty of MATH_DIFFICULTY_ORDER) {
+        const mathQueue = this.queue.filter(
+          (p) =>
+            p.gameType === 'MATHRACE' &&
+            p.mode === 'CASUAL' &&
+            p.operationMode === opMode &&
+            p.difficulty === difficulty
+        );
+        if (mathQueue.length === 0) continue;
 
-      const oldestWaitMs = Date.now() - mathQueue[0].enqueuedAt;
-      const shouldStartWithFewer = mathQueue.length >= 2 && oldestWaitMs >= 2500;
-      const hasFullRoom = mathQueue.length >= 6;
+        const oldestWaitMs = Date.now() - mathQueue[0].enqueuedAt;
+        const shouldStartWithFewer = mathQueue.length >= 2 && oldestWaitMs >= 2500;
+        const hasFullRoom = mathQueue.length >= 6;
 
-      if (hasFullRoom || shouldStartWithFewer) {
-        const batchSize = Math.min(6, mathQueue.length);
-        const matchedBatch = mathQueue.slice(0, batchSize);
-        this.removeFromQueue(matchedBatch);
-        this.createMathMatch(matchedBatch, 'CASUAL', opMode);
-        continue;
+        if (hasFullRoom || shouldStartWithFewer) {
+          const batchSize = Math.min(6, mathQueue.length);
+          const matchedBatch = mathQueue.slice(0, batchSize);
+          this.removeFromQueue(matchedBatch);
+          this.createMathMatch(matchedBatch, 'CASUAL', opMode, difficulty);
+          continue;
+        }
+
+        // Solo player: pair with 2 AI bots so the match has a 3-number race
+        if (mathQueue.length === 1 && oldestWaitMs >= 3500) {
+          const solo = mathQueue[0];
+          this.removeFromQueue([solo]);
+          const bots = [
+            this.generateBotScholar('NURSERY', 3),
+            this.generateBotScholar('NURSERY', 2),
+          ];
+          this.createMathMatch([solo], 'CASUAL', opMode, difficulty, bots);
+          continue;
+        }
+
+        this.emitQueueWaitingStatus(
+          mathQueue,
+          'MATHRACE',
+          'CASUAL',
+          { operationMode: opMode, difficulty },
+          3,
+          1
+        );
       }
-
-      // Solo player: pair with 2 AI bots so the match has a 3-number race
-      if (mathQueue.length === 1 && oldestWaitMs >= 3500) {
-        const solo = mathQueue[0];
-        this.removeFromQueue([solo]);
-        const bots = [
-          this.generateBotScholar('NURSERY', 3),
-          this.generateBotScholar('NURSERY', 2),
-        ];
-        this.createMathMatch([solo], 'CASUAL', opMode, bots);
-        continue;
-      }
-
-      this.emitQueueWaitingStatus(mathQueue, 'MATHRACE', 'CASUAL', { operationMode: opMode }, 3, 1);
     }
   }
 
@@ -382,7 +577,8 @@ export class MatchmakingService {
             this.generateBotScholar(soloPlayer.playerInfo.tier, soloPlayer.playerInfo.division),
             this.generateBotScholar(soloPlayer.playerInfo.tier, soloPlayer.playerInfo.division),
           ];
-          this.createMathMatch([soloPlayer], 'RANKED', opMode, bots);
+          const rankedDifficulty = getMathDifficultyForTiers([soloPlayer.playerInfo.tier]);
+          this.createMathMatch([soloPlayer], 'RANKED', opMode, rankedDifficulty, bots);
           continue;
         }
 
@@ -402,7 +598,8 @@ export class MatchmakingService {
 
           if (mmrSpread <= allowedTolerance) {
             this.removeFromQueue(pod);
-            this.createMathMatch(pod, 'RANKED', opMode);
+            const rankedDifficulty = getMathDifficultyForTiers(pod.map((p) => p.playerInfo.tier));
+            this.createMathMatch(pod, 'RANKED', opMode, rankedDifficulty);
             return;
           }
         }
@@ -417,7 +614,8 @@ export class MatchmakingService {
 
         if (mmrSpread <= allowedTolerance || maxWait >= 4000) {
           this.removeFromQueue(pod);
-          this.createMathMatch(pod, 'RANKED', opMode);
+          const rankedDifficulty = getMathDifficultyForTiers(pod.map((p) => p.playerInfo.tier));
+          this.createMathMatch(pod, 'RANKED', opMode, rankedDifficulty);
           continue;
         }
       }
@@ -430,6 +628,7 @@ export class MatchmakingService {
     players: QueuedPlayer[],
     mode: 'CASUAL' | 'RANKED',
     operationMode: MathOperationMode = 'MIXED',
+    difficulty: MathDifficulty = DEFAULT_MATH_DIFFICULTY,
     botOpponents: PlayerInGame[] = []
   ): void {
     const roomManager = RoomManager.getInstance();
@@ -439,6 +638,7 @@ export class MatchmakingService {
     const room = roomManager.createMathRoom({
       mode,
       operationMode,
+      difficulty,
       hostUserId: host.user.userId,
       maxPlayers: Math.max(2, Math.min(6, totalCount)),
     });
@@ -464,6 +664,7 @@ export class MatchmakingService {
         gameType: 'MATHRACE',
         mode,
         operationMode,
+        difficulty,
         countdownSec: 3,
       });
     }
@@ -482,7 +683,7 @@ export class MatchmakingService {
     this.io!.to(room.roomId).emit('MATH_ROOM_STATE_UPDATE', room.getSummary());
     room.startCountdown();
     console.log(
-      `[Matchmaking] MathBlitz ${mode} match (${operationMode}) created: ${room.roomCode} with ${totalCount} players`
+      `[Matchmaking] MathBlitz ${mode} match (${operationMode}/${difficulty}) created: ${room.roomCode} with ${totalCount} players`
     );
   }
 

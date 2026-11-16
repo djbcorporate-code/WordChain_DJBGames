@@ -1,5 +1,11 @@
-import { MathOperationMode } from '@wordchain/shared';
-import { Calculator, Hash, KeyRound, PlusCircle, Timer, Users, X } from 'lucide-react';
+import {
+  DEFAULT_MATH_DIFFICULTY,
+  MATH_DIFFICULTY_CONFIGS,
+  MATH_DIFFICULTY_ORDER,
+  MathDifficulty,
+  MathOperationMode,
+} from '@wordchain/shared';
+import { Calculator, Gauge, Hash, KeyRound, PlusCircle, Timer, Users, X } from 'lucide-react';
 import React, { useState } from 'react';
 import { useMathGame } from '../../context/MathGameContext.js';
 
@@ -20,13 +26,14 @@ export const MathPrivateRoomModal: React.FC<MathPrivateRoomModalProps> = ({ isOp
   const { createPrivateRoom, joinRoom, error } = useMathGame();
   const [activeTab, setActiveTab] = useState<'CREATE' | 'JOIN'>('CREATE');
   const [operationMode, setOperationMode] = useState<MathOperationMode>('MIXED');
+  const [difficulty, setDifficulty] = useState<MathDifficulty>(DEFAULT_MATH_DIFFICULTY);
   const [raceTimerSec, setRaceTimerSec] = useState<number>(60);
   const [joinCode, setJoinCode] = useState('');
 
   if (!isOpen) return null;
 
   const handleCreate = () => {
-    createPrivateRoom(operationMode, raceTimerSec);
+    createPrivateRoom(operationMode, raceTimerSec, difficulty);
     onClose();
   };
 
@@ -39,7 +46,7 @@ export const MathPrivateRoomModal: React.FC<MathPrivateRoomModalProps> = ({ isOp
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
-      <div className="relative w-full max-w-lg bg-surface border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
+      <div className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto bg-surface border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5">
         <button
           onClick={onClose}
           className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors absolute right-5 top-5"
@@ -111,6 +118,39 @@ export const MathPrivateRoomModal: React.FC<MathPrivateRoomModalProps> = ({ isOp
                     </div>
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-mono uppercase text-slate-400 font-bold flex items-center gap-1.5">
+                <Gauge className="w-3.5 h-3.5 text-cyan-400" />
+                <span>
+                  Number Difficulty ({MATH_DIFFICULTY_CONFIGS[difficulty].label}:{' '}
+                  {MATH_DIFFICULTY_CONFIGS[difficulty].minNumber}–{MATH_DIFFICULTY_CONFIGS[difficulty].maxNumber})
+                </span>
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {MATH_DIFFICULTY_ORDER.map((diffKey) => {
+                  const cfg = MATH_DIFFICULTY_CONFIGS[diffKey];
+                  const active = difficulty === diffKey;
+                  return (
+                    <button
+                      key={diffKey}
+                      type="button"
+                      onClick={() => setDifficulty(diffKey)}
+                      className={`px-2.5 py-2 rounded-xl border text-left transition-all ${
+                        active
+                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="text-xs font-black leading-tight">{cfg.label}</div>
+                      <div className="text-[10px] font-mono opacity-80">
+                        {cfg.minNumber}–{cfg.maxNumber}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

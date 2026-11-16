@@ -1,5 +1,7 @@
-import { Calculator, CheckCircle2, Swords, Users, X } from 'lucide-react';
+import { DEFAULT_MATH_DIFFICULTY, MATH_DIFFICULTY_CONFIGS } from '@wordchain/shared';
+import { Calculator, CheckCircle2, Crown, Swords, Users, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { useChessGame } from '../../context/ChessGameContext.js';
 import { useGame } from '../../context/GameContext.js';
 import { useMathGame } from '../../context/MathGameContext.js';
 
@@ -11,13 +13,21 @@ export const QueueModal: React.FC = () => {
     mathRoom,
     leaveQueue: leaveMathQueue,
   } = useMathGame();
+  const {
+    queueStatus: chessQueueStatus,
+    matchFound: chessMatchFound,
+    chessRoom,
+    leaveQueue: leaveChessQueue,
+  } = useChessGame();
   const [elapsedSec, setElapsedSec] = useState(0);
   const [countdownRemaining, setCountdownRemaining] = useState(3);
 
   const isMathQueue = !!mathQueueStatus?.inQueue;
-  const activeQueue = isMathQueue ? mathQueueStatus : queueStatus;
-  const activeMatchFound = mathMatchFound || matchFoundNotice;
+  const isChessQueue = !!chessQueueStatus?.inQueue;
+  const activeQueue = isMathQueue ? mathQueueStatus : isChessQueue ? chessQueueStatus : queueStatus;
+  const activeMatchFound = chessMatchFound || mathMatchFound || matchFoundNotice;
   const isMathActive = isMathQueue || !!mathMatchFound;
+  const isChessActive = isChessQueue || !!chessMatchFound;
 
   useEffect(() => {
     if (!activeQueue?.inQueue) {
@@ -58,6 +68,7 @@ export const QueueModal: React.FC = () => {
   if (
     currentRoom?.status === 'IN_PROGRESS' ||
     mathRoom?.status === 'IN_PROGRESS' ||
+    chessRoom?.status === 'IN_PROGRESS' ||
     (!activeQueue?.inQueue && !activeMatchFound)
   ) {
     return null;
@@ -75,6 +86,8 @@ export const QueueModal: React.FC = () => {
   const handleCancelSearch = () => {
     if (isMathQueue) {
       leaveMathQueue();
+    } else if (isChessQueue) {
+      leaveChessQueue();
     } else {
       leaveQueue();
     }
@@ -90,6 +103,8 @@ export const QueueModal: React.FC = () => {
               ? 'bg-emerald-500/20'
               : isMathActive
               ? 'bg-amber-500/20'
+              : isChessActive
+              ? 'bg-emerald-500/20'
               : isRanked
               ? 'bg-indigo-500/25'
               : 'bg-accent-primary/20'
@@ -110,6 +125,8 @@ export const QueueModal: React.FC = () => {
               <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center text-accent-secondary shadow-glow">
                 {isMathActive ? (
                   <Calculator className="w-7 h-7 text-amber-400" />
+                ) : isChessActive ? (
+                  <Crown className="w-7 h-7 text-emerald-400" />
                 ) : isRanked ? (
                   <Swords className="w-7 h-7 text-indigo-400" />
                 ) : (
@@ -125,7 +142,7 @@ export const QueueModal: React.FC = () => {
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-accent-secondary">
             {isMatched
               ? 'Match Confirmed'
-              : `${isMathActive ? 'MathBlitz' : 'WordChain'} · ${isRanked ? 'Ranked' : 'Casual'} Queue`}
+              : `${isMathActive ? 'MathBlitz' : isChessActive ? 'Chess' : 'WordChain'} · ${isRanked ? 'Ranked' : 'Casual'} Queue`}
           </span>
           <h3 className="text-xl sm:text-2xl font-black text-white">
             {isMatched ? 'Match Found!' : isRanked ? 'Finding Opponents...' : 'Searching for Players...'}
@@ -133,10 +150,22 @@ export const QueueModal: React.FC = () => {
           <p className="text-xs text-slate-400">
             {isMatched
               ? `Entering Arena in ${countdownRemaining > 0 ? countdownRemaining : 1} second${countdownRemaining === 1 ? '' : 's'}`
+              : isChessActive
+              ? `Matching players for ${chessQueueStatus?.chessVariant || '2P'} Sovereign Chess (${isRanked ? 'Ranked MMR' : 'Casual'}).`
               : isMathActive
               ? isRanked
-                ? 'Pairing 2 to 6 players within your MathBlitz MMR window (Balanced Ops).'
-                : `Pairing 2 to 6 players for MathBlitz (${mathQueueStatus?.operationMode || 'MIXED'}).`
+                ? `Pairing 2 to 6 players within your MathBlitz MMR window (Balanced Ops${
+                    mathQueueStatus?.difficulty
+                      ? ` · ${MATH_DIFFICULTY_CONFIGS[mathQueueStatus.difficulty].label} ${
+                          MATH_DIFFICULTY_CONFIGS[mathQueueStatus.difficulty].minNumber
+                        }–${MATH_DIFFICULTY_CONFIGS[mathQueueStatus.difficulty].maxNumber}`
+                      : ''
+                  }).`
+                : `Pairing 2 to 6 players for MathBlitz (${mathQueueStatus?.operationMode || 'MIXED'} · ${
+                    MATH_DIFFICULTY_CONFIGS[mathQueueStatus?.difficulty || DEFAULT_MATH_DIFFICULTY].label
+                  } ${MATH_DIFFICULTY_CONFIGS[mathQueueStatus?.difficulty || DEFAULT_MATH_DIFFICULTY].minNumber}–${
+                    MATH_DIFFICULTY_CONFIGS[mathQueueStatus?.difficulty || DEFAULT_MATH_DIFFICULTY].maxNumber
+                  }).`
               : isRanked
               ? 'Pairing you with 2 to 4 scholars within your Academic MMR window.'
               : 'Pairing you with 2 to 4 players for a casual word chain match.'}

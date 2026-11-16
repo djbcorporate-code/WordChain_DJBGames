@@ -124,34 +124,48 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({
         </div>
 
         {/* Game Filter Bar */}
-        <div className="grid grid-cols-2 gap-2 bg-slate-900/70 p-1.5 rounded-2xl border border-slate-800 text-xs font-black">
+        <div className="grid grid-cols-3 gap-2 bg-slate-900/70 p-1.5 rounded-2xl border border-slate-800 text-xs font-black">
           <button
             onClick={() => {
               setGameType('WORDCHAIN');
               setPage(1);
             }}
-            className={`py-2 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            className={`py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               gameType === 'WORDCHAIN'
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
             <Swords className="w-3.5 h-3.5" />
-            <span>WordChain Ladder</span>
+            <span>WordChain</span>
           </button>
           <button
             onClick={() => {
               setGameType('MATHRACE');
               setPage(1);
             }}
-            className={`py-2 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            className={`py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
               gameType === 'MATHRACE'
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
             <Calculator className="w-3.5 h-3.5" />
-            <span>MathBlitz Ladder</span>
+            <span>MathBlitz</span>
+          </button>
+          <button
+            onClick={() => {
+              setGameType('CHESS');
+              setPage(1);
+            }}
+            className={`py-2 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              gameType === 'CHESS'
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Crown className="w-3.5 h-3.5" />
+            <span>Chess</span>
           </button>
         </div>
 

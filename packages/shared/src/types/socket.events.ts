@@ -1,4 +1,13 @@
 import {
+  ChessEndReason,
+  ChessGameStateSnapshot,
+  ChessMoveRecord,
+  ChessPieceType,
+  ChessPlayerInGame,
+  ChessRoomSummary,
+  ChessVariant,
+} from './chess.types.js';
+import {
   GameLanguage,
   GameMode,
   GameRoomSummary,
@@ -11,6 +20,7 @@ import {
   WordRejectionReason,
 } from './game.types.js';
 import {
+  MathDifficulty,
   MathOperation,
   MathOperationMode,
   MathPlayerInGame,
@@ -27,6 +37,9 @@ export interface ClientToServerEvents {
     mode: GameMode;
     language?: GameLanguage;
     operationMode?: MathOperationMode;
+    difficulty?: MathDifficulty;
+    chessVariant?: ChessVariant;
+    clockSec?: number;
   }) => void;
   LOBBY_LEAVE_QUEUE: () => void;
   ROOM_CREATE_PRIVATE: (payload?: {
@@ -34,6 +47,9 @@ export interface ClientToServerEvents {
     customTimerSec?: number;
     language?: GameLanguage;
     operationMode?: MathOperationMode;
+    difficulty?: MathDifficulty;
+    chessVariant?: ChessVariant;
+    incrementSec?: number;
   }) => void;
   ROOM_JOIN: (payload: { roomCode: string }) => void;
   ROOM_LEAVE: () => void;
@@ -55,6 +71,10 @@ export interface ClientToServerEvents {
   MATH_SUBMIT_PICK: (payload: { number: number }) => void;
   MATH_SUBMIT_ANSWER: (payload: { answer: string }) => void;
 
+  // Chess Active Gameplay
+  CHESS_MAKE_MOVE: (payload: { from: string; to: string; promotion?: ChessPieceType }) => void;
+  CHESS_RESIGN: () => void;
+
   // Reconnection
   ROOM_RECONNECT: (payload: { roomId: string; sessionToken?: string }) => void;
 
@@ -73,6 +93,8 @@ export interface ServerToClientEvents {
     mode?: GameMode;
     language?: GameLanguage;
     operationMode?: MathOperationMode;
+    difficulty?: MathDifficulty;
+    chessVariant?: ChessVariant;
     position?: number;
     estimatedWaitSec?: number;
   }) => void;
@@ -82,6 +104,8 @@ export interface ServerToClientEvents {
     mode: GameMode;
     language?: GameLanguage;
     operationMode?: MathOperationMode;
+    difficulty?: MathDifficulty;
+    chessVariant?: ChessVariant;
     countdownSec: number;
   }) => void;
 
@@ -139,6 +163,7 @@ export interface ServerToClientEvents {
     roundNumber: number;
     totalRounds: number;
     operation: MathOperation;
+    difficulty: MathDifficulty;
     pickOptions: number[];
     durationSec: number;
     deadlineUtc: number;
@@ -149,6 +174,7 @@ export interface ServerToClientEvents {
     roundNumber: number;
     totalRounds: number;
     operation: MathOperation;
+    difficulty: MathDifficulty;
     picks: MathPlayerPickDisplay[];
     equationDisplay: string;
     choices?: string[];
@@ -173,6 +199,32 @@ export interface ServerToClientEvents {
   MATH_MATCH_ENDED: (payload: {
     winnerId: string;
     standings: MathPlayerInGame[];
+    deltas: Record<string, RankProgressionDelta>;
+  }) => void;
+
+  // Chess Room & Match Events
+  CHESS_ROOM_STATE_UPDATE: (payload: ChessRoomSummary | null) => void;
+  CHESS_MOVE_APPLIED: (payload: {
+    move: ChessMoveRecord;
+    gameState: ChessGameStateSnapshot;
+    turnStartedAtUtc: number;
+    players: ChessPlayerInGame[];
+  }) => void;
+  CHESS_MOVE_REJECTED: (payload: {
+    reason: string;
+    message: string;
+  }) => void;
+  CHESS_PLAYER_ELIMINATED: (payload: {
+    userId: string;
+    seat: number;
+    placement: number;
+    reason: ChessEndReason;
+  }) => void;
+  CHESS_MATCH_ENDED: (payload: {
+    winnerId: string;
+    isDraw?: boolean;
+    drawReason?: ChessEndReason;
+    standings: ChessPlayerInGame[];
     deltas: Record<string, RankProgressionDelta>;
   }) => void;
 

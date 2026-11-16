@@ -3,7 +3,17 @@ import { AcademicRankTier } from './ranking.types.js';
 
 export type MathOperation = 'ADD' | 'SUBTRACT' | 'MULTIPLY' | 'DIVIDE';
 export type MathOperationMode = 'MIXED' | MathOperation;
+export type MathDifficulty = 'EASY' | 'CHALLENGE' | 'EXPERT' | 'MATHEMATICIAN' | 'MATH_GOD';
 export type MathPhase = 'WAITING' | 'COUNTDOWN' | 'PICKING' | 'RACING' | 'ROUND_RESULT' | 'FINISHED';
+
+export interface MathDifficultyConfig {
+  id: MathDifficulty;
+  label: string;
+  minNumber: number;
+  maxNumber: number;
+  optionCount: number;
+  description: string;
+}
 
 export interface MathPlayerInGame {
   userId: string;
@@ -37,6 +47,7 @@ export interface MathRoundState {
   totalRounds: number;
   phase: MathPhase;
   operation: MathOperation;
+  difficulty: MathDifficulty;
   pickOptions: number[];
   picks?: MathPlayerPickDisplay[];
   equationDisplay?: string;
@@ -52,6 +63,7 @@ export interface MathRoomSummary {
   gameType: 'MATHRACE';
   mode: GameMode;
   operationMode: MathOperationMode;
+  difficulty: MathDifficulty;
   status: RoomStatus;
   hostUserId: string;
   maxPlayers: number;

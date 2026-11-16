@@ -1,6 +1,7 @@
 import {
   AuthenticatedUser,
   ForgotPasswordInput,
+  GameType,
   LoginInput,
   RegisterInput,
   ResetPasswordInput,
@@ -168,7 +169,7 @@ export const api = {
       type: 'SEASONAL' | 'LIFETIME_WINS' | 'ACCOUNT_LEVEL' = 'SEASONAL',
       page: number = 1,
       limit: number = 20,
-      gameType: 'WORDCHAIN' | 'MATHRACE' = 'WORDCHAIN'
+      gameType: GameType = 'WORDCHAIN'
     ): Promise<{
       success: boolean;
       type: string;

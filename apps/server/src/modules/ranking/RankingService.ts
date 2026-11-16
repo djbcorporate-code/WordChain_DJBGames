@@ -33,6 +33,7 @@ export interface SettleableMatchInput {
   mode: string;
   roundNumber: number;
   createdAt: number;
+  isDraw?: boolean;
   participants: SettleableMatchParticipant[];
 }
 
@@ -473,7 +474,7 @@ export class RankingService {
     const playersList = summary.participants;
 
     // 3. Compute match metrics
-    const winner = playersList.find((p) => p.placement === 1) || playersList[0];
+    const winner = summary.isDraw ? undefined : playersList.find((p) => p.placement === 1) || playersList[0];
     const durationSeconds = Math.max(0, Math.floor((Date.now() - summary.createdAt) / 1000));
     const winnerUserId = winner && !winner.userId.startsWith('guest-bot-') ? winner.userId : null;
 
@@ -570,7 +571,7 @@ export class RankingService {
       }
       const currentRank = playerRankMap.get(player.userId);
       const placement = player.placement ?? playersList.length;
-      const isWinner = placement === 1;
+      const isWinner = !summary.isDraw && placement === 1;
       const isUnderdog = currentRank.hiddenMmr < avgMmr - 100;
 
       // Rewards calculation
@@ -578,9 +579,14 @@ export class RankingService {
       let pointsChange = 0;
 
       if (summary.mode === 'RANKED') {
-        const rewards = this.calculatePlacementRewards(currentRank.tier, placement, isUnderdog, playersList.length);
-        expChange = rewards.expChange;
-        pointsChange = rewards.pointsChange;
+        if (summary.isDraw) {
+          expChange = 5;
+          pointsChange = 0;
+        } else {
+          const rewards = this.calculatePlacementRewards(currentRank.tier, placement, isUnderdog, playersList.length);
+          expChange = rewards.expChange;
+          pointsChange = rewards.pointsChange;
+        }
       }
 
       const progression = this.calculateProgression(currentRank, expChange, pointsChange);

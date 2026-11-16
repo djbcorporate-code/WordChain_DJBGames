@@ -1,6 +1,8 @@
 import {
-  MATH_PICK_OPTION_COUNT,
+  DEFAULT_MATH_DIFFICULTY,
+  MATH_DIFFICULTY_CONFIGS,
   MATH_TOTAL_ROUNDS,
+  MathDifficulty,
   MathOperation,
   MathOperationMode,
   MathPlayerPickDisplay,
@@ -24,12 +26,21 @@ export class MathEquationGenerator {
   }
 
   /**
-   * Generates `count` unique random numbers between 1 and 99 inclusive.
+   * Generates unique random numbers within the selected difficulty's range.
    */
-  public static generatePickOptions(count: number = MATH_PICK_OPTION_COUNT): number[] {
+  public static generatePickOptions(
+    difficulty: MathDifficulty = DEFAULT_MATH_DIFFICULTY,
+    countOverride?: number
+  ): number[] {
+    const cfg = MATH_DIFFICULTY_CONFIGS[difficulty] || MATH_DIFFICULTY_CONFIGS[DEFAULT_MATH_DIFFICULTY];
+    const min = cfg.minNumber;
+    const max = cfg.maxNumber;
+    const poolSize = max - min + 1;
+    const targetCount = Math.min(poolSize, Math.max(1, countOverride ?? cfg.optionCount));
+
     const picked = new Set<number>();
-    while (picked.size < count) {
-      picked.add(1 + Math.floor(Math.random() * 99));
+    while (picked.size < targetCount) {
+      picked.add(min + Math.floor(Math.random() * poolSize));
     }
     return this.shuffle(Array.from(picked));
   }

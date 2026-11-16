@@ -271,7 +271,7 @@ export class AuthService {
 
   private static async initializeGameRanks(userId: string, seasonId: number): Promise<void> {
     const db = await getDb();
-    const games: GameType[] = ['WORDCHAIN', 'MATHRACE'];
+    const games: GameType[] = ['WORDCHAIN', 'MATHRACE', 'CHESS'];
     for (const gameType of games) {
       await db
         .insert(playerRankProfiles)
@@ -337,6 +337,7 @@ export class AuthService {
 
     const wordRankRow = rankProfiles.find((r) => (r.gameType || 'WORDCHAIN') === 'WORDCHAIN');
     const mathRankRow = rankProfiles.find((r) => r.gameType === 'MATHRACE');
+    const chessRankRow = rankProfiles.find((r) => r.gameType === 'CHESS');
 
     const mapRankRow = (row?: typeof rankProfiles[number]): GameRankStanding =>
       row
@@ -353,6 +354,7 @@ export class AuthService {
 
     const wordRank = mapRankRow(wordRankRow);
     const mathRank = mapRankRow(mathRankRow);
+    const chessRank = mapRankRow(chessRankRow);
 
     return {
       id: user.id,
@@ -381,6 +383,7 @@ export class AuthService {
       gameRanks: {
         WORDCHAIN: wordRank,
         MATHRACE: mathRank,
+        CHESS: chessRank,
       },
     };
   }

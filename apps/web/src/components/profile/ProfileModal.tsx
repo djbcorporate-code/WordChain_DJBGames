@@ -202,7 +202,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-2">
                         <span className="text-[10px] font-mono font-black uppercase tracking-wider text-cyan-400 block">
                           WordChain Rank
@@ -225,6 +225,18 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                           tier={profileData.gameRanks?.MATHRACE?.tier || 'NURSERY'}
                           division={profileData.gameRanks?.MATHRACE?.division ?? 3}
                           scientistPoints={profileData.gameRanks?.MATHRACE?.scientistPoints ?? 0}
+                          size="sm"
+                        />
+                      </div>
+
+                      <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-2">
+                        <span className="text-[10px] font-mono font-black uppercase tracking-wider text-emerald-400 block">
+                          Chess Rank
+                        </span>
+                        <RankEmblem
+                          tier={profileData.gameRanks?.CHESS?.tier || 'NURSERY'}
+                          division={profileData.gameRanks?.CHESS?.division ?? 3}
+                          scientistPoints={profileData.gameRanks?.CHESS?.scientistPoints ?? 0}
                           size="sm"
                         />
                       </div>
@@ -385,10 +397,12 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                                   className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-black uppercase ${
                                     m.gameType === 'MATHRACE'
                                       ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                      : m.gameType === 'CHESS'
+                                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                                       : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
                                   }`}
                                 >
-                                  {m.gameType === 'MATHRACE' ? 'MathBlitz' : 'WordChain'}
+                                  {m.gameType === 'MATHRACE' ? 'MathBlitz' : m.gameType === 'CHESS' ? 'Chess' : 'WordChain'}
                                 </span>
                                 <span>{m.gameMode}</span>
                                 {isVictory && <Crown className="w-3 h-3 text-amber-400 fill-current" />}
@@ -396,6 +410,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                               <span className="text-[11px] text-slate-400 font-mono">
                                 {m.gameType === 'MATHRACE'
                                   ? `${m.wordsSubmitted} pts scored`
+                                  : m.gameType === 'CHESS'
+                                  ? `${m.wordsSubmitted} moves played`
                                   : `${m.wordsSubmitted} words submitted`}
                               </span>
                             </div>

@@ -45,6 +45,13 @@ export const GameCatalogPage: React.FC<GameCatalogPageProps> = ({
     scientistPoints: 0,
     hiddenMmr: 1000,
   };
+  const chessRank = user?.gameRanks?.CHESS || {
+    tier: 'NURSERY' as const,
+    division: 3,
+    rankExp: 0,
+    scientistPoints: 0,
+    hiddenMmr: 1000,
+  };
 
   const handleQuickJoin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,11 +185,11 @@ export const GameCatalogPage: React.FC<GameCatalogPageProps> = ({
             </p>
           </div>
           <span className="text-xs font-mono text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/25 px-3 py-1 rounded-full self-start sm:self-auto">
-            2 Playable Arenas Live
+            3 Playable Arenas Live
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* CARD 1: WORDCHAIN */}
           <div className="group relative rounded-3xl bg-card border border-slate-800 hover:border-cyan-500/60 p-6 sm:p-7 transition-all shadow-xl hover:shadow-cyan-950/30 flex flex-col justify-between gap-6">
             <div className="space-y-4">
@@ -261,12 +268,13 @@ export const GameCatalogPage: React.FC<GameCatalogPageProps> = ({
                   MathBlitz
                 </h3>
                 <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
-                  10-round live equation racing! Every round, each player has 3 seconds to pick a random number (1–99). All picks forge one live problem (+, −, ×, or 4-choice ÷) — fastest solves win!
+                  10-round live equation racing! Every round, each player has 3 seconds to pick a random number across 5 difficulty tiers (1–9 up to 1–200). All picks forge one live problem (+, −, ×, or 4-choice ÷) — fastest solves win!
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-2 text-[11px] font-mono text-slate-300">
                 <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">10 Rounds</span>
+                <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">5 Difficulties</span>
                 <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">3s Number Pick</span>
                 <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">+ − × &amp; 4-Choice ÷</span>
               </div>
@@ -294,6 +302,62 @@ export const GameCatalogPage: React.FC<GameCatalogPageProps> = ({
               </button>
             </div>
           </div>
+
+          {/* CARD 3: SOVEREIGN CHESS */}
+          <div className="group relative rounded-3xl bg-card border border-slate-800 hover:border-emerald-500/60 p-6 sm:p-7 transition-all shadow-xl hover:shadow-emerald-950/30 flex flex-col justify-between gap-6">
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/25 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shadow-inner">
+                  <Crown className="w-7 h-7" />
+                </div>
+                <div className="flex flex-wrap gap-1.5 justify-end">
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[11px] font-mono font-black flex items-center gap-1">
+                    <Flame className="w-3 h-3" /> NEW
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[11px] font-mono font-bold flex items-center gap-1">
+                    <Users className="w-3 h-3 text-emerald-400" /> 2–4 Players
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-2xl font-black text-white group-hover:text-emerald-300 transition-colors">
+                  Sovereign Chess
+                </h3>
+                <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
+                  Classic 8×8 Chess, 3-Player Hexagonal 96-cell boards, and 4-Player 14×14 Cross warfare! Outlast rivals with per-player Chess Clocks in Last King Standing.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 text-[11px] font-mono text-slate-300">
+                <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">2P 8×8</span>
+                <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">3P Hex 96</span>
+                <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">4P Cross 14×14</span>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-3 border-t border-slate-800/80">
+              {user && (
+                <div className="flex items-center justify-between bg-slate-950/60 px-3.5 py-2.5 rounded-2xl border border-slate-800">
+                  <span className="text-[11px] font-mono uppercase text-slate-400 font-bold">Your Rank</span>
+                  <RankEmblem
+                    tier={chessRank.tier}
+                    division={chessRank.division}
+                    scientistPoints={chessRank.scientistPoints}
+                    size="sm"
+                  />
+                </div>
+              )}
+
+              <button
+                onClick={() => onSelectGame('CHESS')}
+                className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-400 to-cyan-500 hover:from-emerald-300 hover:to-cyan-400 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-lg transition-all cursor-pointer"
+              >
+                <span>Enter Chess Hub</span>
+                <Crown className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -306,7 +370,7 @@ export const GameCatalogPage: React.FC<GameCatalogPageProps> = ({
           <div>
             <h3 className="font-bold text-sm sm:text-base text-white">Have a Private Room Code?</h3>
             <p className="text-xs text-slate-400">
-              Enter any WordChain or MathBlitz 6-character code — you&apos;ll automatically route into the host&apos;s game.
+              Enter any WordChain, MathBlitz, or Chess 6-character code — you&apos;ll automatically route into the host&apos;s game.
             </p>
           </div>
         </div>

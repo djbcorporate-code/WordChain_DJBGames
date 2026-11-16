@@ -1,5 +1,6 @@
 import {
   AcademicRankTier,
+  ChessPlayerInGame,
   MathPlayerInGame,
   PlayerInGame,
   RANK_TIER_CONFIGS,
@@ -31,9 +32,10 @@ export type PostMatchStandingPlayer = {
 
 interface PostMatchModalProps {
   winnerId: string;
-  standings: (PlayerInGame | MathPlayerInGame | PostMatchStandingPlayer)[];
+  standings: (PlayerInGame | MathPlayerInGame | ChessPlayerInGame | PostMatchStandingPlayer)[];
   deltas?: Record<string, RankProgressionDelta>;
   mode?: string;
+  isDraw?: boolean;
   gameTitle?: string;
   isHost?: boolean;
   onRematch?: () => void;
@@ -45,6 +47,7 @@ export const PostMatchModal: React.FC<PostMatchModalProps> = ({
   standings,
   deltas,
   mode,
+  isDraw = false,
   isHost,
   onRematch,
   onClose,
@@ -65,10 +68,16 @@ export const PostMatchModal: React.FC<PostMatchModalProps> = ({
             <Trophy className="w-8 h-8 text-slate-950 fill-current" />
           </div>
           <span className="text-xs font-mono font-bold uppercase tracking-widest text-amber-400">
-            Match Completed
+            {isDraw ? 'Match Drawn' : 'Match Completed'}
           </span>
           <h2 className="text-2xl sm:text-3xl font-black text-white mt-1">
-            Victory for <span className="text-accent-secondary">{winner?.username}</span>!
+            {isDraw ? (
+              <span>Draw Declared</span>
+            ) : (
+              <>
+                Victory for <span className="text-accent-secondary">{winner?.username}</span>!
+              </>
+            )}
           </h2>
         </div>
 
@@ -214,6 +223,10 @@ export const PostMatchModal: React.FC<PostMatchModalProps> = ({
                           (player as MathPlayerInGame).firstPlaceFinishes > 0
                             ? ` · ${(player as MathPlayerInGame).firstPlaceFinishes}x Fastest`
                             : ''}
+                        </span>
+                      ) : 'movesPlayed' in player && typeof player.movesPlayed === 'number' ? (
+                        <span>
+                          {player.movesPlayed} moves · {(player as ChessPlayerInGame).capturesCount ?? 0} captures
                         </span>
                       ) : (
                         <span>{(player as PlayerInGame).wordsSubmitted ?? 0} words submitted</span>

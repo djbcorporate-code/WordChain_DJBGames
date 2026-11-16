@@ -1,4 +1,10 @@
-import { MATH_PLACEMENT_POINTS, MATH_RACE_DURATION_SEC, MathOperation } from '@wordchain/shared';
+import {
+  DEFAULT_MATH_DIFFICULTY,
+  MATH_DIFFICULTY_CONFIGS,
+  MATH_PLACEMENT_POINTS,
+  MATH_RACE_DURATION_SEC,
+  MathOperation,
+} from '@wordchain/shared';
 import {
   AlertCircle,
   CheckCircle2,
@@ -114,6 +120,7 @@ export const MathLiveArena: React.FC = () => {
   const isUrgent = roundState?.phase === 'RACING' && remainingMs <= 5000;
 
   const opMeta = roundState ? OP_BADGE[roundState.operation] : OP_BADGE.ADD;
+  const diffCfg = MATH_DIFFICULTY_CONFIGS[roundState?.difficulty || mathRoom.difficulty || DEFAULT_MATH_DIFFICULTY];
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,6 +152,10 @@ export const MathLiveArena: React.FC = () => {
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="px-2.5 py-1 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 font-mono font-black text-xs sm:text-sm shrink-0">
             ROUND {roundState?.roundNumber || 1}/{roundState?.totalRounds || 10}
+          </div>
+
+          <div className="hidden md:flex px-2.5 py-1 rounded-xl bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 font-mono font-bold text-[11px] shrink-0">
+            {diffCfg.label} ({diffCfg.minNumber}–{diffCfg.maxNumber})
           </div>
 
           {roundState && (
@@ -264,20 +275,27 @@ export const MathLiveArena: React.FC = () => {
               <Zap className="w-12 h-12 text-amber-400 mx-auto animate-bounce" />
               <h2 className="text-2xl sm:text-4xl font-black text-white">MathBlitz Match Starting!</h2>
               <p className="text-sm text-slate-400">
-                10 Rounds · Pick random numbers 1–99 in 3 seconds · Race to solve!
+                10 Rounds · {diffCfg.label} ({diffCfg.minNumber}–{diffCfg.maxNumber}) in 3 seconds · Race to solve!
               </p>
             </div>
           )}
 
-          {/* PICKING PHASE (3 Seconds, 12 Random 1–99 Numbers) */}
+          {/* PICKING PHASE (3 Seconds, Random Numbers in Difficulty Range) */}
           {mathRoom.status === 'IN_PROGRESS' && roundState?.phase === 'PICKING' && (
             <div className="w-full max-w-2xl bg-card border border-cyan-500/30 rounded-3xl p-4 sm:p-7 shadow-2xl space-y-4 sm:space-y-5 text-center animate-fadeIn">
               <div className="space-y-1">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-xs font-mono font-black">
-                  <Hash className="w-3.5 h-3.5" /> STEP 1 · 3-SECOND NUMBER PICK
-                </span>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-xs font-mono font-black">
+                    <Hash className="w-3.5 h-3.5" /> STEP 1 · 3-SECOND NUMBER PICK
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-slate-900 border border-slate-700 text-amber-300 text-xs font-mono font-bold">
+                    {diffCfg.label}: {diffCfg.minNumber}–{diffCfg.maxNumber}
+                  </span>
+                </div>
                 <h2 className="text-xl sm:text-3xl font-black text-white">
-                  {me?.hasPicked ? `Locked In: ${me.pickedNumber}!` : 'Pick Any Number (1–99)!'}
+                  {me?.hasPicked
+                    ? `Locked In: ${me.pickedNumber}!`
+                    : `Pick Any Number (${diffCfg.minNumber}–${diffCfg.maxNumber})!`}
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-400">
                   {me?.hasPicked
@@ -286,7 +304,11 @@ export const MathLiveArena: React.FC = () => {
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5 sm:gap-3">
+              <div
+                className={`grid gap-2.5 sm:gap-3 ${
+                  roundState.pickOptions.length === 9 ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-4'
+                }`}
+              >
                 {roundState.pickOptions.map((num) => {
                   const isSelected = me?.hasPicked && me.pickedNumber === num;
                   return (

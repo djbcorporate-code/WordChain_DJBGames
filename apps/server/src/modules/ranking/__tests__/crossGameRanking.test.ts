@@ -84,5 +84,33 @@ describe('Cross-Game Shared Account & Per-Game Ranked Separation', () => {
     expect(wordBoard.status).toBe(200);
     const wordWinnerRow = wordBoard.body.entries.find((e: any) => e.userId === players[0].id);
     expect(wordWinnerRow?.rankExp ?? 0).toBe(0);
+
+    // Also settle a 4-player Ranked Chess match on the same accounts
+    const chessMatchId = crypto.randomUUID();
+    await RankingService.settleMatchSummary(chessMatchId, {
+      roomCode: `C${String(uniq).slice(-5)}`,
+      gameType: 'CHESS',
+      mode: 'RANKED',
+      roundNumber: 24,
+      createdAt: Date.now(),
+      participants: players.slice(0, 4).map((p, idx) => ({
+        userId: p.id,
+        tier: 'NURSERY',
+        division: 3,
+        placement: idx + 1,
+        activityCount: 12 - idx * 2,
+        eliminatedReason: idx === 0 ? 'WINNER' : 'CHECKMATE',
+      })),
+    });
+
+    const nonChessPlayer = await AuthService.getFullUserProfile(players[5].id);
+    expect(nonChessPlayer.gameRanks?.CHESS.rankExp).toBe(0);
+    const firstChessWinner = await AuthService.getFullUserProfile(players[0].id);
+    expect(firstChessWinner.gameRanks?.CHESS.rankExp).toBeGreaterThan(0);
+    expect(firstChessWinner.gameRanks?.WORDCHAIN.seasonMatches).toBe(0);
+
+    const chessBoard = await request(app).get('/api/v1/leaderboards?type=SEASONAL&gameType=CHESS&limit=20');
+    expect(chessBoard.status).toBe(200);
+    expect(chessBoard.body.entries.find((e: any) => e.userId === players[0].id)?.rankExp).toBeGreaterThan(0);
   });
 });

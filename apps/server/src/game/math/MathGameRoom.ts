@@ -1,10 +1,13 @@
 import {
+  DEFAULT_MATH_DIFFICULTY,
   GameMode,
+  MATH_DIFFICULTY_CONFIGS,
   MATH_PICK_DURATION_SEC,
   MATH_PLACEMENT_POINTS,
   MATH_RACE_DURATION_SEC,
   MATH_ROUND_RESULT_DELAY_MS,
   MATH_TOTAL_ROUNDS,
+  MathDifficulty,
   MathOperation,
   MathOperationMode,
   MathPhase,
@@ -26,6 +29,7 @@ export interface MathGameRoomCallbacks {
     roundNumber: number;
     totalRounds: number;
     operation: MathOperation;
+    difficulty: MathDifficulty;
     pickOptions: number[];
     durationSec: number;
     deadlineUtc: number;
@@ -36,6 +40,7 @@ export interface MathGameRoomCallbacks {
     roundNumber: number;
     totalRounds: number;
     operation: MathOperation;
+    difficulty: MathDifficulty;
     picks: MathPlayerPickDisplay[];
     equationDisplay: string;
     choices?: string[];
@@ -66,6 +71,7 @@ export interface MathGameRoomOptions {
   roomCode?: string;
   mode: GameMode;
   operationMode?: MathOperationMode;
+  difficulty?: MathDifficulty;
   hostUserId: string;
   maxPlayers?: number;
   raceDurationSec?: number;
@@ -79,6 +85,7 @@ export class MathGameRoom {
   public readonly gameType = 'MATHRACE' as const;
   public readonly mode: GameMode;
   public readonly operationMode: MathOperationMode;
+  public readonly difficulty: MathDifficulty;
   public readonly createdAt: number = Date.now();
   public hostUserId: string;
 
@@ -113,6 +120,10 @@ export class MathGameRoom {
     this.roomCode = options.roomCode || this.generateRoomCode();
     this.mode = options.mode;
     this.operationMode = options.operationMode || 'MIXED';
+    this.difficulty =
+      options.difficulty && options.difficulty in MATH_DIFFICULTY_CONFIGS
+        ? options.difficulty
+        : DEFAULT_MATH_DIFFICULTY;
     this.hostUserId = options.hostUserId;
     this.maxPlayers = Math.min(6, Math.max(2, options.maxPlayers || 6));
     this.raceDurationSec = Math.min(120, Math.max(8, options.raceDurationSec || MATH_RACE_DURATION_SEC));
@@ -284,7 +295,7 @@ export class MathGameRoom {
     this.roundNumber += 1;
     this.phase = 'PICKING';
     this.currentOperation = this.operationSchedule[this.roundNumber - 1] || 'ADD';
-    this.currentPickOptions = MathEquationGenerator.generatePickOptions();
+    this.currentPickOptions = MathEquationGenerator.generatePickOptions(this.difficulty);
     this.currentPicks = [];
     this.currentEquationDisplay = '';
     this.currentCorrectAnswer = '';
@@ -314,6 +325,7 @@ export class MathGameRoom {
       roundNumber: this.roundNumber,
       totalRounds: this.totalRounds,
       operation: this.currentOperation,
+      difficulty: this.difficulty,
       pickOptions: [...this.currentPickOptions],
       durationSec: MATH_PICK_DURATION_SEC,
       deadlineUtc,
@@ -410,6 +422,7 @@ export class MathGameRoom {
       roundNumber: this.roundNumber,
       totalRounds: this.totalRounds,
       operation: this.currentOperation,
+      difficulty: this.difficulty,
       picks: [...this.currentPicks],
       equationDisplay: this.currentEquationDisplay,
       choices: this.currentChoices ? [...this.currentChoices] : undefined,
@@ -653,6 +666,7 @@ export class MathGameRoom {
         totalRounds: this.totalRounds,
         phase: this.phase,
         operation: this.currentOperation,
+        difficulty: this.difficulty,
         pickOptions: this.phase === 'PICKING' ? [...this.currentPickOptions] : [],
         picks: this.phase !== 'PICKING' ? [...this.currentPicks] : undefined,
         equationDisplay: this.phase !== 'PICKING' ? this.currentEquationDisplay : undefined,
@@ -669,6 +683,7 @@ export class MathGameRoom {
       gameType: 'MATHRACE',
       mode: this.mode,
       operationMode: this.operationMode,
+      difficulty: this.difficulty,
       status: this.status,
       hostUserId: this.hostUserId,
       maxPlayers: this.maxPlayers,

@@ -1,8 +1,12 @@
 import {
+  DEFAULT_MATH_DIFFICULTY,
+  MATH_DIFFICULTY_CONFIGS,
+  MATH_DIFFICULTY_ORDER,
   MATH_PICK_DURATION_SEC,
   MATH_PLACEMENT_POINTS,
   MATH_RACE_DURATION_SEC,
   MATH_TOTAL_ROUNDS,
+  MathDifficulty,
   MathOperation,
   MathOperationMode,
 } from '@wordchain/shared';
@@ -54,13 +58,16 @@ const OPS_CYCLE: MathOperation[] = [
   'DIVIDE',
 ];
 
-function generate12RandomNumbers(): number[] {
-  const pool = Array.from({ length: 99 }, (_, i) => i + 1);
+function generatePracticePickOptions(difficulty: MathDifficulty): number[] {
+  const cfg = MATH_DIFFICULTY_CONFIGS[difficulty] || MATH_DIFFICULTY_CONFIGS[DEFAULT_MATH_DIFFICULTY];
+  const poolSize = cfg.maxNumber - cfg.minNumber + 1;
+  const pool = Array.from({ length: poolSize }, (_, i) => cfg.minNumber + i);
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [pool[i], pool[j]] = [pool[j], pool[i]];
   }
-  return pool.slice(0, 12).sort((a, b) => a - b);
+  const targetCount = Math.min(poolSize, cfg.optionCount);
+  return pool.slice(0, targetCount).sort((a, b) => a - b);
 }
 
 function formatDiv(val: number): string {
@@ -105,6 +112,7 @@ function buildPracticeProblem(
 
 export const MathPracticeArena: React.FC<MathPracticeArenaProps> = ({ onExit }) => {
   const [opMode, setOpMode] = useState<MathOperationMode>('MIXED');
+  const [difficulty, setDifficulty] = useState<MathDifficulty>(DEFAULT_MATH_DIFFICULTY);
   const [phase, setPhase] = useState<PracticePhase>('SETUP');
   const [round, setRound] = useState(1);
   const [operation, setOperation] = useState<MathOperation>('ADD');
@@ -144,7 +152,7 @@ export const MathPracticeArena: React.FC<MathPracticeArenaProps> = ({ onExit }) 
     clearScheduled();
     solvedCountRef.current = 0;
     const op = getRoundOp(targetRound);
-    const opts = generate12RandomNumbers();
+    const opts = generatePracticePickOptions(difficulty);
     setRound(targetRound);
     setOperation(op);
     setPickOptions(opts);
@@ -335,6 +343,7 @@ export const MathPracticeArena: React.FC<MathPracticeArenaProps> = ({ onExit }) 
 
   const me = players.find((p) => !p.isBot)!;
   const sorted = [...players].sort((a, b) => b.score - a.score);
+  const diffCfg = MATH_DIFFICULTY_CONFIGS[difficulty];
 
   return (
     <div className="h-[100dvh] w-full flex flex-col bg-background overflow-hidden">
@@ -356,6 +365,9 @@ export const MathPracticeArena: React.FC<MathPracticeArenaProps> = ({ onExit }) 
 
         {phase !== 'SETUP' && phase !== 'FINISHED' && (
           <div className="flex items-center gap-2 font-mono text-xs sm:text-sm font-black">
+            <span className="hidden sm:inline-flex px-2.5 py-1 rounded-xl bg-cyan-500/15 text-cyan-300 border border-cyan-400/30">
+              {diffCfg.label} ({diffCfg.minNumber}–{diffCfg.maxNumber})
+            </span>
             <span className="px-2.5 py-1 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/30">
               ROUND {round}/{MATH_TOTAL_ROUNDS}
             </span>
@@ -397,6 +409,35 @@ export const MathPracticeArena: React.FC<MathPracticeArenaProps> = ({ onExit }) 
               </select>
             </div>
 
+            <div className="space-y-2 text-left">
+              <label className="text-[11px] font-mono uppercase text-slate-400 font-bold block">
+                Select Difficulty ({diffCfg.label}: {diffCfg.minNumber}–{diffCfg.maxNumber})
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {MATH_DIFFICULTY_ORDER.map((diffKey) => {
+                  const cfg = MATH_DIFFICULTY_CONFIGS[diffKey];
+                  const active = difficulty === diffKey;
+                  return (
+                    <button
+                      key={diffKey}
+                      type="button"
+                      onClick={() => setDifficulty(diffKey)}
+                      className={`px-2.5 py-2 rounded-xl border text-left transition-all cursor-pointer ${
+                        active
+                          ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="text-xs font-black leading-tight">{cfg.label}</div>
+                      <div className="text-[10px] font-mono opacity-80">
+                        {cfg.minNumber}–{cfg.maxNumber}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <button
               onClick={handleStartGame}
               className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black text-sm flex items-center justify-center gap-2 shadow-glow cursor-pointer"
@@ -434,9 +475,13 @@ export const MathPracticeArena: React.FC<MathPracticeArenaProps> = ({ onExit }) 
                 <h2 className="text-xl sm:text-2xl font-black text-white">
                   {me.pickedNumber !== undefined
                     ? `Picked ${me.pickedNumber}! Starting equation...`
-                    : `Pick Any Number (Next: ${operation})`}
+                    : `Pick Number ${diffCfg.minNumber}–${diffCfg.maxNumber} (Next: ${operation})`}
                 </h2>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                <div
+                  className={`grid gap-2.5 ${
+                    pickOptions.length === 9 ? 'grid-cols-3' : 'grid-cols-3 sm:grid-cols-4'
+                  }`}
+                >
                   {pickOptions.map((n) => (
                     <button
                       key={n}

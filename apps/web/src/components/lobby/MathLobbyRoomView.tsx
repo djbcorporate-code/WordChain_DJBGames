@@ -1,4 +1,8 @@
-import { MathOperationMode } from '@wordchain/shared';
+import {
+  DEFAULT_MATH_DIFFICULTY,
+  MATH_DIFFICULTY_CONFIGS,
+  MathOperationMode,
+} from '@wordchain/shared';
 import {
   Bot,
   Calculator,
@@ -50,6 +54,7 @@ export const MathLobbyRoomView: React.FC = () => {
   const isReady = me?.isReady || false;
   const allReady = mathRoom.players.every((p) => p.isReady);
   const canStart = mathRoom.players.length >= 2 && allReady;
+  const diffCfg = MATH_DIFFICULTY_CONFIGS[mathRoom.difficulty || DEFAULT_MATH_DIFFICULTY];
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(mathRoom.roomCode);
@@ -69,6 +74,9 @@ export const MathLobbyRoomView: React.FC = () => {
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-400/30">
               {OP_LABELS[mathRoom.operationMode]}
             </span>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-cyan-500/15 text-cyan-300 border border-cyan-400/30">
+              {diffCfg.label} ({diffCfg.minNumber}–{diffCfg.maxNumber})
+            </span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-black text-white flex items-center gap-2.5">
@@ -76,7 +84,7 @@ export const MathLobbyRoomView: React.FC = () => {
             <span>MathBlitz Room Lobby</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            2–6 Players · 3s Random Pick (1–99) · 1-Min (60s) Equation Race · Highest Score Wins
+            2–6 Players · 3s Random Pick ({diffCfg.minNumber}–{diffCfg.maxNumber}) · 1-Min (60s) Equation Race · Highest Score Wins
           </p>
         </div>
 

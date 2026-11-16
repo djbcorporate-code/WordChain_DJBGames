@@ -1,15 +1,23 @@
 import {
+  CHESS_DEFAULT_CLOCK_SEC,
+  CHESS_DEFAULT_INCREMENT_SEC,
+  ChessRoomSummary,
+  ChessVariant,
   ClientToServerEvents,
+  DEFAULT_MATH_DIFFICULTY,
   GameLanguage,
   GameRoomSummary,
   GameType,
+  MATH_DIFFICULTY_CONFIGS,
   MATH_RACE_DURATION_SEC,
+  MathDifficulty,
   MathRoomSummary,
   PlayerInGame,
   RoomChatMessage,
   ServerToClientEvents,
 } from '@wordchain/shared';
 import { Server, Socket } from 'socket.io';
+import { ChessGameRoom, ChessGameRoomCallbacks } from '../game/chess/ChessGameRoom.js';
 import { GameRoom, GameRoomCallbacks } from '../game/GameRoom.js';
 import { MathGameRoom, MathGameRoomCallbacks } from '../game/math/MathGameRoom.js';
 import { AnyGameRoom, RoomManager } from '../game/RoomManager.js';
@@ -28,6 +36,8 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
   function emitRoomStateToRoom(room: AnyGameRoom): void {
     if (room.gameType === 'MATHRACE') {
       io.to(room.roomId).emit('MATH_ROOM_STATE_UPDATE', room.getSummary());
+    } else if (room.gameType === 'CHESS') {
+      io.to(room.roomId).emit('CHESS_ROOM_STATE_UPDATE', room.getSummary());
     } else {
       io.to(room.roomId).emit('ROOM_STATE_UPDATE', room.getSummary());
     }
@@ -36,6 +46,8 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
   function emitRoomStateToSocket(socket: AuthenticatedSocket, room: AnyGameRoom): void {
     if (room.gameType === 'MATHRACE') {
       socket.emit('MATH_ROOM_STATE_UPDATE', room.getSummary());
+    } else if (room.gameType === 'CHESS') {
+      socket.emit('CHESS_ROOM_STATE_UPDATE', room.getSummary());
     } else {
       socket.emit('ROOM_STATE_UPDATE', room.getSummary());
     }
@@ -44,6 +56,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
   function emitClearRoomState(socket: AuthenticatedSocket): void {
     socket.emit('ROOM_STATE_UPDATE', null);
     socket.emit('MATH_ROOM_STATE_UPDATE', null);
+    socket.emit('CHESS_ROOM_STATE_UPDATE', null);
   }
 
   function findSocketInRoom(roomId: string, targetUserId: string): AuthenticatedSocket | undefined {
@@ -181,9 +194,73 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
     (room as any).callbacks = callbacks;
   }
 
+  function bindChessRoomCallbacks(room: ChessGameRoom): void {
+    const callbacks: ChessGameRoomCallbacks = {
+      onStateChange: (summary: ChessRoomSummary) => {
+        io.to(room.roomId).emit('CHESS_ROOM_STATE_UPDATE', summary);
+      },
+      onCountdownTick: (payload) => {
+        io.to(room.roomId).emit('ROOM_COUNTDOWN_TICK', payload);
+      },
+      onMoveApplied: (payload) => {
+        io.to(room.roomId).emit('CHESS_MOVE_APPLIED', payload);
+      },
+      onMoveRejected: (payload) => {
+        const targetSocket = findSocketInRoom(room.roomId, payload.userId);
+        targetSocket?.emit('CHESS_MOVE_REJECTED', {
+          reason: payload.reason,
+          message: payload.message,
+        });
+      },
+      onPlayerEliminated: (payload) => {
+        io.to(room.roomId).emit('CHESS_PLAYER_ELIMINATED', payload);
+      },
+      onMatchEnded: async (payload) => {
+        try {
+          const deltas = await RankingService.settleMatchSummary(room.roomId, {
+            roomCode: room.roomCode,
+            gameType: 'CHESS',
+            mode: room.mode,
+            roundNumber: room.gameState?.turnCount || 0,
+            createdAt: room.createdAt,
+            isDraw: payload.isDraw,
+            participants: payload.standings.map((p, idx) => ({
+              userId: p.userId,
+              tier: p.tier,
+              division: p.division,
+              placement: p.placement || idx + 1,
+              activityCount: p.movesPlayed,
+              eliminatedReason: p.eliminatedReason || (p.placement === 1 ? 'WINNER' : 'CHECKMATE'),
+            })),
+          });
+          io.to(room.roomId).emit('CHESS_MATCH_ENDED', {
+            winnerId: payload.winnerId,
+            isDraw: payload.isDraw,
+            drawReason: payload.drawReason,
+            standings: payload.standings,
+            deltas,
+          });
+        } catch (err: any) {
+          console.error(`[Socket] Error settling Chess match ${room.roomId}:`, err);
+          io.to(room.roomId).emit('CHESS_MATCH_ENDED', {
+            winnerId: payload.winnerId,
+            isDraw: payload.isDraw,
+            drawReason: payload.drawReason,
+            standings: payload.standings,
+            deltas: {},
+          });
+        }
+      },
+    };
+
+    (room as any).callbacks = callbacks;
+  }
+
   function bindRoomCallbacks(room: AnyGameRoom): void {
     if (room.gameType === 'MATHRACE') {
       bindMathRoomCallbacks(room);
+    } else if (room.gameType === 'CHESS') {
+      bindChessRoomCallbacks(room);
     } else {
       bindWordRoomCallbacks(room);
     }
@@ -204,7 +281,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       if (room.status === 'IN_PROGRESS') {
         const player = room.players.get(user.userId);
         const canReconnect =
-          room.gameType === 'MATHRACE'
+          room.gameType === 'MATHRACE' || room.gameType === 'CHESS'
             ? Boolean(player && player.isDisconnected)
             : Boolean(player && (player as PlayerInGame).isAlive && player.isDisconnected);
 
@@ -237,10 +314,22 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
     // MATCHMAKING: JOIN QUEUE (Casual / Ranked)
     socket.on('LOBBY_JOIN_QUEUE', async (payload) => {
       try {
-        const gameType: GameType = payload?.gameType === 'MATHRACE' ? 'MATHRACE' : 'WORDCHAIN';
+        const gameType: GameType =
+          payload?.gameType === 'MATHRACE'
+            ? 'MATHRACE'
+            : payload?.gameType === 'CHESS'
+            ? 'CHESS'
+            : 'WORDCHAIN';
         const mode = payload?.mode || 'CASUAL';
         const language = payload?.language || 'ENGLISH';
         const operationMode = payload?.operationMode || 'MIXED';
+        const requestedDiff = payload?.difficulty;
+        const difficulty: MathDifficulty =
+          requestedDiff && requestedDiff in MATH_DIFFICULTY_CONFIGS ? requestedDiff : DEFAULT_MATH_DIFFICULTY;
+        const requestedVariant = payload?.chessVariant;
+        const chessVariant: ChessVariant =
+          requestedVariant && ['2P', '3P', '4P'].includes(requestedVariant) ? requestedVariant : '2P';
+        const clockSec = payload?.clockSec || CHESS_DEFAULT_CLOCK_SEC;
 
         const fullUser = await AuthService.getFullUserProfile(user.userId).catch(() => ({
           id: user.userId,
@@ -273,7 +362,10 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           (gameRank as any).hiddenMmr || 1000,
           language,
           gameType,
-          operationMode
+          operationMode,
+          difficulty,
+          chessVariant,
+          clockSec
         );
       } catch (err: any) {
         socket.emit('SOCKET_ERROR', { code: 'QUEUE_FAILED', message: err.message });
@@ -303,7 +395,12 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           }
         }
 
-        const gameType: GameType = payload?.gameType === 'MATHRACE' ? 'MATHRACE' : 'WORDCHAIN';
+        const gameType: GameType =
+          payload?.gameType === 'MATHRACE'
+            ? 'MATHRACE'
+            : payload?.gameType === 'CHESS'
+            ? 'CHESS'
+            : 'WORDCHAIN';
 
         const fullUser = await AuthService.getFullUserProfile(user.userId).catch(() => ({
           id: user.userId,
@@ -315,10 +412,43 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
         const gameRank = fullUser.gameRanks?.[gameType] || fullUser.currentRank;
 
+        if (gameType === 'CHESS') {
+          const requestedVariant = payload?.chessVariant;
+          const variant: ChessVariant =
+            requestedVariant && ['2P', '3P', '4P'].includes(requestedVariant) ? requestedVariant : '2P';
+          const chessRoom = roomManager.createChessRoom({
+            mode: 'PRIVATE',
+            variant,
+            clockSec: payload?.customTimerSec || CHESS_DEFAULT_CLOCK_SEC,
+            incrementSec: payload?.incrementSec ?? CHESS_DEFAULT_INCREMENT_SEC,
+            hostUserId: user.userId,
+          });
+
+          bindRoomCallbacks(chessRoom);
+          chessRoom.addPlayer({
+            userId: user.userId,
+            username: user.username,
+            avatarId: fullUser.profile.avatarId,
+            tier: gameRank.tier,
+            division: gameRank.division,
+            isReady: true,
+          });
+
+          socket.join(chessRoom.roomId);
+          socket.data.roomId = chessRoom.roomId;
+          emitRoomStateToRoom(chessRoom);
+          console.log(`[Socket] Chess (${variant}) private room created: ${chessRoom.roomCode} (${chessRoom.roomId}) by ${user.username}`);
+          return;
+        }
+
         if (gameType === 'MATHRACE') {
+          const requestedDiff = payload?.difficulty;
+          const difficulty: MathDifficulty =
+            requestedDiff && requestedDiff in MATH_DIFFICULTY_CONFIGS ? requestedDiff : DEFAULT_MATH_DIFFICULTY;
           const mathRoom = roomManager.createMathRoom({
             mode: 'PRIVATE',
             operationMode: payload?.operationMode || 'MIXED',
+            difficulty,
             hostUserId: user.userId,
             maxPlayers: 6,
             raceDurationSec: payload?.customTimerSec || MATH_RACE_DURATION_SEC,
@@ -409,7 +539,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
         const gameRank = fullUser.gameRanks?.[room.gameType] || fullUser.currentRank;
 
         let added = false;
-        if (room.gameType === 'MATHRACE') {
+        if (room.gameType === 'MATHRACE' || room.gameType === 'CHESS') {
           added = room.addPlayer({
             userId: user.userId,
             username: user.username,
@@ -514,7 +644,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       const guestIndex = room.players.size;
       const guestUsername = `${guestNames[guestIndex % guestNames.length]}_${Math.floor(100 + Math.random() * 900)}`;
 
-      if (room.gameType === 'MATHRACE') {
+      if (room.gameType === 'MATHRACE' || room.gameType === 'CHESS') {
         room.addPlayer({
           userId: `guest-bot-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           username: guestUsername,
@@ -557,8 +687,15 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
         return;
       }
 
-      if (room.players.size < 2) {
-        socket.emit('SOCKET_ERROR', { code: 'NOT_ENOUGH_PLAYERS', message: 'At least 2 players are required to start.' });
+      const requiredPlayers = room.gameType === 'CHESS' ? room.maxPlayers : 2;
+      if (room.players.size < requiredPlayers) {
+        socket.emit('SOCKET_ERROR', {
+          code: 'NOT_ENOUGH_PLAYERS',
+          message:
+            room.gameType === 'CHESS'
+              ? `${room.variant} Chess requires ${requiredPlayers} seated players (invite friends or add AI bots).`
+              : 'At least 2 players are required to start.',
+        });
         return;
       }
 
@@ -707,7 +844,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       }
     });
 
-    // MATHBLITZ: SUBMIT RANDOM NUMBER PICK (1-99)
+    // MATHBLITZ: SUBMIT RANDOM NUMBER PICK WITHIN ROOM DIFFICULTY RANGE
     socket.on('MATH_SUBMIT_PICK', ({ number }) => {
       const roomId = socket.data.roomId;
       if (!roomId || typeof number !== 'number') return;
@@ -728,6 +865,29 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
       if (!room) return;
 
       room.submitAnswer(user.userId, answer);
+    });
+
+    // CHESS: MAKE MOVE
+    socket.on('CHESS_MAKE_MOVE', ({ from, to, promotion }) => {
+      if (typeof from !== 'string' || typeof to !== 'string') return;
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+
+      const room = roomManager.getChessRoom(roomId);
+      if (!room) return;
+
+      room.submitMove(user.userId, { from, to, promotion });
+    });
+
+    // CHESS: RESIGN
+    socket.on('CHESS_RESIGN', () => {
+      const roomId = socket.data.roomId;
+      if (!roomId) return;
+
+      const room = roomManager.getChessRoom(roomId);
+      if (!room) return;
+
+      room.resignPlayer(user.userId, 'RESIGN');
     });
 
     // PRIVATE ROOM REMATCH (Reset room to lobby without changing room code)
@@ -782,7 +942,9 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
       const player = room.players.get(user.userId);
       const isValidPlayer =
-        room.gameType === 'MATHRACE' ? Boolean(player) : Boolean(player && (player as PlayerInGame).isAlive);
+        room.gameType === 'MATHRACE' || room.gameType === 'CHESS'
+          ? Boolean(player)
+          : Boolean(player && (player as PlayerInGame).isAlive);
 
       if (!player || !isValidPlayer) {
         socket.emit('SOCKET_ERROR', { code: 'RECONNECT_FAILED', message: 'Player eliminated or not in match.' });
@@ -966,7 +1128,7 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
           emitRoomStateToRoom(room);
         }
       } else if (room.status === 'IN_PROGRESS') {
-        if (room.gameType === 'MATHRACE') {
+        if (room.gameType === 'MATHRACE' || room.gameType === 'CHESS') {
           const player = room.players.get(user.userId);
           if (player) {
             player.isDisconnected = true;
@@ -975,12 +1137,18 @@ export function setupSocketRouter(io: Server<ClientToServerEvents, ServerToClien
 
             const timer = setTimeout(() => {
               disconnectTimers.delete(user.userId);
-              const targetRoom = roomManager.getMathRoom(roomId);
+              const targetRoom =
+                room.gameType === 'CHESS'
+                  ? roomManager.getChessRoom(roomId)
+                  : roomManager.getMathRoom(roomId);
               if (targetRoom && targetRoom.status === 'IN_PROGRESS') {
-                const connectedHumans = Array.from(targetRoom.players.values()).filter(
-                  (p) => !p.userId.startsWith('guest-bot-') && !p.isDisconnected
-                );
-                if (connectedHumans.length === 0) {
+                let connectedHumansCount = 0;
+                for (const p of targetRoom.players.values()) {
+                  if (!p.userId.startsWith('guest-bot-') && !p.isDisconnected) {
+                    connectedHumansCount++;
+                  }
+                }
+                if (connectedHumansCount === 0) {
                   roomManager.removeRoom(roomId);
                 }
               }

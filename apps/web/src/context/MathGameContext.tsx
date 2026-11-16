@@ -1,5 +1,8 @@
 import {
+  DEFAULT_MATH_DIFFICULTY,
   GameMode,
+  GameType,
+  MathDifficulty,
   MathOperationMode,
   MathPlayerInGame,
   MathRoomSummary,
@@ -18,6 +21,7 @@ interface MathQueueStatus {
   inQueue: boolean;
   mode?: GameMode;
   operationMode?: MathOperationMode;
+  difficulty?: MathDifficulty;
   position?: number;
   estimatedWaitSec?: number;
 }
@@ -26,6 +30,7 @@ interface MathMatchFoundInfo {
   roomId: string;
   mode: GameMode;
   operationMode?: MathOperationMode;
+  difficulty?: MathDifficulty;
   countdownSec: number;
 }
 
@@ -52,9 +57,13 @@ interface MathGameContextType {
   chatMessages: RoomChatMessage[];
   isConnected: boolean;
   error: string | null;
-  joinQueue: (mode?: GameMode, operationMode?: MathOperationMode) => void;
+  joinQueue: (mode?: GameMode, operationMode?: MathOperationMode, difficulty?: MathDifficulty) => void;
   leaveQueue: () => void;
-  createPrivateRoom: (operationMode?: MathOperationMode, customTimerSec?: number) => void;
+  createPrivateRoom: (
+    operationMode?: MathOperationMode,
+    customTimerSec?: number,
+    difficulty?: MathDifficulty
+  ) => void;
   joinRoom: (code: string) => void;
   leaveRoom: () => void;
   toggleReady: (isReady: boolean) => void;
@@ -134,9 +143,10 @@ export const MathGameProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const handleQueueStatus = (status: {
       inQueue: boolean;
-      gameType?: 'WORDCHAIN' | 'MATHRACE';
+      gameType?: GameType;
       mode?: GameMode;
       operationMode?: MathOperationMode;
+      difficulty?: MathDifficulty;
       position?: number;
       estimatedWaitSec?: number;
     }) => {
@@ -150,6 +160,7 @@ export const MathGameProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         inQueue: true,
         mode: status.mode,
         operationMode: status.operationMode,
+        difficulty: status.difficulty,
         position: status.position,
         estimatedWaitSec: status.estimatedWaitSec,
       });
@@ -157,9 +168,10 @@ export const MathGameProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const handleMatchFound = (info: {
       roomId: string;
-      gameType?: 'WORDCHAIN' | 'MATHRACE';
+      gameType?: GameType;
       mode: GameMode;
       operationMode?: MathOperationMode;
+      difficulty?: MathDifficulty;
       countdownSec: number;
     }) => {
       if (info.gameType !== 'MATHRACE') return;
@@ -169,6 +181,7 @@ export const MathGameProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         roomId: info.roomId,
         mode: info.mode,
         operationMode: info.operationMode,
+        difficulty: info.difficulty,
         countdownSec: info.countdownSec,
       });
       setTimeout(() => setMatchFound(null), info.countdownSec * 1000);
@@ -364,20 +377,34 @@ export const MathGameProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, [user?.id, authLoading, refreshUser, setMathRoomSafe]);
 
-  const joinQueue = useCallback((mode: GameMode = 'CASUAL', operationMode: MathOperationMode = 'MIXED') => {
-    setError(null);
-    socketService.joinMathQueue(mode, operationMode);
-  }, []);
+  const joinQueue = useCallback(
+    (
+      mode: GameMode = 'CASUAL',
+      operationMode: MathOperationMode = 'MIXED',
+      difficulty: MathDifficulty = DEFAULT_MATH_DIFFICULTY
+    ) => {
+      setError(null);
+      socketService.joinMathQueue(mode, operationMode, difficulty);
+    },
+    []
+  );
 
   const leaveQueue = useCallback(() => {
     socketService.leaveQueue();
     setQueueStatus(null);
   }, []);
 
-  const createPrivateRoom = useCallback((operationMode: MathOperationMode = 'MIXED', customTimerSec = 60) => {
-    setError(null);
-    socketService.createMathPrivateRoom(operationMode, customTimerSec);
-  }, []);
+  const createPrivateRoom = useCallback(
+    (
+      operationMode: MathOperationMode = 'MIXED',
+      customTimerSec = 60,
+      difficulty: MathDifficulty = DEFAULT_MATH_DIFFICULTY
+    ) => {
+      setError(null);
+      socketService.createMathPrivateRoom(operationMode, customTimerSec, difficulty);
+    },
+    []
+  );
 
   const joinRoom = useCallback((code: string) => {
     setError(null);

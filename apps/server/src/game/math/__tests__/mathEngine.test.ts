@@ -1,19 +1,43 @@
+import {
+  MATH_DIFFICULTY_CONFIGS,
+  MATH_DIFFICULTY_ORDER,
+  getMathDifficultyForRankTier,
+  getMathDifficultyForTiers,
+} from '@wordchain/shared';
 import { describe, expect, it, vi } from 'vitest';
 import { MathEquationGenerator } from '../MathEquationGenerator.js';
 import { MathGameRoom } from '../MathGameRoom.js';
 
 describe('MathEquationGenerator & MathGameRoom Engine', () => {
   describe('MathEquationGenerator', () => {
-    it('generates 12 unique random pick options between 1 and 99 inclusive', () => {
-      const options = MathEquationGenerator.generatePickOptions();
-      expect(options).toHaveLength(12);
-      const unique = new Set(options);
-      expect(unique.size).toBe(12);
-      for (const n of options) {
+    it('generates valid unique pick options across all 5 difficulties (1-9 up to 1-200) and defaults to EASY', () => {
+      const defaultOpts = MathEquationGenerator.generatePickOptions();
+      expect(defaultOpts).toHaveLength(9);
+      expect(new Set(defaultOpts).size).toBe(9);
+      for (const n of defaultOpts) {
         expect(n).toBeGreaterThanOrEqual(1);
-        expect(n).toBeLessThanOrEqual(99);
-        expect(Number.isInteger(n)).toBe(true);
+        expect(n).toBeLessThanOrEqual(9);
       }
+
+      for (const diff of MATH_DIFFICULTY_ORDER) {
+        const cfg = MATH_DIFFICULTY_CONFIGS[diff];
+        const opts = MathEquationGenerator.generatePickOptions(diff);
+        expect(opts).toHaveLength(cfg.optionCount);
+        expect(new Set(opts).size).toBe(cfg.optionCount);
+        for (const n of opts) {
+          expect(n).toBeGreaterThanOrEqual(cfg.minNumber);
+          expect(n).toBeLessThanOrEqual(cfg.maxNumber);
+          expect(Number.isInteger(n)).toBe(true);
+        }
+      }
+
+      // Ranked auto-scaling helper covers Easy -> Math-God across Academic Tiers
+      expect(getMathDifficultyForRankTier('NURSERY')).toBe('EASY');
+      expect(getMathDifficultyForRankTier('GRADER')).toBe('CHALLENGE');
+      expect(getMathDifficultyForRankTier('UNDERGRAD')).toBe('EXPERT');
+      expect(getMathDifficultyForRankTier('MASTERAL')).toBe('MATHEMATICIAN');
+      expect(getMathDifficultyForRankTier('SCIENTIST')).toBe('MATH_GOD');
+      expect(getMathDifficultyForTiers(['NURSERY', 'SCIENTIST'])).toBe('EXPERT');
     });
 
     it('builds exact ADD, SUBTRACT (negative allowed), MULTIPLY, and 4-choice DIVIDE problems for 2-6 players', () => {
@@ -122,8 +146,27 @@ describe('MathEquationGenerator & MathGameRoom Engine', () => {
         expect(room.players.size).toBe(6);
         room.startMatch();
 
-        const pickOptions = room.getSummary().roundState!.pickOptions;
-        expect(pickOptions).toHaveLength(12);
+        const summary = room.getSummary();
+        const pickOptions = summary.roundState!.pickOptions;
+        expect(summary.difficulty).toBe('EASY');
+        expect(pickOptions).toHaveLength(9);
+        expect(Math.max(...pickOptions)).toBeLessThanOrEqual(9);
+
+        // Also verify MATH_GOD difficulty room generates 12 options within 1..200
+        const godRoom = new MathGameRoom({
+          mode: 'PRIVATE',
+          operationMode: 'ADD',
+          difficulty: 'MATH_GOD',
+          hostUserId: 'g1',
+          maxPlayers: 2,
+        });
+        godRoom.addPlayer({ userId: 'g1', username: 'G1', avatarId: 'a1', tier: 'SCIENTIST', division: 0, isReady: true });
+        godRoom.addPlayer({ userId: 'g2', username: 'G2', avatarId: 'a1', tier: 'SCIENTIST', division: 0, isReady: true });
+        godRoom.startMatch();
+        const godOpts = godRoom.getSummary().roundState!.pickOptions;
+        expect(godRoom.difficulty).toBe('MATH_GOD');
+        expect(godOpts).toHaveLength(12);
+        godRoom.cleanup();
 
         // Only P1 manually picks; P2..P6 let 3s pick timer expire
         const pickRes = room.submitPick('p1', pickOptions[0]);

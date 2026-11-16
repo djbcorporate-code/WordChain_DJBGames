@@ -86,6 +86,7 @@ export class ProfileService {
 
     const wordRank = findGameRank('WORDCHAIN');
     const mathRank = findGameRank('MATHRACE');
+    const chessRank = findGameRank('CHESS');
 
     // Fetch recent match history (last 10 matches across all portal games)
     const recentMatches = await db
@@ -153,6 +154,15 @@ export class ProfileService {
           hiddenMmr: mathRank.hiddenMmr,
           seasonMatches: mathRank.seasonMatches ?? 0,
           seasonWins: mathRank.seasonWins ?? 0,
+        },
+        CHESS: {
+          tier: chessRank.tier as AcademicRankTier,
+          division: chessRank.division,
+          rankExp: chessRank.rankExp,
+          scientistPoints: chessRank.scientistPoints,
+          hiddenMmr: chessRank.hiddenMmr,
+          seasonMatches: chessRank.seasonMatches ?? 0,
+          seasonWins: chessRank.seasonWins ?? 0,
         },
       },
       matchHistory: recentMatches,

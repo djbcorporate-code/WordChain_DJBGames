@@ -26,6 +26,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   const activeRank =
     activeGame === 'MATHRACE'
       ? user?.gameRanks?.MATHRACE || { tier: 'NURSERY' as const, division: 3, scientistPoints: 0 }
+      : activeGame === 'CHESS'
+      ? user?.gameRanks?.CHESS || { tier: 'NURSERY' as const, division: 3, scientistPoints: 0 }
       : user?.gameRanks?.WORDCHAIN || user?.currentRank;
 
   return (
@@ -51,16 +53,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className={`hidden sm:inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 border ${
                     activeGame === 'MATHRACE'
                       ? 'bg-amber-500/20 text-amber-300 border-amber-400/30'
+                      : activeGame === 'CHESS'
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30'
                       : 'bg-cyan-500/20 text-cyan-300 border-cyan-400/30'
                   }`}
                 >
-                  {activeGame === 'MATHRACE' ? 'MathBlitz' : 'WordChain'}
+                  {activeGame === 'MATHRACE' ? 'MathBlitz' : activeGame === 'CHESS' ? 'Chess' : 'WordChain'}
                 </span>
               )}
             </div>
             <p className="text-[11px] text-slate-400 font-medium hidden sm:block whitespace-nowrap">
               {activeGame === 'MATHRACE'
                 ? 'Speed Arithmetic Race'
+                : activeGame === 'CHESS'
+                ? '2P · 3P Hex · 4P Cross Chess'
                 : activeGame === 'WORDCHAIN'
                 ? 'Multiplayer Word Arena'
                 : 'Multi-Game Competitive Portal'}

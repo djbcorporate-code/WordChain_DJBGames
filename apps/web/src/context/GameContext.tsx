@@ -24,7 +24,7 @@ export interface TimeAttackAlert {
 
 export interface QueueState {
   inQueue: boolean;
-  gameType?: 'WORDCHAIN' | 'MATHRACE';
+  gameType?: 'WORDCHAIN' | 'MATHRACE' | 'CHESS';
   mode?: GameMode;
   language?: GameLanguage;
   position?: number;
@@ -128,12 +128,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setMatchFoundNotice(null);
         return;
       }
-      if (status.gameType === 'MATHRACE') return;
+      if (status.gameType === 'MATHRACE' || status.gameType === 'CHESS') return;
       setQueueStatus(status);
     };
 
-    const handleMatchFound = (payload: { roomId: string; gameType?: 'WORDCHAIN' | 'MATHRACE'; mode: GameMode; countdownSec: number }) => {
-      if (payload.gameType === 'MATHRACE') return;
+    const handleMatchFound = (payload: {
+      roomId: string;
+      gameType?: 'WORDCHAIN' | 'MATHRACE' | 'CHESS';
+      mode: GameMode;
+      countdownSec: number;
+    }) => {
+      if (payload.gameType === 'MATHRACE' || payload.gameType === 'CHESS') return;
       soundManager.playVictory();
       setQueueStatus(null);
       setMatchFoundNotice({ roomId: payload.roomId, countdownSec: payload.countdownSec });

@@ -1,9 +1,15 @@
 import {
+  CHESS_DEFAULT_CLOCK_SEC,
+  CHESS_DEFAULT_INCREMENT_SEC,
+  ChessPieceType,
+  ChessVariant,
   ClientToServerEvents,
+  DEFAULT_MATH_DIFFICULTY,
   GameLanguage,
   GameMode,
   GameRoomSummary,
   GameTurnState,
+  MathDifficulty,
   MathOperationMode,
   PlayerInGame,
   RankProgressionDelta,
@@ -89,8 +95,12 @@ class SocketService {
     this.getSocket().emit('LOBBY_JOIN_QUEUE', { gameType: 'WORDCHAIN', mode, language });
   }
 
-  public joinMathQueue(mode: GameMode = 'CASUAL', operationMode: MathOperationMode = 'MIXED'): void {
-    this.getSocket().emit('LOBBY_JOIN_QUEUE', { gameType: 'MATHRACE', mode, operationMode });
+  public joinMathQueue(
+    mode: GameMode = 'CASUAL',
+    operationMode: MathOperationMode = 'MIXED',
+    difficulty: MathDifficulty = DEFAULT_MATH_DIFFICULTY
+  ): void {
+    this.getSocket().emit('LOBBY_JOIN_QUEUE', { gameType: 'MATHRACE', mode, operationMode, difficulty });
   }
 
   public leaveQueue(): void {
@@ -107,9 +117,15 @@ class SocketService {
 
   public createMathPrivateRoom(
     operationMode: MathOperationMode = 'MIXED',
-    customTimerSec: number = 60
+    customTimerSec: number = 60,
+    difficulty: MathDifficulty = DEFAULT_MATH_DIFFICULTY
   ): void {
-    this.getSocket().emit('ROOM_CREATE_PRIVATE', { gameType: 'MATHRACE', operationMode, customTimerSec });
+    this.getSocket().emit('ROOM_CREATE_PRIVATE', {
+      gameType: 'MATHRACE',
+      operationMode,
+      customTimerSec,
+      difficulty,
+    });
   }
 
   public joinRoom(roomCode: string): void {
@@ -170,6 +186,36 @@ class SocketService {
 
   public submitMathAnswer(answer: string): void {
     this.getSocket().emit('MATH_SUBMIT_ANSWER', { answer });
+  }
+
+  // Chess Emitters
+  public joinChessQueue(
+    mode: GameMode = 'CASUAL',
+    chessVariant: ChessVariant = '2P',
+    clockSec: number = CHESS_DEFAULT_CLOCK_SEC
+  ): void {
+    this.getSocket().emit('LOBBY_JOIN_QUEUE', { gameType: 'CHESS', mode, chessVariant, clockSec });
+  }
+
+  public createChessPrivateRoom(
+    chessVariant: ChessVariant = '2P',
+    customTimerSec: number = CHESS_DEFAULT_CLOCK_SEC,
+    incrementSec: number = CHESS_DEFAULT_INCREMENT_SEC
+  ): void {
+    this.getSocket().emit('ROOM_CREATE_PRIVATE', {
+      gameType: 'CHESS',
+      chessVariant,
+      customTimerSec,
+      incrementSec,
+    });
+  }
+
+  public sendChessMove(from: string, to: string, promotion?: ChessPieceType): void {
+    this.getSocket().emit('CHESS_MAKE_MOVE', { from, to, promotion });
+  }
+
+  public resignChess(): void {
+    this.getSocket().emit('CHESS_RESIGN');
   }
 
   // Voice Chat Emitters

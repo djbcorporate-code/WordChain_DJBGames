@@ -1,10 +1,19 @@
-import { MathOperationMode, RANK_TIER_CONFIGS } from '@wordchain/shared';
+import {
+  DEFAULT_MATH_DIFFICULTY,
+  MATH_DIFFICULTY_CONFIGS,
+  MATH_DIFFICULTY_ORDER,
+  MathDifficulty,
+  MathOperationMode,
+  RANK_TIER_CONFIGS,
+  getMathDifficultyForRankTier,
+} from '@wordchain/shared';
 import {
   Bot,
   Calculator,
   Crown,
   Dumbbell,
   Flame,
+  Gauge,
   Info,
   KeyRound,
   Lock,
@@ -40,6 +49,7 @@ export const MathDashboard: React.FC<MathDashboardProps> = ({
   const { user, loginAsGuest } = useAuth();
   const { joinQueue } = useMathGame();
   const [casualOpMode, setCasualOpMode] = useState<MathOperationMode>('MIXED');
+  const [casualDifficulty, setCasualDifficulty] = useState<MathDifficulty>(DEFAULT_MATH_DIFFICULTY);
 
   const mathRank = user?.gameRanks?.MATHRACE || {
     tier: 'NURSERY' as const,
@@ -50,6 +60,8 @@ export const MathDashboard: React.FC<MathDashboardProps> = ({
   };
 
   const tierCfg = RANK_TIER_CONFIGS[mathRank.tier];
+  const rankedDifficulty = getMathDifficultyForRankTier(mathRank.tier);
+  const rankedDiffCfg = MATH_DIFFICULTY_CONFIGS[rankedDifficulty];
   const matchesPlayed = user?.profile?.totalMatches || 0;
   const rankedMatchesNeeded = Math.max(0, 3 - matchesPlayed);
   const isRankedUnlocked = !!user?.emailVerified && rankedMatchesNeeded === 0;
@@ -59,7 +71,7 @@ export const MathDashboard: React.FC<MathDashboardProps> = ({
       onOpenAuth('login');
       return;
     }
-    joinQueue('CASUAL', casualOpMode);
+    joinQueue('CASUAL', casualOpMode, casualDifficulty);
   };
 
   const handlePlayRanked = () => {
@@ -95,13 +107,14 @@ export const MathDashboard: React.FC<MathDashboardProps> = ({
             </h1>
 
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Every player selects a hidden random number (1–99). After 3 seconds, all numbers reveal into one shared equation (+, −, ×, or 4-choice ÷). Speed placement points determine the champion!
+              Every player selects a hidden random number across 5 difficulty tiers (1–9 up to 1–200). After 3 seconds, all numbers reveal into one shared equation (+, −, ×, or 4-choice ÷). Speed placement points determine the champion!
             </p>
 
             <div className="flex flex-wrap gap-2 text-[11px] font-mono text-slate-300 pt-1">
               <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800">10 Rounds</span>
               <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800">3s Number Pick</span>
               <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800">1-Min (60s) Solve Race</span>
+              <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800">5 Difficulties (1–9 to 1–200)</span>
               <span className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800">
                 ÷ Has 4 Choices (No Typing)
               </span>
@@ -207,6 +220,27 @@ export const MathDashboard: React.FC<MathDashboardProps> = ({
                 ))}
               </select>
             </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-mono uppercase text-slate-400 font-bold flex items-center gap-1.5">
+                <Gauge className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Number Difficulty</span>
+              </label>
+              <select
+                value={casualDifficulty}
+                onChange={(e) => setCasualDifficulty(e.target.value as MathDifficulty)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-100 outline-none focus:border-cyan-400"
+              >
+                {MATH_DIFFICULTY_ORDER.map((diffKey) => {
+                  const cfg = MATH_DIFFICULTY_CONFIGS[diffKey];
+                  return (
+                    <option key={diffKey} value={diffKey}>
+                      {cfg.label} ({cfg.minNumber}–{cfg.maxNumber})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
           </div>
 
           <button
@@ -233,8 +267,15 @@ export const MathDashboard: React.FC<MathDashboardProps> = ({
             <div>
               <h2 className="text-xl font-black text-white">Ranked Arena (Mixed Ops)</h2>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                MMR-matched 10-round showdown cycling Addition, Subtraction, Multiplication &amp; Division. Climb from Nursery to Scientist!
+                MMR-matched 10-round showdown scaling random numbers from Easy (1–9) up to Math-God (1–200) as you climb!
               </p>
+            </div>
+
+            <div className="px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-400/25 text-[11px] font-mono text-amber-200 flex items-center justify-between gap-2">
+              <span>Current Rank Difficulty Scale</span>
+              <span className="font-black text-amber-300">
+                {rankedDiffCfg.label} ({rankedDiffCfg.minNumber}–{rankedDiffCfg.maxNumber})
+              </span>
             </div>
 
             <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 text-xs flex items-start gap-2">
@@ -290,7 +331,7 @@ export const MathDashboard: React.FC<MathDashboardProps> = ({
             <div>
               <h2 className="text-xl font-black text-white">Private Room (2–6 Players)</h2>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Create a custom code room for friends with selectable operations (+, −, ×, ÷, or Mix), AI bot fill, live chat &amp; Open Mic voice!
+                Create a custom code room for friends with selectable difficulty (Easy 1–9 up to Math-God 1–200), operations (+, −, ×, ÷, or Mix), AI bot fill, live chat &amp; Open Mic voice!
               </p>
             </div>
           </div>
