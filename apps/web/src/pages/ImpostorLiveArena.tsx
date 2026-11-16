@@ -123,16 +123,19 @@ export const ImpostorLiveArena: React.FC = () => {
     setChatInput('');
   };
 
-  const finalSummary = matchEnded ||
-    (impostorRoom.status === 'FINISHED' && impostorRoom.winnerFaction
-      ? {
-          winnerFaction: impostorRoom.winnerFaction,
-          secretWord: impostorRoom.secretWord || '???',
-          impostorHint: impostorRoom.impostorHint || '???',
-          resolvedCategory: impostorRoom.resolvedCategory,
-          players: impostorRoom.players,
-        }
-      : null);
+  const finalSummary =
+    impostorRoom.status === 'FINISHED'
+      ? matchEnded ||
+        (impostorRoom.winnerFaction
+          ? {
+              winnerFaction: impostorRoom.winnerFaction,
+              secretWord: impostorRoom.secretWord || '???',
+              impostorHint: impostorRoom.impostorHint || '???',
+              resolvedCategory: impostorRoom.resolvedCategory,
+              players: impostorRoom.players,
+            }
+          : null)
+      : null;
 
   return (
     <div className="min-h-[100dvh] bg-[#05060a] text-zinc-100 flex flex-col relative overflow-hidden">
@@ -341,7 +344,7 @@ export const ImpostorLiveArena: React.FC = () => {
                   {isImpostor ? (
                     <>
                       <div className="text-[10px] font-black uppercase tracking-[0.25em] text-rose-300/80">
-                        YOUR SUBTLE WORD HINT
+                        YOUR ONE-WORD CLUE
                       </div>
                       <div className="text-xl sm:text-2xl font-black text-white leading-snug px-2">
                         “{impostorRoom.impostorHint || 'Read the room carefully...'}”

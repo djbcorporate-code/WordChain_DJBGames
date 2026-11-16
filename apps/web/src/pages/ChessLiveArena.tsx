@@ -326,7 +326,7 @@ export const ChessLiveArena: React.FC = () => {
       </footer>
 
       {/* Post-Match Podium Modal */}
-      {matchWinner && (
+      {chessRoom.status === 'FINISHED' && matchWinner && (
         <PostMatchModal
           winnerId={matchWinner.winnerId}
           standings={matchWinner.standings}

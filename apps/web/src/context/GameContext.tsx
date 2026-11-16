@@ -181,6 +181,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setCurrentRoom(summary);
+      if (summary.status !== 'FINISHED') {
+        setMatchWinner(null);
+      }
       if (summary.turnState) {
         setTurnState(summary.turnState);
       }
@@ -211,6 +214,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const handleTurnStart = (newTurnState: GameTurnState) => {
+      setMatchWinner(null);
       setTurnState(newTurnState);
       setLastRejectionReason(null);
       setPeerTyping(null);

@@ -138,7 +138,7 @@ export const ImpostorIntroOverlay: React.FC<ImpostorIntroOverlayProps> = ({ onCo
                   IMPOSTOR SEES
                 </div>
                 <div className="text-xs font-extrabold text-rose-200 truncate">
-                  Hint: “Recalling blades...”
+                  One-Word Clue: “Daggers”
                 </div>
               </div>
             </div>

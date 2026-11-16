@@ -535,7 +535,7 @@ export const MathLiveArena: React.FC = () => {
       </footer>
 
       {/* Post-Match Podium Modal */}
-      {matchWinner && (
+      {mathRoom.status === 'FINISHED' && matchWinner && (
         <PostMatchModal
           winnerId={matchWinner.winnerId}
           standings={matchWinner.standings}

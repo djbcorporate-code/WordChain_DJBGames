@@ -95,16 +95,18 @@ export const ImpostorGameProvider: React.FC<{ children: React.ReactNode }> = ({ 
       prevPhaseRef.current = undefined;
     }
 
+    if (summary.status !== 'FINISHED') {
+      setMatchEnded(null);
+    }
+
     if (summary.status === 'IN_PROGRESS') {
       setCountdownRemaining(null);
-      setMatchEnded(null);
       try {
         localStorage.setItem('wordchain_active_room', summary.roomId);
       } catch {
         // ignore
       }
     } else if (summary.status === 'WAITING') {
-      setMatchEnded(null);
       setCountdownRemaining(null);
     }
   }, []);
@@ -234,6 +236,7 @@ export const ImpostorGameProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const joinCasualQueue = useCallback(() => {
     setLastError(null);
+    setMatchEnded(null);
     socketService.joinImpostorCasualQueue();
   }, []);
 
@@ -244,11 +247,13 @@ export const ImpostorGameProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const createPrivateRoom = useCallback((settings?: Partial<ImpostorSettings>) => {
     setLastError(null);
+    setMatchEnded(null);
     socketService.createImpostorPrivateRoom(settings);
   }, []);
 
   const joinRoomByCode = useCallback((roomCode: string) => {
     setLastError(null);
+    setMatchEnded(null);
     socketService.joinRoom(roomCode);
   }, []);
 

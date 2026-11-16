@@ -50,12 +50,14 @@ describe('Impostor Word Bank & Categories', () => {
     expect(dota?.difficulty).toBe('MEDIUM');
   });
 
-  it('has rich hints in every static pool that never leak the exact word', () => {
+  it('has strictly one-word hints in every static pool that never leak the exact word', () => {
     for (const [catId, entries] of Object.entries(IMPOSTOR_WORD_POOLS)) {
       expect(entries.length, `${catId} should have at least 18 words`).toBeGreaterThanOrEqual(18);
       for (const entry of entries) {
         expect(entry.word.trim().length).toBeGreaterThan(0);
-        expect(entry.hint.trim().length).toBeGreaterThan(5);
+        expect(entry.hint, `${catId}:${entry.word} hint "${entry.hint}" must be one word only`).toMatch(
+          /^[A-Za-z]+$/
+        );
         expect(entry.hint.toLowerCase()).not.toContain(entry.word.toLowerCase());
       }
     }
@@ -76,19 +78,23 @@ describe('Impostor Word Bank & Categories', () => {
     }
   });
 
-  it('generates PLAYER_NAMES prompts from seated players without leaking the exact username in hint', () => {
+  it('generates strictly one-word PLAYER_NAMES clues without leaking the exact username', () => {
     const mockPlayers = [
       { userId: 'u1', username: 'ShadowFox', avatarId: 'a1', isAlive: true, isReady: true, readyToVote: false, isDisconnected: false, hasVoted: false, votesReceived: 0 },
       { userId: 'u2', username: 'NovaBlade', avatarId: 'a2', isAlive: true, isReady: true, readyToVote: false, isDisconnected: false, hasVoted: false, votesReceived: 0 },
       { userId: 'u3', username: 'CipherKid', avatarId: 'a3', isAlive: true, isReady: true, readyToVote: false, isDisconnected: false, hasVoted: false, votesReceived: 0 },
     ];
-    const picked = pickImpostorPrompt(
-      { category: 'PLAYER_NAMES', difficulty: 'EASY', impostorCount: 1, conversationSec: 90 },
-      mockPlayers,
-      'u1'
-    );
-    expect(mockPlayers.map((p) => p.username)).toContain(picked.secretWord);
-    expect(picked.impostorHint.toLowerCase()).not.toContain(picked.secretWord.toLowerCase());
+    for (let i = 0; i < mockPlayers.length; i++) {
+      const picked = pickImpostorPrompt(
+        { category: 'PLAYER_NAMES', difficulty: 'EASY', impostorCount: 1, conversationSec: 90 },
+        mockPlayers,
+        'u1',
+        () => i / mockPlayers.length
+      );
+      expect(mockPlayers.map((p) => p.username)).toContain(picked.secretWord);
+      expect(picked.impostorHint).toMatch(/^[A-Za-z]+$/);
+      expect(picked.impostorHint.toLowerCase()).not.toContain(picked.secretWord.toLowerCase());
+    }
   });
 
   it('clamps impostor count below half of lobby players', () => {
@@ -288,10 +294,29 @@ describe('ImpostorGameRoom Engine & Privacy', () => {
     expect(room.winnerFaction).toBe('IMPOSTORS');
     expect(room.canSendPublicChat(victimId)).toBe(true); // Unlocked post-match
 
-    // Reset to lobby for Play Again
+    // Reset to lobby for Play Again and start Match 2
     expect(room.resetToLobby()).toBe(true);
     expect(room.status).toBe('WAITING');
+    expect(room.winnerFaction).toBeUndefined();
     expect(room.players.get(victimId)?.isAlive).toBe(true);
+
+    room.setPlayerReady('u2', true);
+    room.setPlayerReady('u3', true);
+    room.startMatch();
+
+    expect(room.status).toBe('IN_PROGRESS');
+    expect(room.phase).toBe('ROLE_REVEAL');
+    expect(room.winnerFaction).toBeUndefined();
+    for (const id of ['u1', 'u2', 'u3']) {
+      const s = room.getSummaryForUser(id);
+      expect(s.status).toBe('IN_PROGRESS');
+      expect(s.phase).toBe('ROLE_REVEAL');
+      expect(s.winnerFaction).toBeUndefined();
+    }
+
+    vi.advanceTimersByTime(1000);
+    expect(room.status).toBe('IN_PROGRESS');
+    expect(room.phase).toBe('CONVERSATION');
 
     room.cleanup();
   });

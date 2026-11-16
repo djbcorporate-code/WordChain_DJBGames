@@ -78,7 +78,7 @@ export const LiveMultiplayerArena: React.FC = () => {
         onLeaveMatch={leaveRoom}
       />
 
-      {matchWinner && (
+      {currentRoom.status === 'FINISHED' && matchWinner && (
         <PostMatchModal
           winnerId={matchWinner.winnerId}
           standings={matchWinner.standings}
