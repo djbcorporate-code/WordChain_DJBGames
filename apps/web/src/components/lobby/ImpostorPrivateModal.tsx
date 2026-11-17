@@ -21,7 +21,6 @@ const DIFFICULTY_PILLS: { id: ImpostorDifficulty; label: string }[] = [
   { id: 'EASY', label: 'Easy' },
   { id: 'MEDIUM', label: 'Medium' },
   { id: 'HARD', label: 'Hard' },
-  { id: 'EXPERT', label: 'Expert' },
 ];
 
 export const ImpostorPrivateModal: React.FC<ImpostorPrivateModalProps> = ({

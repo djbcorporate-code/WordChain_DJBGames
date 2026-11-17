@@ -382,12 +382,12 @@ export const GameCatalogPage: React.FC<GameCatalogPageProps> = ({
                   Who Is The Impostor
                 </h3>
                 <p className="text-sm text-slate-400 mt-1.5 leading-relaxed">
-                  Unranked social word deduction in Spy Noir theme! Crewmates receive the Secret Word while Impostors blend in off subtle clues across 18 categories — including Pinoy Slang, MLBB &amp; Dota 2 Heroes.
+                  Unranked social word deduction in Spy Noir theme! Crewmates receive the Secret Word while Impostors blend in off subtle clues across 14 categories — including MLBB, Dota 2 Heroes &amp; Brgy in Panabo City.
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-2 text-[11px] font-mono text-slate-300">
-                <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">18 Categories</span>
+                <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">14 Categories</span>
                 <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">Voice + Chat</span>
                 <span className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800">No Rank Needed</span>
               </div>

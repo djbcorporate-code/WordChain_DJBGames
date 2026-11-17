@@ -32,7 +32,6 @@ const TIER_STYLES: Record<ImpostorDifficultyTier, string> = {
   EASY: 'text-emerald-300 bg-emerald-500/15 border-emerald-500/30',
   MEDIUM: 'text-amber-300 bg-amber-500/15 border-amber-500/30',
   HARD: 'text-orange-300 bg-orange-500/15 border-orange-500/30',
-  EXPERT: 'text-rose-300 bg-rose-500/20 border-rose-500/40',
 };
 
 export const ImpostorDashboard: React.FC<ImpostorDashboardProps> = ({
@@ -164,7 +163,7 @@ export const ImpostorDashboard: React.FC<ImpostorDashboardProps> = ({
               <div className="flex flex-wrap gap-4 pt-2 text-xs text-zinc-300 font-semibold">
                 <span className="inline-flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-rose-400" />
-                  18 Categorized Pools + Player Names
+                  {IMPOSTOR_CATEGORIES.length} Categorized Pools + Player Names
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <Clock className="w-4 h-4 text-amber-400" />
@@ -227,7 +226,7 @@ export const ImpostorDashboard: React.FC<ImpostorDashboardProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-black text-white tracking-tight">
-                Classified Word Pools (18 Categories)
+                Classified Word Pools ({IMPOSTOR_CATEGORIES.length} Categories)
               </h2>
               <p className="text-xs text-zinc-400 mt-0.5">
                 Click any category card to launch a Private Room pre-loaded with that topic.
@@ -239,10 +238,18 @@ export const ImpostorDashboard: React.FC<ImpostorDashboardProps> = ({
               {(
                 [
                   { id: 'ALL', label: `All (${IMPOSTOR_CATEGORIES.length})` },
-                  { id: 'EASY', label: 'Easy (5)' },
-                  { id: 'MEDIUM', label: 'Medium (9)' },
-                  { id: 'HARD', label: 'Hard (3)' },
-                  { id: 'EXPERT', label: 'Expert (1)' },
+                  {
+                    id: 'EASY',
+                    label: `Easy (${IMPOSTOR_CATEGORIES.filter((c) => c.difficulty === 'EASY').length})`,
+                  },
+                  {
+                    id: 'MEDIUM',
+                    label: `Medium (${IMPOSTOR_CATEGORIES.filter((c) => c.difficulty === 'MEDIUM').length})`,
+                  },
+                  {
+                    id: 'HARD',
+                    label: `Hard (${IMPOSTOR_CATEGORIES.filter((c) => c.difficulty === 'HARD').length})`,
+                  },
                 ] as { id: ImpostorDifficulty; label: string }[]
               ).map((tab) => (
                 <button

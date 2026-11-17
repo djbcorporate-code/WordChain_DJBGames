@@ -55,7 +55,7 @@ export interface ImpostorGameRoomOptions {
   callbacks?: ImpostorGameRoomCallbacks;
 }
 
-const VALID_DIFFICULTIES: ImpostorDifficulty[] = ['ALL', 'EASY', 'MEDIUM', 'HARD', 'EXPERT'];
+const VALID_DIFFICULTIES: ImpostorDifficulty[] = ['ALL', 'EASY', 'MEDIUM', 'HARD'];
 const VALID_CATEGORIES = new Set<string>([
   'RANDOM',
   ...IMPOSTOR_CATEGORIES.map((c) => c.id),

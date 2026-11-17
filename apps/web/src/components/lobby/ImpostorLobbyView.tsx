@@ -220,7 +220,7 @@ export const ImpostorLobbyView: React.FC = () => {
                     Difficulty Tier
                   </label>
                   <div className="flex flex-wrap gap-1.5">
-                    {(['ALL', 'EASY', 'MEDIUM', 'HARD', 'EXPERT'] as ImpostorDifficulty[]).map(
+                    {(['ALL', 'EASY', 'MEDIUM', 'HARD'] as ImpostorDifficulty[]).map(
                       (diff) => (
                         <button
                           key={diff}

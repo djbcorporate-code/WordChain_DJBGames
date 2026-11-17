@@ -35,19 +35,26 @@ function seedRoom(playerCount: number, settings?: Parameters<ImpostorGameRoom['u
 }
 
 describe('Impostor Word Bank & Categories', () => {
-  it('defines all 18 requested categories including Mobile Legends and Dota 2 Heroes', () => {
-    expect(IMPOSTOR_CATEGORIES).toHaveLength(18);
+  it('defines all 14 categories including Mobile Legends, Dota 2 Heroes, and Brgy in Panabo City', () => {
+    expect(IMPOSTOR_CATEGORIES).toHaveLength(14);
     const ids = IMPOSTOR_CATEGORIES.map((c) => c.id);
     expect(ids).toContain('FOOD_DRINKS');
     expect(ids).toContain('PLAYER_NAMES');
     expect(ids).toContain('MOBILE_LEGENDS_HEROES');
     expect(ids).toContain('DOTA2_HEROES');
-    expect(ids).toContain('ABSTRACT_CONCEPTS');
+    expect(ids).toContain('PANABO_BARANGAYS');
+    expect(ids).not.toContain('FILIPINO_CULTURE');
+    expect(ids).not.toContain('LOVE_RELATIONSHIPS');
+    expect(ids).not.toContain('FILIPINO_SLANG');
+    expect(ids).not.toContain('EMOTIONS_FEELINGS');
+    expect(ids).not.toContain('ABSTRACT_CONCEPTS');
 
     const mlbb = IMPOSTOR_CATEGORIES.find((c) => c.id === 'MOBILE_LEGENDS_HEROES');
     const dota = IMPOSTOR_CATEGORIES.find((c) => c.id === 'DOTA2_HEROES');
+    const panabo = IMPOSTOR_CATEGORIES.find((c) => c.id === 'PANABO_BARANGAYS');
     expect(mlbb?.difficulty).toBe('MEDIUM');
     expect(dota?.difficulty).toBe('MEDIUM');
+    expect(panabo?.difficulty).toBe('HARD');
   });
 
   it('has strictly one-word hints across >= 40 unique entries in every static pool', () => {
@@ -68,7 +75,7 @@ describe('Impostor Word Bank & Categories', () => {
   });
 
   it('filters RANDOM selection strictly by chosen difficulty tier', () => {
-    const tiers: ImpostorDifficultyTier[] = ['EASY', 'MEDIUM', 'HARD', 'EXPERT'];
+    const tiers: ImpostorDifficultyTier[] = ['EASY', 'MEDIUM', 'HARD'];
     for (const tier of tiers) {
       const result = pickImpostorPrompt(
         { category: 'RANDOM', difficulty: tier, impostorCount: 1, conversationSec: 90, blindMode: false },
@@ -277,7 +284,7 @@ describe('ImpostorGameRoom Engine & Privacy', () => {
   });
 
   it('awards IMPOSTORS win when innocent ejections leave impostors >= crewmates and silences ejected ghosts during play', () => {
-    const room = seedRoom(3, { category: 'FILIPINO_SLANG', impostorCount: 1, conversationSec: 90 });
+    const room = seedRoom(3, { category: 'PANABO_BARANGAYS', impostorCount: 1, conversationSec: 90 });
     room.startMatch();
 
     const crewmateIds = ['u1', 'u2', 'u3'].filter(

@@ -1,6 +1,6 @@
 import { GameMode, RoomChatMessage, RoomStatus } from './game.types.js';
 
-export type ImpostorDifficultyTier = 'EASY' | 'MEDIUM' | 'HARD' | 'EXPERT';
+export type ImpostorDifficultyTier = 'EASY' | 'MEDIUM' | 'HARD';
 export type ImpostorDifficulty = 'ALL' | ImpostorDifficultyTier;
 
 export type ImpostorConcreteCategoryId =
@@ -15,13 +15,9 @@ export type ImpostorConcreteCategoryId =
   | 'JOBS_PROFESSIONS'
   | 'TECH_GADGETS'
   | 'BRANDS_PRODUCTS'
-  | 'FILIPINO_CULTURE'
   | 'MOBILE_LEGENDS_HEROES'
   | 'DOTA2_HEROES'
-  | 'LOVE_RELATIONSHIPS'
-  | 'FILIPINO_SLANG'
-  | 'EMOTIONS_FEELINGS'
-  | 'ABSTRACT_CONCEPTS';
+  | 'PANABO_BARANGAYS';
 
 export type ImpostorCategoryId = 'RANDOM' | ImpostorConcreteCategoryId;
 export type ImpostorCategoryDisplayId = ImpostorCategoryId | 'CONCEALED';
